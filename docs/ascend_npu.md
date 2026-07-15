@@ -75,8 +75,18 @@ The installed `torch_npu` build must expose `torch_npu.optim.NpuFusedAdam`.
 
 The ToolRGS engine, datasets, dense losses, validation, offset refinement,
 CLIP backbones, DINOv2 fallback attention, CROG, CROG-OFF, DROG, DROG-OFF,
-GGCNN-CLIP, GR-ConvNet-CLIP, and LGD use portable PyTorch operators and are
-wired to NPU/HCCL.
+ETRG-A RGB-D, GGCNN-CLIP, GR-ConvNet-CLIP, and LGD use portable PyTorch
+operators and are wired to NPU/HCCL.
+
+ETRG-A is currently configured only for OCID-VLG because it requires aligned
+depth. Before training, run:
+
+```bash
+python tools/check_npu_env.py --config config/ocid_vlg/etrg.yaml --forward
+```
+
+Torchvision must match the installed PyTorch/torch_npu pair. See
+[etrg.md](etrg.md).
 
 GraspMamba is retained in the registry and configs, but its upstream
 MambaVision package depends on the CUDA `selective_scan_cuda` extension. It is

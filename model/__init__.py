@@ -8,6 +8,7 @@ from .crog import CROG
 from .crogoff import CROGOFF
 from .drog import DROG
 from .drogoff import DROGOFF
+from .etrg import ETRG
 from .ggcnnclip import GGCNN_CLIP
 from .grconvnetclip import GenerativeResnet_CLIP
 from .graspmamba import GraspMamba
@@ -20,6 +21,7 @@ MODELS.register_module(CROGOFF, name="crogoff")
 MODELS.register_module(DETRIS, name="detris")
 MODELS.register_module(DROG, name="drog")
 MODELS.register_module(DROGOFF, name="drogoff")
+MODELS.register_module(ETRG, name="etrg", aliases=("etrg_a", "etrg_depth"))
 MODELS.register_module(GGCNN_CLIP, name="ggcnnclip", aliases=("ggcnn_clip",))
 MODELS.register_module(
     GenerativeResnet_CLIP,
@@ -41,6 +43,7 @@ def _build_parameter_groups(model, cfg):
             frozen.append(parameter)
         elif (
             param_name.startswith("backbone")
+            or param_name.startswith("bridger")
             or param_name.startswith("txt_backbone")
             or param_name.startswith("dinov2")
         ):

@@ -4,7 +4,12 @@ from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
 
-PRETRAINED_KEYS = ("clip_pretrain", "dino_pretrain", "mamba_pretrain")
+PRETRAINED_KEYS = (
+    "clip_pretrain",
+    "dino_pretrain",
+    "mamba_pretrain",
+    "depth_pretrain",
+)
 CHECKPOINT_KEYS = ("resume", "weight")
 
 

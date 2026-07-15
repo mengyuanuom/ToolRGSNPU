@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from toolrgs.engine.hooks import LoopState
 from toolrgs.engine.loops import BaseLoop
+from toolrgs.models.base import model_requires_depth
 from toolrgs.evaluation import (
     BinarySegmentationMetric,
     DenseGraspPostProcessor,
@@ -132,17 +133,24 @@ class GraspValLoop(BaseLoop):
             target_cosine = move_to_device(data["grasp_masks"]["cos"], device).unsqueeze(1)
             target_width = move_to_device(data["grasp_masks"]["wid"], device).unsqueeze(1)
 
-            result = GraspModelResult.from_legacy(
-                self.model(
-                    image,
-                    text,
-                    target_segmentation,
-                    target_quality,
-                    target_sine,
-                    target_cosine,
-                    target_width,
-                )
+            inputs = (
+                image,
+                text,
+                target_segmentation,
+                target_quality,
+                target_sine,
+                target_cosine,
+                target_width,
             )
+            if model_requires_depth(self.model):
+                depth = data.get("depth")
+                if depth is None:
+                    raise KeyError(
+                        "The selected model requires batch['depth'], but the "
+                        "validation dataset did not provide it."
+                    )
+                inputs = (image, move_to_device(depth, device), *inputs[1:])
+            result = GraspModelResult.from_legacy(self.model(*inputs))
             predictions = result.predictions
             input_hw = image.shape[-2:]
             segmentation = _resize_prediction(

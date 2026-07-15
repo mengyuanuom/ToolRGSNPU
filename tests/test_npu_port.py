@@ -31,7 +31,7 @@ class NPUConfigurationTest(unittest.TestCase):
             for directory in experiment_roots
             for path in (ROOT / "config" / directory).glob("*.yaml")
         ]
-        self.assertEqual(len(paths), 24)
+        self.assertEqual(len(paths), 26)
         for path in paths:
             config = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             with self.subTest(config=path.name, dataset=path.parent.name):
@@ -76,6 +76,14 @@ class NPUSourceContractTest(unittest.TestCase):
         self.assertIn("torch_npu.npu.set_device", source)
         self.assertIn("adapter.npu.amp.autocast", source)
         self.assertNotIn("from torch_npu.contrib.transfer_to_npu", source)
+
+    def test_etrg_sources_keep_accelerator_calls_out_of_the_model(self):
+        forbidden = (".cuda(", "torch.cuda", '"nccl"', "'nccl'")
+        for path in (ROOT / "model" / "etrg").glob("*.py"):
+            source = path.read_text(encoding="utf-8-sig")
+            with self.subTest(path=path.name):
+                for value in forbidden:
+                    self.assertNotIn(value, source)
 
 
 if __name__ == "__main__":

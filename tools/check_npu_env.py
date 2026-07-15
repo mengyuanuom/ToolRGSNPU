@@ -72,6 +72,7 @@ def main() -> int:
         return 0
 
     from model import build_model
+    from toolrgs.models.base import model_requires_depth
     from toolrgs.structures import GraspModelResult
     from utils.dataset import tokenize
 
@@ -81,8 +82,12 @@ def main() -> int:
     height, width = (int(size[0]), int(size[1])) if isinstance(size, (list, tuple)) else (int(size), int(size))
     image = torch.randn(1, 3, height, width, device=device)
     words = tokenize("grasp the tool", context_length=int(cfg.word_len), truncate=True).to(device)
+    inputs = (image, words)
+    if model_requires_depth(model):
+        depth = torch.rand(1, 1, height, width, device=device)
+        inputs = (image, depth, words)
     with torch.no_grad(), autocast():
-        output = GraspModelResult.from_legacy(model(image, words)).predictions
+        output = GraspModelResult.from_legacy(model(*inputs)).predictions
     torch_npu.npu.synchronize()
     print("Model forward OK:", [tuple(tensor.shape) for tensor in output.as_tuple()])
     return 0

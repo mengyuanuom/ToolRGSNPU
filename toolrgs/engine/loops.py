@@ -8,6 +8,7 @@ import torch
 import torch.distributed as dist
 
 from toolrgs.engine.hooks import HookList, LoopState
+from toolrgs.models.base import model_requires_depth
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import autocast, current_device, move_to_device
 from toolrgs.structures import GraspModelResult
@@ -78,7 +79,7 @@ class GraspTrainLoop(BaseLoop):
         masks = data["grasp_masks"]
         offset = masks.get("off")
         offset_weight = masks.get("off_w")
-        return (
+        common = (
             move_to_device(data["img"], self.device),
             move_to_device(data["word_vec"], self.device),
             move_to_device(data["mask"], self.device).unsqueeze(1),
@@ -91,6 +92,15 @@ class GraspTrainLoop(BaseLoop):
             if offset_weight is not None
             else None,
         )
+        if not model_requires_depth(self.model):
+            return common
+        depth = data.get("depth")
+        if depth is None:
+            raise KeyError(
+                "The selected model requires batch['depth'], but the dataset did "
+                "not provide it. Use OCID-VLG with DATA.with_depth=True."
+            )
+        return (common[0], move_to_device(depth, self.device), *common[1:])
 
     def run_epoch(self, epoch: int):
         self.state = LoopState(epoch=epoch)

@@ -1,7 +1,7 @@
 # ToolRGSNPU
 
 Tool-oriented Referring Grasp Synthesis with a single configuration-driven
-codebase for CROG, CROG-OFF, DROG, DROG-OFF, GraspMamba, LGD, GGCNN-CLIP,
+codebase for CROG, CROG-OFF, DROG, DROG-OFF, ETRG-A, GraspMamba, LGD, GGCNN-CLIP,
 GR-ConvNet-CLIP, and DETRIS backbones. Grasp-Tools, VCoT/Grasp-Anything,
 and OCID-VLG data use the same model-facing batch contract. This repository is
 the Ascend NPU port: training and inference use `torch_npu`, AMP uses NPU AMP,
@@ -10,6 +10,7 @@ and distributed jobs use HCCL.
 Start with the [Ascend installation and smoke-test guide](docs/ascend_npu.md).
 The original CUDA project remains in `mengyuanuom/ToolRGS`.
 This port was branched from ToolRGS commit `59fc3cc`.
+The ETRG-A RGB-D integration is synchronized from ToolRGS commit `0c53ea0`.
 
 ## Design
 
@@ -50,13 +51,14 @@ MODEL:
   architecture: drogoff
 ```
 
-Each supported dataset has a complete eight-model experiment matrix:
+The eight RGB model families are available for every dataset. ETRG-A is added
+for OCID-VLG because it requires real aligned depth:
 
 | Dataset config directory | Models |
 | --- | --- |
 | `config/grasp_tools/` | `crog`, `crogoff`, `drog`, `drogoff`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
 | `config/vcot/` | `crog`, `crogoff`, `drog`, `drogoff`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
-| `config/ocid_vlg/` | `crog`, `crogoff`, `drog`, `drogoff`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/ocid_vlg/` | `crog`, `crogoff`, `drog`, `drogoff`, `etrg`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
 
 For example, `config/vcot/drogoff.yaml` and
 `config/ocid_vlg/lgd.yaml` are directly runnable after setting data and weight
@@ -155,6 +157,28 @@ editing YAML, for example `TRAIN.batch_size 4 TRAIN.batch_size_val 4`.
 
 OCID-VLG referring expressions are read directly from the downloaded dataset;
 the large RGB, depth, and annotation files are not copied into this repository.
+Download `OCID-VLG.zip` from the
+[official repository](https://github.com/gtziafas/OCID-VLG) or its
+[official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view?usp=share_link).
+
+For `/mnt/ssd0/mengyuan/ToolRGSNPU`, extract it to
+`/mnt/ssd0/mengyuan/data/OCID-VLG`. Create a local `datasets -> ../data`
+symlink once (it is ignored by Git), so the checked-in configs can keep
+`DATA.root_path: ./datasets/OCID-VLG`:
+
+```bash
+python -m pip install gdown
+mkdir -p /mnt/ssd0/mengyuan/data
+cd /mnt/ssd0/mengyuan/data
+gdown --fuzzy \
+  'https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view?usp=share_link' \
+  -O OCID-VLG.zip
+unzip OCID-VLG.zip
+cd /mnt/ssd0/mengyuan/ToolRGSNPU
+ln -sfn ../data datasets
+```
+
+Use the extracted directory that directly contains `refer/` as the root.
 The expected layout is:
 
 ```text
@@ -193,6 +217,30 @@ python tools/inspect_ocid_vlg_sample.py \
   --dataset-root /path/to/OCID-VLG \
   --version multiple --split train --index 0
 ```
+
+## ETRG-A RGB-D on Ascend
+
+The `etrg` registry entry integrates the official ETRG-A model with explicit
+OCID-VLG depth routing through the NPU device layer. R50 and R101 configs are
+provided under `config/ocid_vlg/`; VCoT and Grasp-Tools are intentionally not
+configured because they do not provide aligned sensor depth.
+
+Verify the NPU environment, local weights, and one random RGB-D forward pass:
+
+```bash
+python tools/check_npu_env.py --config config/ocid_vlg/etrg.yaml --forward
+```
+
+Then run two NPUs:
+
+```bash
+torchrun --nproc_per_node=2 train.py \
+  --config config/ocid_vlg/etrg.yaml --opts \
+  DATA.root_path /mnt/ssd0/mengyuan/data/OCID-VLG
+```
+
+See [docs/etrg.md](docs/etrg.md) for dataset, weight, checkpoint, and Ascend
+compatibility details.
 
 Train any supported grasp model with its OCID-VLG config, for example:
 

@@ -1,0 +1,64 @@
+DATA:
+  dataset: OCID-VLG
+  # Recommended server setup: `ln -sfn ../data datasets` in the repo root.
+  root_path: ./datasets/OCID-VLG
+  version: multiple
+  with_depth: true
+  train_split: train
+  val_split: val
+MODEL:
+  architecture: etrg
+TRAIN:
+  # Official ETRG-A R101 RGB-D dimensions.
+  clip_pretrain: pretrain/RN101.pt
+  depth_pretrain:
+  depth_backbone_pretrained: true
+  depth_normalization: inverse_max
+  input_size: 416
+  word_len: 20
+  word_dim: 512
+  ladder_dim: 64
+  nhead: 4
+  multi_stage: 3
+  vis_dim: 512
+  fpn_in: [512, 1024, 512]
+  fpn_out: [256, 512, 1024]
+  sync_bn: true
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 512
+  dropout: 0.0
+  intermediate: false
+  workers: 8
+  workers_val: 4
+  epochs: 40
+  milestones: [35]
+  start_epoch: 0
+  # Conservative per-NPU starting point for the larger CLIP backbone.
+  batch_size: 2
+  batch_size_val: 2
+  base_lr: 0.0001
+  lr_decay: 0.1
+  lr_multi: 1.0
+  weight_decay: 0.01
+  max_norm: 0.0
+  manual_seed: 0
+  print_freq: 50
+  amp: true
+  optimizer: adam
+  pin_memory: false
+  exp_name: etrg_r101_ocid_vlg
+  output_folder: exp/ocid_vlg
+  save_freq: 1
+  weight:
+  resume:
+  evaluate: true
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: true
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: test
+  visualize: false

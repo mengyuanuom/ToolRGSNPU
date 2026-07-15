@@ -20,6 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 import utils.config as config
 from model import build_model
 from toolrgs.engine import GraspTrainLoop, GraspValLoop  # register default loops
+from toolrgs.models.base import model_requires_depth
 from toolrgs.preflight import validate_required_artifacts
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import (
@@ -66,6 +67,36 @@ def setup_distributed(args):
     return distributed, torch.device(args.device)
 
 
+def load_initial_weight(model, filename):
+    """Load model initialization without restoring optimizer/epoch state."""
+    checkpoint = torch.load(filename, map_location="cpu")
+    state = (
+        checkpoint.get("state_dict", checkpoint)
+        if isinstance(checkpoint, dict)
+        else checkpoint
+    )
+    if not isinstance(state, dict):
+        raise ValueError(f"Unsupported initial weight payload: {filename}")
+    cleaned = {
+        (key[7:] if key.startswith("module.") else key): value
+        for key, value in state.items()
+    }
+    incompatible = model.load_state_dict(cleaned, strict=False)
+    logger.info("Loaded initial model weight: {}", filename)
+    if incompatible.missing_keys:
+        logger.warning(
+            "Initial weight did not contain {} model keys: {}",
+            len(incompatible.missing_keys),
+            incompatible.missing_keys[:10],
+        )
+    if incompatible.unexpected_keys:
+        logger.warning(
+            "Initial weight contained {} unused keys: {}",
+            len(incompatible.unexpected_keys),
+            incompatible.unexpected_keys[:10],
+        )
+
+
 def main():
     args = parse_args()
     require_npu()
@@ -100,6 +131,14 @@ def main():
     except Exception:
         logger.exception("Failed to build architecture {!r}", args.architecture)
         raise
+    if model_requires_depth(model) and not bool(getattr(args, "with_depth", False)):
+        raise ValueError(
+            f"Model {args.architecture!r} requires aligned depth input, but "
+            "DATA.with_depth is false or missing. ETRG-A is currently supported "
+            "with the OCID-VLG RGB-D dataset."
+        )
+    if getattr(args, "weight", None):
+        load_initial_weight(model, args.weight)
     if bool(getattr(args, "sync_bn", False)) and distributed:
         model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = model.to(device)
