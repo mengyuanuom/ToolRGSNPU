@@ -1,6 +1,6 @@
 """Runner loops and hooks for ToolRGS, with lazy PyTorch loop imports."""
 
-from .hooks import Hook, HookList, LoopState, NoOpHook
+from .hooks import CheckpointHook, Hook, HookList, LoggerHook, LoopState, NoOpHook
 
 __all__ = [
     "BaseLoop",
@@ -8,8 +8,12 @@ __all__ = [
     "GraspValLoop",
     "Hook",
     "HookList",
+    "CheckpointHook",
+    "LoggerHook",
     "LoopState",
     "NoOpHook",
+    "NPUGraspRunner",
+    "build_runner",
 ]
 
 
@@ -22,4 +26,11 @@ def __getattr__(name):
         from .val_loop import GraspValLoop
 
         return GraspValLoop
+    if name in {"NPUGraspRunner", "build_runner"}:
+        from .runner import NPUGraspRunner, build_runner
+
+        return {
+            "NPUGraspRunner": NPUGraspRunner,
+            "build_runner": build_runner,
+        }[name]
     raise AttributeError(name)

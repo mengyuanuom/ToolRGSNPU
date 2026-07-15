@@ -66,7 +66,7 @@ All supplied OCID-VLG configs default to `./datasets/OCID-VLG`. For a different
 location, keep the files outside Git and override the path without editing YAML:
 
 ```bash
-python train.py --config config/ocid_vlg/etrg.yaml --opts \
+python tools/train.py --config configs/etrg/etrg_r50_ocid_vlg.yaml --opts \
   DATA.root_path /absolute/path/to/OCID-VLG
 ```
 
@@ -75,13 +75,13 @@ python train.py --config config/ocid_vlg/etrg.yaml --opts \
 The paper-aligned path is OCID-VLG with aligned RGB and depth images:
 
 ```bash
-torchrun --nproc_per_node=2 train.py \
-  --config config/ocid_vlg/etrg.yaml --opts \
+torchrun --nproc_per_node=2 tools/train.py \
+  --config configs/etrg/etrg_r50_ocid_vlg.yaml --opts \
   DATA.root_path /path/to/OCID-VLG \
   TRAIN.clip_pretrain pretrain/RN50.pt
 ```
 
-`config/ocid_vlg/etrg_r101.yaml` selects the stronger CLIP RN101 variant. Batch
+`configs/etrg/etrg_r101_ocid_vlg.yaml` selects the stronger CLIP RN101 variant. Batch
 sizes are per NPU. The supplied values are conservative Ascend starting points,
 not published throughput settings; tune them after a successful smoke test.
 
@@ -117,7 +117,8 @@ Install a torchvision build compatible with the selected PyTorch/torch_npu
 pair. Verify model construction and the RGB-D forward path before training:
 
 ```bash
-python tools/check_npu_env.py --config config/ocid_vlg/etrg.yaml --forward
+python tools/check_npu_env.py \
+  --config configs/etrg/etrg_r50_ocid_vlg.yaml --forward
 ```
 
 The NPU port replaces upstream `tensor_split` with `torch.chunk` for a more

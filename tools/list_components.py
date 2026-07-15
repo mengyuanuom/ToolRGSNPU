@@ -19,8 +19,11 @@ from toolrgs.registry import (  # noqa: E402
     LOSSES,
     METRICS,
     MODELS,
+    OPTIM_WRAPPERS,
+    PARAM_SCHEDULERS,
     POSTPROCESSORS,
     ROBOT_CLIENTS,
+    RUNNERS,
     TRANSFORMS,
 )
 
@@ -34,6 +37,9 @@ REGISTRIES = {
     "postprocessors": POSTPROCESSORS,
     "loops": LOOPS,
     "hooks": HOOKS,
+    "runners": RUNNERS,
+    "optim_wrappers": OPTIM_WRAPPERS,
+    "param_schedulers": PARAM_SCHEDULERS,
     "cameras": CAMERAS,
     "robot_clients": ROBOT_CLIENTS,
     "detectors": DETECTORS,
@@ -42,11 +48,14 @@ REGISTRIES = {
 
 POPULATORS = {
     "models": ("model",),
-    "datasets": ("utils.data_builder",),
+    "datasets": ("toolrgs.datasets",),
     "metrics": ("toolrgs.evaluation",),
     "postprocessors": ("toolrgs.evaluation",),
     "loops": ("toolrgs.engine.loops", "toolrgs.engine.val_loop"),
     "hooks": ("toolrgs.engine.hooks",),
+    "runners": ("toolrgs.engine.runner",),
+    "optim_wrappers": ("toolrgs.engine.optim",),
+    "param_schedulers": ("toolrgs.engine.optim",),
     "cameras": ("deployment.sources",),
     "robot_clients": ("deployment.robot",),
     "detectors": ("deployment.detector",),

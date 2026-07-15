@@ -58,6 +58,17 @@ Two NPUs on one machine:
 torchrun --nproc_per_node=2 train.py --config config/vcot/drogoff.yaml
 ```
 
+For migrated MMEngine-style experiments, use the thin tools entrypoint and a
+composed config:
+
+```bash
+torchrun --nproc_per_node=2 tools/train.py \
+  --config configs/etrg/etrg_r50_ocid_vlg.yaml
+```
+
+The registered `NPUGraspRunner` owns HCCL setup, dataloaders, loops, resume, and
+runner hooks. `NPUAmpOptimWrapper` owns scaled backward and gradient clipping.
+
 `LOCAL_RANK` selects the local NPU and the process group always uses HCCL.
 Batch sizes in YAML are per NPU. Start conservatively and increase them after
 the model smoke test succeeds.
@@ -82,7 +93,8 @@ ETRG-A is currently configured only for OCID-VLG because it requires aligned
 depth. Before training, run:
 
 ```bash
-python tools/check_npu_env.py --config config/ocid_vlg/etrg.yaml --forward
+python tools/check_npu_env.py \
+  --config configs/etrg/etrg_r50_ocid_vlg.yaml --forward
 ```
 
 Torchvision must match the installed PyTorch/torch_npu pair. See

@@ -1,0 +1,11 @@
+_base_:
+  - ../_base_/datasets/ocid_vlg.yaml
+  - ../_base_/models/etrg_r101.yaml
+  - ../_base_/schedules/etrg_40e.yaml
+  - ../_base_/runtime/ascend.yaml
+
+TRAIN:
+  batch_size: 2
+  batch_size_val: 2
+  exp_name: etrg_r101_ocid_vlg
+  output_folder: exp/ocid_vlg

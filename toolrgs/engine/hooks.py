@@ -42,6 +42,39 @@ class NoOpHook(Hook):
     """Configuration placeholder and lifecycle example."""
 
 
+@HOOKS.register_module(name="checkpoint")
+class CheckpointHook(Hook):
+    """Delegate epoch checkpoint policy to an MMEngine-style runner."""
+
+    priority = 90
+
+    def after_epoch(self, runner, state: LoopState) -> None:
+        save = getattr(runner, "save_checkpoint", None)
+        if not callable(save):
+            raise TypeError("CheckpointHook must be configured as a runner hook")
+        save(state.epoch, state.logs)
+
+
+@HOOKS.register_module(name="logger")
+class LoggerHook(Hook):
+    """Emit one stable epoch summary independently of loop progress bars."""
+
+    priority = 80
+
+    def after_epoch(self, runner, state: LoopState) -> None:
+        from loguru import logger
+
+        train = state.logs.get("train", {})
+        validation = state.logs.get("validation", {})
+        logger.info(
+            "Epoch {} summary: loss={:.6f}, IoU={:.4f}, J={}",
+            state.epoch,
+            float(train.get("loss", 0.0)),
+            float(validation.get("iou", 0.0)),
+            validation.get("j_index", []),
+        )
+
+
 class HookList:
     def __init__(self, hooks: Optional[Iterable[Any]] = None):
         resolved = []

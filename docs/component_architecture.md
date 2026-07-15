@@ -1,8 +1,9 @@
 # ToolRGSNPU component architecture
 
-ToolRGS is migrating incrementally to an MMDetection-style architecture. The
-first stage introduces shared registries and named model results without
-breaking existing experiment YAML, checkpoints, imports, or training commands.
+ToolRGSNPU now uses the second-stage MMDetection-style architecture. Shared
+registries and named results remain compatible with historical models, while a
+Runner, OptimWrapper, parameter-scheduler registry, checkpoint hooks, and
+composable `_base_` configs own new experiments.
 
 ## Registries
 
@@ -11,7 +12,9 @@ The global registries live in `toolrgs/registry.py`:
 ```text
 MODELS          DATASETS        TRANSFORMS
 LOSSES          METRICS         POSTPROCESSORS
-LOOPS           HOOKS           CAMERAS
+RUNNERS         LOOPS           HOOKS
+OPTIM_WRAPPERS  PARAM_SCHEDULERS
+CAMERAS
 ROBOT_CLIENTS   DETECTORS       AUDIO_INPUTS
 ```
 
@@ -74,15 +77,24 @@ its historical tuples.
 
 ## Loops, hooks, metrics, and postprocessing
 
-The main trainer now runs training and validation epochs through the registered
-`GraspTrainLoop` and `GraspValLoop`.
-The loop owns device transfer, AMP, backward/optimizer steps, distributed meter
-reduction, and progress logging. The CLI still owns experiment construction,
-checkpointing, validation scheduling, and scheduler stepping. The optional flat
-config keys `RUNTIME.train_loop` and `RUNTIME.val_loop` select other registered
-loops; they default to `grasp_train` and `grasp_val` for all existing YAML
-files. Validation hooks can be configured independently with
-`RUNTIME.val_hooks`.
+`NPUGraspRunner` owns distributed initialization, component construction,
+dataset loaders, train/validation sequencing, resume, and shutdown.
+`GraspTrainLoop` and `GraspValLoop` remain independently registered. The
+`NPUAmpOptimWrapper` owns scaled backward, gradient clipping, and stepping;
+`CheckpointHook` and `LoggerHook` own epoch persistence and summaries.
+
+```yaml
+RUNTIME:
+  runner: {type: npu_grasp}
+  optim_wrapper: {type: npu_amp}
+  param_scheduler:
+    type: multi_step
+    milestones: [35]
+    gamma: 0.1
+  runner_hooks:
+    - {type: logger}
+    - {type: checkpoint}
+```
 
 Hooks receive a mutable `LoopState` at `before_epoch`, `before_iter`,
 `after_iter`, and `after_epoch`. They are ordered by numeric priority:
@@ -104,6 +116,42 @@ Validation and real-world deployment both use `DenseGraspPostProcessor`.
 per-sample segmentation metrics, top-1/top-5 Jacquard evaluation, and
 distributed reduction of sufficient statistics.
 
+## Composable configuration
+
+`utils.config` supports one or several relative `_base_` YAML files, recursive
+deep merge, circular-inheritance detection, and MMEngine-style `_delete_` for
+mapping replacement. It keeps both views:
+
+- `cfg.sections.MODEL`, `cfg.sections.DATA`, etc. preserve hierarchy;
+- `cfg.architecture`, `cfg.root_path`, etc. keep historical models runnable.
+
+The preferred layout is:
+
+```text
+configs/
+├── _base_/
+│   ├── datasets/
+│   ├── models/
+│   ├── schedules/
+│   └── runtime/
+└── etrg/
+    ├── etrg_r50_ocid_vlg.yaml
+    └── etrg_r101_ocid_vlg.yaml
+```
+
+Run a composed experiment with:
+
+```bash
+python tools/train.py --config configs/etrg/etrg_r50_ocid_vlg.yaml
+```
+
+The root `python train.py --config ...` command and files under `config/`
+remain supported.
+
+The canonical Runner import is now `toolrgs.datasets.build_dataset`; it bridges
+to the historical `utils.data_builder` implementation until individual dataset
+classes move into `toolrgs/datasets/`.
+
 ## Compatibility layer
 
 - `model.MODEL_REGISTRY` remains available as a read-only view of `MODELS`.
@@ -119,16 +167,14 @@ distributed reduction of sufficient statistics.
 - Deployment YAML accepts the new `type` field and still understands the old
   camera `backend` field.
 
-## Migration sequence
+## Remaining migration sequence
 
 The safe next stages are:
 
-1. extract optimizer behavior into an `OptimWrapper` and checkpoint/logging into
-   concrete hooks;
-2. register transforms and losses;
-3. convert each model to `BaseGraspModel` and remove tuple adapters;
-4. introduce composable `_base_` experiment configs after all legacy configs
-   have parity tests.
+1. move dataset preprocessing into registered transform pipelines;
+2. convert each historical model to `BaseGraspModel` and remove tuple adapters;
+3. migrate the remaining legacy experiment files from `config/` to `configs/`;
+4. add a Runner-owned test loop and deployment data preprocessor.
 
 At every stage the old CLI remains a compatibility entry until equivalent
 training/evaluation results have been checked.

@@ -4,6 +4,8 @@
 import copy
 import os
 from ast import literal_eval
+from collections.abc import Mapping
+from pathlib import Path
 
 import yaml
 
@@ -57,20 +59,91 @@ class CfgNode(dict):
         return "{}({})".format(self.__class__.__name__,
                                super(CfgNode, self).__repr__())
 
+    @property
+    def sections(self):
+        """Hierarchical config before the legacy flat compatibility view."""
+        return self.__dict__.get("_sections", CfgNode())
+
+    def to_dict(self):
+        def convert(value):
+            if isinstance(value, Mapping):
+                return {key: convert(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [convert(item) for item in value]
+            return copy.deepcopy(value)
+
+        return convert(self)
+
+
+def _deep_merge(base, override):
+    """Recursively merge mappings with MMEngine-style ``_delete_`` support."""
+    if not isinstance(base, Mapping) or not isinstance(override, Mapping):
+        return copy.deepcopy(override)
+    if bool(override.get("_delete_", False)):
+        return {
+            key: copy.deepcopy(value)
+            for key, value in override.items()
+            if key != "_delete_"
+        }
+    merged = copy.deepcopy(dict(base))
+    for key, value in override.items():
+        if key == "_delete_":
+            continue
+        if key in merged and isinstance(merged[key], Mapping) and isinstance(value, Mapping):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = copy.deepcopy(value)
+    return merged
+
+
+def _load_with_bases(path, stack=()):
+    path = Path(path).expanduser().resolve()
+    if path in stack:
+        chain = " -> ".join(str(item) for item in (*stack, path))
+        raise ValueError(f"Circular config inheritance detected: {chain}")
+    if not path.is_file() or path.suffix.lower() not in {".yaml", ".yml"}:
+        raise FileNotFoundError(f"Config YAML not found: {path}")
+    with path.open("r", encoding="utf-8-sig") as stream:
+        current = yaml.safe_load(stream) or {}
+    if not isinstance(current, Mapping):
+        raise TypeError(f"Top-level config must be a mapping: {path}")
+    bases = current.pop("_base_", [])
+    if isinstance(bases, (str, os.PathLike)):
+        bases = [bases]
+    if not isinstance(bases, (list, tuple)):
+        raise TypeError(f"_base_ must be a path or list of paths: {path}")
+    resolved = {}
+    for base in bases:
+        base_path = Path(base)
+        if not base_path.is_absolute():
+            base_path = path.parent / base_path
+        resolved = _deep_merge(resolved, _load_with_bases(base_path, (*stack, path)))
+    return _deep_merge(resolved, current)
+
+
+def _flatten_sections(sections):
+    """Expose historical ``cfg.key`` access without losing section structure."""
+    flat = {}
+    legacy_sections = {"DATA", "MODEL", "TRAIN", "RUNTIME", "Distributed", "TEST"}
+    for section_name, values in sections.items():
+        if section_name not in legacy_sections or not isinstance(values, Mapping):
+            flat[section_name] = copy.deepcopy(values)
+            continue
+        for key, value in values.items():
+            if key in flat and flat[key] != value:
+                raise KeyError(
+                    f"Duplicate flattened config key {key!r} has conflicting "
+                    f"values; found again in section {section_name!r}"
+                )
+            flat[key] = copy.deepcopy(value)
+    return flat
+
 
 def load_cfg_from_cfg_file(file):
-    cfg = {}
-    assert os.path.isfile(file) and file.endswith('.yaml'), \
-        '{} is not a yaml file'.format(file)
-
-    with open(file, 'r') as f:
-        cfg_from_file = yaml.safe_load(f)
-
-    for key in cfg_from_file:
-        for k, v in cfg_from_file[key].items():
-            cfg[k] = v
-
-    cfg = CfgNode(cfg)
+    sections = _load_with_bases(file)
+    cfg = CfgNode(_flatten_sections(sections))
+    cfg.__dict__["_sections"] = CfgNode(copy.deepcopy(sections))
+    cfg.__dict__["filename"] = str(Path(file).expanduser().resolve())
     return cfg
 
 
@@ -78,12 +151,39 @@ def merge_cfg_from_list(cfg, cfg_list):
     new_cfg = copy.deepcopy(cfg)
     assert len(cfg_list) % 2 == 0
     for full_key, v in zip(cfg_list[0::2], cfg_list[1::2]):
-        subkey = full_key.split('.')[-1]
-        assert subkey in cfg, 'Non-existent key: {}'.format(full_key)
-        value = _decode_cfg_value(v)
-        value = _check_and_coerce_cfg_value_type(value, cfg[subkey], subkey,
-                                                 full_key)
-        setattr(new_cfg, subkey, value)
+        path = full_key.split(".")
+        sections = new_cfg.sections
+        if len(path) > 1 and path[0] in sections:
+            cursor = sections[path[0]]
+            for part in path[1:-1]:
+                if part not in cursor or not isinstance(cursor[part], Mapping):
+                    raise KeyError(f"Non-existent config path: {full_key}")
+                cursor = cursor[part]
+            if path[-1] not in cursor:
+                raise KeyError(f"Non-existent config path: {full_key}")
+            original = cursor[path[-1]]
+            value = _check_and_coerce_cfg_value_type(
+                _decode_cfg_value(v), original, path[-1], full_key
+            )
+            cursor[path[-1]] = value
+            section_name = path[0]
+            if section_name in {
+                "DATA", "MODEL", "TRAIN", "RUNTIME", "Distributed", "TEST"
+            }:
+                root_key = path[1]
+                setattr(new_cfg, root_key, copy.deepcopy(sections[section_name][root_key]))
+        else:
+            subkey = path[-1]
+            if subkey not in new_cfg:
+                raise KeyError(f"Non-existent key: {full_key}")
+            value = _check_and_coerce_cfg_value_type(
+                _decode_cfg_value(v), new_cfg[subkey], subkey, full_key
+            )
+            setattr(new_cfg, subkey, value)
+            for values in sections.values():
+                if isinstance(values, Mapping) and subkey in values:
+                    values[subkey] = value
+                    break
 
     return new_cfg
 
@@ -124,6 +224,11 @@ def _check_and_coerce_cfg_value_type(replacement, original, key, full_key):
     """
     original_type = type(original)
     replacement_type = type(replacement)
+
+    if original is None:
+        return replacement
+    if isinstance(original, Mapping) and isinstance(replacement, Mapping):
+        return CfgNode(copy.deepcopy(dict(replacement)))
 
     # The types must match (with some exceptions)
     if replacement_type == original_type:

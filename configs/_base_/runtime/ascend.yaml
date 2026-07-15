@@ -1,0 +1,24 @@
+RUNTIME:
+  runner:
+    type: npu_grasp
+  train_loop: grasp_train
+  val_loop: grasp_val
+  runner_hooks:
+    - type: logger
+    - type: checkpoint
+  amp: true
+  optimizer: adam
+  pin_memory: false
+  sync_bn: true
+  manual_seed: 0
+  print_freq: 50
+  save_freq: 1
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: true
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: test
+  visualize: false

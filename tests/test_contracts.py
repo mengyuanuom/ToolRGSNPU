@@ -65,7 +65,8 @@ class ToolRGSContractsTest(unittest.TestCase):
             "graspmamba",
             "lgd",
         }
-        self.assertTrue(expected.issubset(MODEL_REGISTRY))
+        expected_ocid = expected | {"etrg"}
+        self.assertTrue(expected_ocid.issubset(MODEL_REGISTRY))
         paths = [
             path
             for directory in ("grasp_tools", "vcot", "ocid_vlg")
@@ -80,15 +81,15 @@ class ToolRGSContractsTest(unittest.TestCase):
             dataset = cfg["DATA"]["dataset"].lower().replace("-", "_")
             self.assertIn(dataset, DATASET_REGISTRY, path)
 
-        for directory, dataset_name in (
-            ("grasp_tools", "grasptool"),
-            ("vcot", "vcot"),
-            ("ocid_vlg", "ocid_vlg"),
+        for directory, dataset_name, expected_models in (
+            ("grasp_tools", "grasptool", expected),
+            ("vcot", "vcot", expected),
+            ("ocid_vlg", "ocid_vlg", expected_ocid),
         ):
             configs = glob.glob(f"config/{directory}/*.yaml")
             self.assertEqual(
                 {os.path.splitext(os.path.basename(path))[0] for path in configs},
-                expected,
+                expected_models,
                 directory,
             )
             for path in configs:

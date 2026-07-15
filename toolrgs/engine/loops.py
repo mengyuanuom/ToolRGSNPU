@@ -44,6 +44,7 @@ class GraspTrainLoop(BaseLoop):
         scaler,
         cfg,
         hooks: Optional[Iterable[Any]] = None,
+        optim_wrapper=None,
     ):
         super().__init__(hooks=hooks)
         self.dataloader = dataloader
@@ -51,6 +52,7 @@ class GraspTrainLoop(BaseLoop):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.scaler = scaler
+        self.optim_wrapper = optim_wrapper
         self.cfg = cfg
         self.device = current_device(int(getattr(cfg, "npu", getattr(cfg, "gpu", 0))))
 
@@ -125,13 +127,18 @@ class GraspTrainLoop(BaseLoop):
                 raise RuntimeError("GraspTrainLoop requires dense supervision targets")
             loss = result.loss
 
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            if self.cfg.max_norm:
-                self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.max_norm)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            if self.optim_wrapper is not None:
+                self.optim_wrapper.update_params(loss, self.model)
+            else:
+                self.optimizer.zero_grad()
+                self.scaler.scale(loss).backward()
+                if self.cfg.max_norm:
+                    self.scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.cfg.max_norm
+                    )
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
 
             iou, precision = trainMetricGPU(
                 result.predictions.segmentation,

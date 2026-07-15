@@ -59,6 +59,9 @@ class NPUSourceContractTest(unittest.TestCase):
             ROOT / "engine" / "engine.py",
             ROOT / "toolrgs" / "engine" / "loops.py",
             ROOT / "toolrgs" / "engine" / "val_loop.py",
+            ROOT / "toolrgs" / "engine" / "runner.py",
+            ROOT / "toolrgs" / "engine" / "optim.py",
+            ROOT / "tools" / "train.py",
             ROOT / "deployment" / "inference.py",
         )
         forbidden = (".cuda(", "torch.cuda", '"nccl"', "'nccl'")
@@ -76,6 +79,21 @@ class NPUSourceContractTest(unittest.TestCase):
         self.assertIn("torch_npu.npu.set_device", source)
         self.assertIn("adapter.npu.amp.autocast", source)
         self.assertNotIn("from torch_npu.contrib.transfer_to_npu", source)
+
+    def test_mmengine_style_runner_and_optim_components_are_registered(self):
+        registry = (ROOT / "toolrgs" / "registry.py").read_text(
+            encoding="utf-8-sig"
+        )
+        runner = (ROOT / "toolrgs" / "engine" / "runner.py").read_text(
+            encoding="utf-8-sig"
+        )
+        optim = (ROOT / "toolrgs" / "engine" / "optim.py").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertIn('RUNNERS = Registry("runners")', registry)
+        self.assertIn('@RUNNERS.register_module(name="npu_grasp"', runner)
+        self.assertIn('@OPTIM_WRAPPERS.register_module(name="npu_amp"', optim)
+        self.assertIn("PARAM_SCHEDULERS.register_module", optim)
 
     def test_etrg_sources_keep_accelerator_calls_out_of_the_model(self):
         forbidden = (".cuda(", "torch.cuda", '"nccl"', "'nccl'")

@@ -1,0 +1,9 @@
+_base_:
+  - ../_base_/datasets/ocid_vlg.yaml
+  - ../_base_/models/etrg_r50.yaml
+  - ../_base_/schedules/etrg_40e.yaml
+  - ../_base_/runtime/ascend.yaml
+
+TRAIN:
+  exp_name: etrg_r50_ocid_vlg
+  output_folder: exp/ocid_vlg

@@ -1,0 +1,20 @@
+MODEL:
+  architecture: etrg
+  clip_pretrain: pretrain/RN101.pt
+  depth_pretrain:
+  depth_backbone_pretrained: true
+  depth_normalization: inverse_max
+  input_size: 416
+  word_len: 20
+  word_dim: 512
+  ladder_dim: 64
+  nhead: 4
+  multi_stage: 3
+  vis_dim: 512
+  fpn_in: [512, 1024, 512]
+  fpn_out: [256, 512, 1024]
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 512
+  dropout: 0.0
+  intermediate: false

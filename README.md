@@ -51,6 +51,32 @@ MODEL:
   architecture: drogoff
 ```
 
+New experiments use composable MMEngine-style `_base_` configs and the
+registered NPU Runner. Model, dataset, schedule, and runtime settings are
+independent files under `configs/_base_/`:
+
+```yaml
+_base_:
+  - ../_base_/datasets/ocid_vlg.yaml
+  - ../_base_/models/etrg_r50.yaml
+  - ../_base_/schedules/etrg_40e.yaml
+  - ../_base_/runtime/ascend.yaml
+
+TRAIN:
+  exp_name: etrg_r50_ocid_vlg
+  output_folder: exp/ocid_vlg
+```
+
+Preferred training entrypoint:
+
+```bash
+python tools/train.py --config configs/etrg/etrg_r50_ocid_vlg.yaml
+```
+
+`NPUGraspRunner`, `NPUAmpOptimWrapper`, registered schedulers, and runner hooks
+now own construction, AMP/backward, epoch scheduling, logging, and checkpoints.
+The old `python train.py --config config/...` command remains compatible.
+
 The eight RGB model families are available for every dataset. ETRG-A is added
 for OCID-VLG because it requires real aligned depth:
 
@@ -228,14 +254,15 @@ configured because they do not provide aligned sensor depth.
 Verify the NPU environment, local weights, and one random RGB-D forward pass:
 
 ```bash
-python tools/check_npu_env.py --config config/ocid_vlg/etrg.yaml --forward
+python tools/check_npu_env.py \
+  --config configs/etrg/etrg_r50_ocid_vlg.yaml --forward
 ```
 
 Then run two NPUs:
 
 ```bash
-torchrun --nproc_per_node=2 train.py \
-  --config config/ocid_vlg/etrg.yaml --opts \
+torchrun --nproc_per_node=2 tools/train.py \
+  --config configs/etrg/etrg_r50_ocid_vlg.yaml --opts \
   DATA.root_path /mnt/ssd0/mengyuan/data/OCID-VLG
 ```
 
