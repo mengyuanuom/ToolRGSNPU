@@ -1,0 +1,70 @@
+﻿DATA:
+  dataset: OCID-VLG
+  root_path: ./datasets/OCID-VLG
+  with_depth: True
+  train_split: train
+  val_split: val
+  offset_r: 20
+  offset_sigma:
+MODEL:
+  architecture: crogoff
+TRAIN:
+  # Base Arch
+  clip_pretrain: pretrain/RN50.pt
+  version: multiple
+  input_size: 416
+  word_len: 17
+  word_dim: 1024
+  vis_dim: 512
+  fpn_in: [512, 1024, 1024]
+  fpn_out: [256, 512, 1024]
+
+  sync_bn: True
+  amp: True
+  optimizer: adam
+  pin_memory: False
+  # Decoder
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 2048
+  dropout: 0.1
+  intermediate: False
+  # Training Setting
+  workers: 1  # data loader workers
+  workers_val: 1
+  epochs: 5000
+  milestones: [5000]
+  start_epoch: 0
+  batch_size: 2  # batch size for training
+  batch_size_val: 2  # batch size for validation during training, memory and speed tradeoff
+  base_lr: 0.00001
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.
+  max_norm: 0.
+  manual_seed: 0
+  print_freq: 1
+  # Resume & Save
+  exp_name: crogoff_ocid_vlg
+  offset_loss_weight: 1.0
+  output_folder: exp/ocid_vlg
+  save_freq: 20
+  weight:
+  resume:
+  evaluate: True  # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
+  # Ablation study
+  use_contrastive: True
+  use_pretrained_clip: True
+  use_grasp_masks: True
+Distributed:
+  dist_url: tcp://localhost:3681
+  dist_backend: 'hccl'
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: test
+  visualize: True
+
+
+

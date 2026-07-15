@@ -1,0 +1,63 @@
+﻿DATA:
+  dataset: vcot
+  root_path: ./datasets/grasp-anything
+  split_root: ./split/vcot
+  prompt_template: "Grasp the {object_name}"
+  train_split: train
+  val_split: unseen
+  offset_r: 20
+  offset_sigma:
+MODEL:
+  architecture: lgd
+TRAIN:
+  clip_pretrain: pretrain/RN50.pt
+  version: multiple
+  input_size: 224
+  word_len: 17
+  word_dim: 1024
+  use_pretrained_clip: True
+  use_grasp_masks: True
+  lgd_base_channels: 32
+  lgd_time_dim: 128
+  lgd_timesteps: 1000
+  lgd_sampling_steps: 50
+  lgd_diffusion_weight: 1.0
+  lgd_contrastive_weight: 0.001
+  lgd_contrastive_temperature: 0.1
+
+  sync_bn: True
+  amp: True
+  optimizer: adam
+  pin_memory: False
+  workers: 8  # per process; 16 workers total with two NPUs
+  workers_val: 4
+  epochs: 100
+  milestones: [70, 90]
+  start_epoch: 0
+  batch_size: 16  # per NPU; global batch size 32 with two NPUs
+  batch_size_val: 8
+  base_lr: 0.0001
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.0
+  max_norm: 0.0
+  manual_seed: 0
+  print_freq: 50
+  exp_name: lgd_vcot
+  output_folder: exp/vcot
+  save_freq: 5
+  weight:
+  resume:
+  evaluate: True
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: unseen
+  visualize: False
+
+
+

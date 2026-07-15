@@ -1,0 +1,5 @@
+# Install requirement-npu.txt and the matching torch/torch_npu build first.
+PyQt5==5.15.11
+pyrealsense2==2.56.5.9235
+sounddevice==0.5.1
+openai-whisper==20240930

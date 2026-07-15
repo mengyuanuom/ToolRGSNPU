@@ -1,0 +1,3 @@
+# Optional GraspMamba dependency. Install matching torch and torch_npu first.
+# The upstream package may require additional Ascend operator adaptation.
+mambavision==1.2.0

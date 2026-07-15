@@ -1,0 +1,32 @@
+# Minimal override example for the shared-memory stream used by the server CROG demo.
+model:
+  config: config/grasp_tools/drogoff.yaml
+  checkpoint: exp/grasp_tools/drogoff_grasp_tools/best_jindex_model.pth
+  device: npu:0
+  prompt: the screwdriver
+
+camera:
+  type: gstreamer
+  width: 1280
+  height: 720
+  fps: 30
+  gstreamer_pipeline: >-
+    shmsrc socket-path=/home/USER/kinova_rs_grasp/foo/fooA is-live=true do-timestamp=true !
+    video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 !
+    queue leaky=downstream max-size-buffers=1 !
+    appsink name=toolrgs_sink drop=true sync=false max-buffers=1
+
+robot:
+  type: legacy_tcp
+  enabled: false
+  host: 192.168.38.10
+  port: 3000
+  auto_send: false
+  auto_send_interval_s: 2.0
+  coordinate_space: source
+  limits:
+    x: [0, 1280]
+    y: [0, 720]
+    theta: [-90, 90]
+    width: [1, 600]
+    depth: [-1, 1]

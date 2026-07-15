@@ -1,0 +1,59 @@
+﻿DATA:
+  dataset: vcot
+  root_path: ./datasets/grasp-anything
+  split_root: ./split/vcot
+  prompt_template: "Grasp the {object_name}"
+  train_split: train
+  val_split: unseen
+  offset_r: 20
+  offset_sigma:
+MODEL:
+  architecture: grconvnetclip
+TRAIN:
+  clip_pretrain: pretrain/RN50.pt
+  version: multiple
+  input_channels: 3
+  input_size: 416
+  word_len: 17
+  word_dim: 1024
+
+  sync_bn: True
+  amp: True
+  optimizer: adam
+  pin_memory: False
+  dropout: False
+  dropout_prob: 0.0
+  workers: 8  # per process; 16 workers total with two NPUs
+  workers_val: 4
+  epochs: 80
+  milestones: [70]
+  start_epoch: 0
+  batch_size: 32  # per NPU; global batch size 64 with two NPUs
+  batch_size_val: 32
+  base_lr: 0.00001
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.0
+  max_norm: 0.0
+  manual_seed: 0
+  print_freq: 50
+  exp_name: grconvnetclip_vcot
+  output_folder: exp/vcot
+  save_freq: 20
+  weight:
+  resume:
+  evaluate: True
+  use_pretrained_clip: True
+  use_grasp_masks: True
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: unseen
+  visualize: False
+
+
+

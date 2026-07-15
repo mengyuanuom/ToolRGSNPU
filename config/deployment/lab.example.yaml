@@ -1,0 +1,95 @@
+# Copy this file to lab.yaml and change only local paths/IPs.
+model:
+  # Any ToolRGS experiment config can be used here.
+  config: config/grasp_tools/drogoff.yaml
+  checkpoint: exp/grasp_tools/drogoff_grasp_tools/best_jindex_model.pth
+  device: npu:0
+  prompt: the screwdriver
+  mask_threshold: 0.35
+  quality_threshold: 0.40
+  num_grasps: 1
+  postprocessor:
+    type: dense_grasp
+    min_distance: 2
+    width_factor: 100.0
+    grasp_height: 20.0
+  gate_quality_by_mask: true
+  # Convert the predicted width/height back to source-camera pixels.
+  scale_grasp_to_source: true
+  # Override flat values from the selected training config when necessary.
+  overrides: {}
+
+camera:
+  # image | opencv | video | realsense | gstreamer
+  type: opencv
+  device: 0
+  width: 1280
+  height: 720
+  fps: 30
+  image_path: assets/test_frame.jpg
+  video_path: assets/test_video.mp4
+  gstreamer_pipeline: >-
+    shmsrc socket-path=/path/to/fooA is-live=true do-timestamp=true !
+    video/x-raw,format=BGR,width=1280,height=720,framerate=30/1 !
+    queue leaky=downstream max-size-buffers=1 !
+    appsink name=toolrgs_sink drop=true sync=false max-buffers=1
+
+robot:
+  type: legacy_tcp
+  # Safe default. Change to true only after a dry-run and receiver/calibration check.
+  enabled: false
+  host: 192.168.38.10
+  port: 3000
+  timeout_s: 2.0
+  auto_send: false
+  auto_send_interval_s: 2.0
+  default_depth: 0
+  # source: original camera pixels; model: letterboxed input_size pixels.
+  # This must match the calibration used by the external Kinova receiver.
+  coordinate_space: source
+  # Required sender-side sanity bounds; update them for the calibrated stream.
+  limits:
+    x: [0, 1280]
+    y: [0, 720]
+    theta: [-90, 90]
+    width: [1, 600]
+    depth: [-1, 1]
+
+detector:
+  type: mmdetection
+  enabled: false
+  config: config/deployment/faster-rcnn-13.py
+  checkpoint: weights/epoch_48_13.pth
+  device: npu:0
+  score_threshold: 0.70
+  classes:
+    - box
+    - clamps
+    - clip
+    - crimp tool
+    - hex key
+    - mallet
+    - marker
+    - screwdriver
+    - sponge
+    - spool
+    - tape
+    - tape measure
+    - wrench
+
+audio:
+  type: whisper
+  enabled: false
+  model: small
+  device: cpu
+  sample_rate: 16000
+  duration_s: 4.0
+  language: en
+
+gui:
+  title: ToolRGSNPU Real-world Grasp Demo
+  window_width: 1500
+  window_height: 900
+  camera_interval_ms: 33
+  inference_interval_ms: 400
+  continuous_inference: true

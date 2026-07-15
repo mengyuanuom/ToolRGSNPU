@@ -1,0 +1,55 @@
+﻿DATA:
+  dataset: OCID-VLG
+  root_path: ./datasets/OCID-VLG
+  with_depth: True
+  train_split: train
+  val_split: val
+  offset_r: 20
+  offset_sigma:
+MODEL:
+  architecture: grconvnetclip
+TRAIN:
+  clip_pretrain: pretrain/RN50.pt
+  version: multiple
+  input_channels: 3
+  input_size: 416
+  word_len: 17
+  word_dim: 1024
+  dropout: False
+  dropout_prob: 0.0
+  amp: True
+  optimizer: adam
+  pin_memory: False
+
+  workers_val: 2
+  epochs: 80
+  milestones: [70]
+  start_epoch: 0
+  batch_size: 32
+  batch_size_val: 32
+  base_lr: 0.00001
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.0
+  max_norm: 0.0
+  manual_seed: 0
+  print_freq: 50
+  exp_name: grconvnetclip_ocid_vlg
+  output_folder: exp/ocid_vlg
+  save_freq: 20
+  weight:
+  resume:
+  evaluate: True
+  use_pretrained_clip: True
+  use_grasp_masks: True
+Distributed:
+  dist_url: tcp://localhost:3681
+  dist_backend: hccl
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: test
+  visualize: False
+
+

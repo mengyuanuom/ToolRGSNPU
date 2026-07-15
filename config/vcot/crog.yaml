@@ -1,0 +1,70 @@
+﻿DATA:
+  dataset: vcot
+  root_path: ./datasets/grasp-anything
+  split_root: ./split/vcot
+  prompt_template: "Grasp the {object_name}"
+  train_split: train
+  val_split: unseen
+  offset_r: 20
+  offset_sigma:
+MODEL:
+  architecture: crog
+TRAIN:
+  # Base Arch
+  clip_pretrain: pretrain/RN50.pt
+  version: multiple
+  input_size: 416
+  word_len: 17
+  word_dim: 1024
+  vis_dim: 512
+  fpn_in: [512, 1024, 1024]
+  fpn_out: [256, 512, 1024]
+
+  sync_bn: True
+  amp: True
+  optimizer: adam
+  pin_memory: False
+  # Decoder
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 2048
+  dropout: 0.1
+  intermediate: False
+  # Training Setting
+  workers: 8  # per process; 16 workers total with two NPUs
+  workers_val: 4
+  epochs: 70
+  milestones: [55, 65]
+  start_epoch: 0
+  batch_size: 8  # per NPU; global batch size 16 with two NPUs
+  batch_size_val: 8
+  base_lr: 0.00001
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.
+  max_norm: 0.
+  manual_seed: 0
+  print_freq: 100
+  # Resume & Save
+  exp_name: crog_vcot
+  output_folder: exp/vcot
+  save_freq: 5
+  weight:
+  resume:
+  evaluate: True  # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
+  # Ablation study
+  use_contrastive: True
+  use_pretrained_clip: True
+  use_grasp_masks: True
+Distributed:
+  dist_url: env://
+  dist_backend: 'hccl'
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+TEST:
+  test_split: unseen
+  visualize: True
+
+
+
