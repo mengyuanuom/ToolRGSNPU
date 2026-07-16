@@ -6,8 +6,8 @@ supports every ToolRGS grasp architecture, OpenCV/video, Intel
 RealSense, shared-memory GStreamer, an optional MMDetection tab, and optional
 Whisper microphone input.
 
-Supported grasp models are CROG, CROGOFF, DROG, DROGOFF, GGCNN-CLIP,
-GR-ConvNet-CLIP, GraspMamba, and LGD. DETRIS is intentionally excluded here: in
+Supported grasp models are CROG, CROGOFF, DROG, DROGOFF, ETRG-A, MapleGrasp,
+GGCNN-CLIP, GR-ConvNet-CLIP, GraspMamba, and LGD. DETRIS is intentionally excluded here: in
 this repository it is a segmentation/backbone component, not a grasp-map model.
 
 ## 1. Install

@@ -34,6 +34,13 @@ Datasets, CLIP, DINOv2, MambaVision, and trained checkpoints are not committed
 to Git. Set the paths in the selected experiment YAML. Validate them without
 allocating the full model:
 
+For OCID-VLG, download the archive from the
+[official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view),
+extract it so the directory containing `refer/` is
+`./datasets/OCID-VLG`, and keep `DATA.root_path: ./datasets/OCID-VLG` in the
+experiment config. The complete download command and expected directory tree
+are documented in the [OCID-VLG section of the README](../README.md#ocid-vlg-data).
+
 ```bash
 python tools/check_npu_env.py --config config/vcot/drogoff.yaml
 ```
@@ -86,7 +93,7 @@ The installed `torch_npu` build must expose `torch_npu.optim.NpuFusedAdam`.
 
 The ToolRGS engine, datasets, dense losses, validation, offset refinement,
 CLIP backbones, DINOv2 fallback attention, CROG, CROG-OFF, DROG, DROG-OFF,
-ETRG-A RGB-D, GGCNN-CLIP, GR-ConvNet-CLIP, and LGD use portable PyTorch
+ETRG-A RGB-D, MapleGrasp, GGCNN-CLIP, GR-ConvNet-CLIP, and LGD use portable PyTorch
 operators and are wired to NPU/HCCL.
 
 ETRG-A is currently configured only for OCID-VLG because it requires aligned

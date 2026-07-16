@@ -46,13 +46,14 @@ TRAIN:
   intermediate: False 
 
   # Training Setting
-  workers: 8  # per process; 16 workers total with two NPUs
-  workers_val: 4
+  # Conservative per-process profile for two accelerators.
+  workers: 4
+  workers_val: 2
   epochs: 65
   milestones: [35,55]
   start_epoch: 0
   batch_size: 8  # per NPU; global batch size 16 with two NPUs
-  batch_size_val: 8
+  batch_size_val: 4
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 1
@@ -64,7 +65,7 @@ TRAIN:
   exp_name: drogoff_vcot
   offset_loss_weight: 1.0
   output_folder: exp/vcot
-  save_freq: 1
+  save_freq: 5
   weight:  # path to initial weight (default: none)
   resume: # path to latest checkpoint (default: none)
   evaluate: True 

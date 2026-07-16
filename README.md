@@ -1,8 +1,8 @@
 # ToolRGSNPU
 
 Tool-oriented Referring Grasp Synthesis with a single configuration-driven
-codebase for CROG, CROG-OFF, DROG, DROG-OFF, ETRG-A, GraspMamba, LGD, GGCNN-CLIP,
-GR-ConvNet-CLIP, and DETRIS backbones. Grasp-Tools, VCoT/Grasp-Anything,
+codebase for CROG, CROG-OFF, DROG, DROG-OFF, ETRG-A, MapleGrasp, GraspMamba,
+LGD, GGCNN-CLIP, GR-ConvNet-CLIP, and DETRIS backbones. Grasp-Tools, VCoT/Grasp-Anything,
 and OCID-VLG data use the same model-facing batch contract. This repository is
 the Ascend NPU port: training and inference use `torch_npu`, AMP uses NPU AMP,
 and distributed jobs use HCCL.
@@ -11,6 +11,7 @@ Start with the [Ascend installation and smoke-test guide](docs/ascend_npu.md).
 The original CUDA project remains in `mengyuanuom/ToolRGS`.
 This port was branched from ToolRGS commit `59fc3cc`.
 The ETRG-A RGB-D integration is synchronized from ToolRGS commit `0c53ea0`.
+The model/config matrix is synchronized through ToolRGS commit `a12f75e`.
 
 ## Design
 
@@ -25,6 +26,7 @@ ToolRGSNPU/
 │   ├── crogoff.py
 │   ├── drog.py
 │   ├── drogoff.py
+│   ├── maplegrasp.py
 │   ├── ggcnnclip.py
 │   ├── grconvnetclip.py
 │   ├── graspmamba.py
@@ -77,14 +79,14 @@ python tools/train.py --config configs/etrg/etrg_r50_ocid_vlg.yaml
 now own construction, AMP/backward, epoch scheduling, logging, and checkpoints.
 The old `python train.py --config config/...` command remains compatible.
 
-The eight RGB model families are available for every dataset. ETRG-A is added
+The nine RGB model families are available for every dataset. ETRG-A is added
 for OCID-VLG because it requires real aligned depth:
 
 | Dataset config directory | Models |
 | --- | --- |
-| `config/grasp_tools/` | `crog`, `crogoff`, `drog`, `drogoff`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
-| `config/vcot/` | `crog`, `crogoff`, `drog`, `drogoff`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
-| `config/ocid_vlg/` | `crog`, `crogoff`, `drog`, `drogoff`, `etrg`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/grasp_tools/` | `crog`, `crogoff`, `drog`, `drogoff`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/vcot/` | `crog`, `crogoff`, `drog`, `drogoff`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/ocid_vlg/` | `crog`, `crogoff`, `drog`, `drogoff`, `etrg`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
 
 For example, `config/vcot/drogoff.yaml` and
 `config/ocid_vlg/lgd.yaml` are directly runnable after setting data and weight
@@ -144,7 +146,7 @@ python tools/inspect_vcot_sample.py \
   --csv split/vcot/train.csv --row 2
 ```
 
-All eight grasp-aware ToolRGS models can use VCoT without code changes. Use the
+All nine grasp-aware ToolRGS models can use VCoT without code changes. Use the
 matching file under `config/vcot/`, for example:
 
 ```bash
@@ -161,6 +163,7 @@ memory benchmarks:
 | Model | Input | Train batch/NPU | Global batch | Epochs | LR milestones |
 | --- | ---: | ---: | ---: | ---: | --- |
 | CROG / CROG-OFF | 416 | 8 | 16 | 70 | 55, 65 |
+| MapleGrasp | 416 | 8 | 16 | 70 | 55, 65 |
 | DROG / DROG-OFF | 448 | 8 | 16 | 65 | 35, 55 |
 | GGCNN-CLIP | 416 | 32 | 64 | 50 | 35 |
 | GRConvNet-CLIP | 416 | 32 | 64 | 80 | 70 |
@@ -269,6 +272,28 @@ torchrun --nproc_per_node=2 tools/train.py \
 See [docs/etrg.md](docs/etrg.md) for dataset, weight, checkpoint, and Ascend
 compatibility details.
 
+## MapleGrasp on Ascend
+
+`model/maplegrasp.py` ports the CROG-based mask-guided projector into the NPU
+model registry. A detached predicted segmentation mask gates the four grasp
+branches before the language-conditioned dynamic convolution. The model uses
+device-agnostic PyTorch operators and relies on `NPUGraspRunner` for placement;
+evaluation never consumes a ground-truth object mask.
+
+Run joint training on two NPUs with:
+
+```bash
+torchrun --nproc_per_node=2 train.py \
+  --config config/ocid_vlg/maplegrasp.yaml --opts \
+  DATA.root_path /path/to/OCID-VLG
+```
+
+For the paper-style two-stage schedule, first use
+`TRAIN.maple_stage segmentation`, then initialize a second run with
+`TRAIN.maple_stage grasp` and `TRAIN.weight` pointing at the stage-one
+`best_iou_model.pth`. Grasp-Tools and VCoT configs are provided in their
+respective directories.
+
 Train any supported grasp model with its OCID-VLG config, for example:
 
 ```bash
@@ -350,7 +375,7 @@ python tools/check_npu_env.py --config config/vcot/drogoff.yaml --forward
 GraspMamba is the one explicit compatibility boundary: upstream MambaVision
 loads the CUDA-only `selective_scan_cuda` extension. It remains available for
 future Ascend selective-scan integration, but is not claimed NPU-ready. The
-other seven grasp architectures use the explicit NPU runtime path.
+other nine grasp architectures use the explicit NPU runtime path.
 
 The configured official MambaVision checkpoint is downloaded automatically if
 it is missing and the server has network access. Otherwise download it once and
@@ -361,7 +386,7 @@ check those terms before redistribution or commercial use.
 ## Real-world demo and robot sender
 
 ToolRGSNPU includes a configuration-driven PyQt demo ported from the local server
-CROG deployment. It supports all eight ToolRGS grasp architectures, OpenCV/video,
+CROG deployment. It supports every registered ToolRGS grasp architecture, OpenCV/video,
 RealSense, GStreamer shared memory, optional MMDetection and Whisper, and the
 legacy Kinova TCP command format. Start in dry-run mode:
 
@@ -398,5 +423,5 @@ examples and the compatibility plan.
 
 ## Acknowledgements
 
-ToolRGS integrates ideas and code from CROG, DETRIS, DINOv2, and CRIS. Preserve
+ToolRGS integrates ideas and code from CROG, MapleGrasp, DETRIS, DINOv2, and CRIS. Preserve
 their citations and licenses when publishing derived results.
