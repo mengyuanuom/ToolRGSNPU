@@ -46,12 +46,14 @@ See the [pretrained-weight guide](pretrained_weights.md) for every official
 direct link, model-to-weight mapping, offline ETRG setup, and the distinction
 between backbone weights and `TRAIN.weight`/`TRAIN.resume` task checkpoints.
 
-For OCID-VLG, download the archive from the
-[official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view),
-extract it so the directory containing `refer/` is
+For RGB-only OCID-VLG experiments, use the compact
+[OCID-VLG-S release](https://github.com/mengyuanuom/ToolRGSNPU/releases/tag/ocid-vlg-s-v1),
+which removes depth and PCD data. ETRG-A requires the full archive from the
+[official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view).
+Extract either archive so the directory containing `refer/` is
 `./datasets/OCID-VLG`, and keep `DATA.root_path: ./datasets/OCID-VLG` in the
-experiment config. The complete download command and expected directory tree
-are documented in the [OCID-VLG section of the README](../README.md#ocid-vlg-data).
+experiment config. The complete commands and expected directory tree are in
+the [OCID-VLG section of the README](../README.md#ocid-vlg-data).
 
 ```bash
 python tools/check_npu_env.py --config config/vcot/drogoff.yaml

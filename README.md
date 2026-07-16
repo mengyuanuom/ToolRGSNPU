@@ -206,9 +206,14 @@ editing YAML, for example `TRAIN.batch_size 4 TRAIN.batch_size_val 4`.
 
 OCID-VLG referring expressions are read directly from the downloaded dataset;
 the large RGB, depth, and annotation files are not copied into this repository.
-Download `OCID-VLG.zip` from the
-[official repository](https://github.com/gtziafas/OCID-VLG) or its
-[official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view?usp=share_link).
+For every RGB-only ToolRGS model, download the compact
+[OCID-VLG-S.zip release](https://github.com/mengyuanuom/ToolRGSNPU/releases/download/ocid-vlg-s-v1/OCID-VLG-S.zip)
+(899.13 MiB, SHA256
+`09f0e3f1c20c53de889f0ccd516f876f534199c3491d1e511726130471c44fd1`).
+It keeps RGB, referring expressions, instance masks, and grasp annotations while
+removing all depth and PCD files. ETRG-A users must instead download the full
+`OCID-VLG.zip` from the [official repository](https://github.com/gtziafas/OCID-VLG)
+or its [official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view?usp=share_link).
 
 For `/mnt/ssd0/mengyuan/ToolRGSNPU`, extract it to
 `/mnt/ssd0/mengyuan/data/OCID-VLG`. Create a local `datasets -> ../data`
@@ -216,13 +221,14 @@ symlink once (it is ignored by Git), so the checked-in configs can keep
 `DATA.root_path: ./datasets/OCID-VLG`:
 
 ```bash
-python -m pip install gdown
 mkdir -p /mnt/ssd0/mengyuan/data
 cd /mnt/ssd0/mengyuan/data
-gdown --fuzzy \
-  'https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view?usp=share_link' \
-  -O OCID-VLG.zip
-unzip OCID-VLG.zip
+curl -L \
+  https://github.com/mengyuanuom/ToolRGSNPU/releases/download/ocid-vlg-s-v1/OCID-VLG-S.zip \
+  -o OCID-VLG-S.zip
+echo '09f0e3f1c20c53de889f0ccd516f876f534199c3491d1e511726130471c44fd1  OCID-VLG-S.zip' \
+  | sha256sum -c -
+unzip OCID-VLG-S.zip
 cd /mnt/ssd0/mengyuan/ToolRGSNPU
 ln -sfn ../data datasets
 ```
@@ -238,9 +244,10 @@ The expected layout is:
 │   └── test_expressions.json
 └── <sequence>/
     ├── rgb/<image_name>
-    ├── depth/<image_name>
     └── seg_mask_instances_combi/<image_name>
 ```
+
+The full ETRG dataset additionally contains `<sequence>/depth/<image_name>`.
 
 Use the supplied experiment or select the dataset from another model config:
 
@@ -249,10 +256,13 @@ DATA:
   dataset: OCID-VLG
   root_path: /path/to/OCID-VLG
   version: multiple
-  with_depth: true
+  with_depth: false
   train_split: train
   val_split: val
 ```
+
+Only ETRG-A sets `with_depth: true`; all other checked-in OCID-VLG configs use
+the compact RGB-only contract.
 
 The adapter keeps original-coordinate grasp rectangles for Jacquard evaluation,
 then transforms the rectangle corners before generating input-resolution grasp

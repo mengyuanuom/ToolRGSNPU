@@ -21,6 +21,11 @@ def parse_args():
     parser.add_argument("--version", default="multiple")
     parser.add_argument("--split", choices=sorted(SPLITS), default="train")
     parser.add_argument("--index", type=int, default=0)
+    parser.add_argument(
+        "--with-depth",
+        action="store_true",
+        help="Also inspect aligned depth (ETRG/full dataset only).",
+    )
     return parser.parse_args()
 
 
@@ -37,7 +42,11 @@ def main():
     mask_path = sequence_root / "seg_mask_instances_combi" / image_name
 
     image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
-    depth = cv2.imread(str(depth_path), cv2.IMREAD_UNCHANGED)
+    depth = (
+        cv2.imread(str(depth_path), cv2.IMREAD_UNCHANGED)
+        if args.with_depth
+        else None
+    )
     mask = cv2.imread(str(mask_path), cv2.IMREAD_UNCHANGED)
     object_id = int(item["answer"])
     grasps = np.asarray(item["grasps"], dtype=np.float32)
@@ -50,7 +59,12 @@ def main():
     print(f"target:       {item['target']} (instance id {object_id})")
     print(f"bbox xywh:    {item['box']}")
     print(f"image:        {image_path.resolve()} shape={None if image is None else image.shape}")
-    print(f"depth:        {depth_path.resolve()} shape={None if depth is None else depth.shape}")
+    depth_value = (
+        f"{depth_path.resolve()} shape={None if depth is None else depth.shape}"
+        if args.with_depth
+        else "not requested (RGB-only mode)"
+    )
+    print(f"depth:        {depth_value}")
     print(f"mask:         {mask_path.resolve()} shape={None if mask is None else mask.shape}")
     pixels = 0 if mask is None else int(np.count_nonzero(mask == object_id))
     print(f"object pixels: {pixels}")

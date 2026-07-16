@@ -17,6 +17,9 @@ Download `OCID-VLG.zip` from the
 The archive contains the RGB scenes, aligned depth, instance masks, grasp
 annotations, and language-expression splits needed by ETRG.
 
+Do not use the smaller `OCID-VLG-S.zip` ToolRGSNPU Release for ETRG-A: that
+RGB-only subset intentionally removes every depth and PCD directory.
+
 Recommended server layout:
 
 ```text
