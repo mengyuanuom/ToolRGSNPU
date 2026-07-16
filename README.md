@@ -96,6 +96,26 @@ the shared grasp-map output/loss contract, so it is not included in this matrix.
 Set `DATA.root_path`, `TRAIN.clip_pretrain`, and (for DROG variants)
 `TRAIN.dino_pretrain` to local paths before training.
 
+## Pretrained backbone weights
+
+Official CLIP, DINOv2, MambaVision, and optional ETRG ResNet-18 download links
+are collected in [docs/pretrained_weights.md](docs/pretrained_weights.md). The
+repository also provides a dependency-free downloader. For DROG/DROG-OFF:
+
+```bash
+python tools/download_pretrained.py clip-vit-b16 dinov2-vitb14-reg4
+```
+
+For the RN50-based model families:
+
+```bash
+python tools/download_pretrained.py clip-rn50
+```
+
+These files initialize backbones. `TRAIN.weight` and `TRAIN.resume` refer to
+task checkpoints produced by ToolRGS training and are documented separately in
+the same guide.
+
 ## VCoT / Grasp-Anything data
 
 The repository includes the small official seen/unseen test CSVs. The 27 MB

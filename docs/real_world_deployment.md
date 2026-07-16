@@ -39,6 +39,9 @@ Training, CLIP/DINO/Mamba, detector, and Whisper weights are not committed to
 Git. Copy the files referenced by the selected experiment and deployment YAML.
 For example:
 
+The official backbone URLs and the repository download command are listed in
+[the pretrained-weight guide](pretrained_weights.md).
+
 ```text
 pretrain/ViT-B-16.pt
 pretrain/dinov2_vitb14_reg4_pretrain.pth

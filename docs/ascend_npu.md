@@ -34,6 +34,18 @@ Datasets, CLIP, DINOv2, MambaVision, and trained checkpoints are not committed
 to Git. Set the paths in the selected experiment YAML. Validate them without
 allocating the full model:
 
+Download the required official backbone weights with:
+
+```bash
+python tools/download_pretrained.py                 # list available weights
+python tools/download_pretrained.py clip-rn50       # RN50-based models
+python tools/download_pretrained.py clip-vit-b16 dinov2-vitb14-reg4  # DROG/OFF
+```
+
+See the [pretrained-weight guide](pretrained_weights.md) for every official
+direct link, model-to-weight mapping, offline ETRG setup, and the distinction
+between backbone weights and `TRAIN.weight`/`TRAIN.resume` task checkpoints.
+
 For OCID-VLG, download the archive from the
 [official Google Drive file](https://drive.google.com/file/d/1VwcjgyzpKTaczovjPNAHjh-1YvWz9Vmt/view),
 extract it so the directory containing `refer/` is

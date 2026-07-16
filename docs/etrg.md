@@ -97,6 +97,10 @@ CLIP weights are local files and are checked before model construction:
 - R50: `pretrain/RN50.pt`
 - R101: `pretrain/RN101.pt`
 
+Download either CLIP file and the optional ResNet-18 file with the commands in
+the [pretrained-weight guide](pretrained_weights.md); it also contains the
+official direct URLs.
+
 The ResNet-18 depth encoder uses torchvision ImageNet weights by default and
 may download them into the PyTorch cache. On an offline server, download a
 torchvision ResNet-18 state dict separately and set:
