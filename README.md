@@ -96,6 +96,30 @@ the shared grasp-map output/loss contract, so it is not included in this matrix.
 Set `DATA.root_path`, `TRAIN.clip_pretrain`, and (for DROG variants)
 `TRAIN.dino_pretrain` to local paths before training.
 
+## Embedded Grasp-Tools v2 data and augmentation
+
+The complete Grasp-Tools source set is included in this repository: 107
+annotated RGB images with JSON masks/grasps and 38 background images live under
+`assets/grasp_tools/`. Generate the multi-object, multi-query v2 dataset from a
+fresh clone with:
+
+```bash
+python -u tools/dataset_converters/grasp_tools/augment.py \
+  --image-ext jpg
+```
+
+The default output is `datasets/grasp-tools/aug_graspall_v2`. It contains
+disjoint train/val/test background splits, balanced scale/angle sampling,
+same-category and hard-negative scenes, and multiple referring expressions per
+rendered image. Train the supplied NPU DROG-OFF experiment with:
+
+```bash
+python train.py --config config/grasp_tools/drogoff_v2.yaml
+```
+
+See `docs/grasp_tools_v2.md` for the smoke test, output schema, and full
+generation options.
+
 ## Pretrained backbone weights
 
 Official CLIP, DINOv2, MambaVision, and optional ETRG ResNet-18 download links

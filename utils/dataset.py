@@ -1166,30 +1166,86 @@ class GraspToolDataset(Dataset):
 
         
         split_dir = os.path.join(root_dir, split)
-        for fname in os.listdir(split_dir):
-            if fname.endswith('.json'):
-                img_name = fname.replace('.json', '.png')
-                img_path = os.path.join(split_dir, img_name)
-                json_path = os.path.join(split_dir, fname)
-                if os.path.exists(img_path):
-                    self.samples.append((img_path, json_path))
+        if not os.path.isdir(split_dir):
+            raise FileNotFoundError(f"GraspTool split directory not found: {split_dir}")
+
+        # Legacy annotations contain one target object per JSON. Schema-v2
+        # annotations keep one rendered scene on disk and attach multiple
+        # language queries to it. Expand only the lightweight query records;
+        # every expanded sample still points to the same shared image.
+        for fname in sorted(os.listdir(split_dir)):
+            if not fname.endswith('.json'):
+                continue
+            json_path = os.path.join(split_dir, fname)
+            with open(json_path, 'r', encoding='utf-8') as file:
+                annotation = json.load(file)
+
+            image_name = annotation.get('image_filename')
+            if not image_name:
+                stem = os.path.splitext(fname)[0]
+                png_name = stem + '.png'
+                jpg_name = stem + '.jpg'
+                if os.path.exists(os.path.join(split_dir, png_name)):
+                    image_name = png_name
+                elif os.path.exists(os.path.join(split_dir, jpg_name)):
+                    image_name = jpg_name
+                else:
+                    image_name = png_name
+            img_path = os.path.join(split_dir, image_name)
+            if not os.path.exists(img_path):
+                raise FileNotFoundError(
+                    f"Image referenced by {json_path} does not exist: {img_path}"
+                )
+
+            queries = annotation.get('queries') or []
+            if queries:
+                for query_index, query in enumerate(queries):
+                    target_idx = int(query.get('target_idx', -1))
+                    if not 0 <= target_idx < len(annotation.get('objects', [])):
+                        raise ValueError(
+                            f"Invalid target_idx={target_idx} in {json_path}, query {query_index}"
+                        )
+                    self.samples.append((img_path, json_path, query_index))
+            else:
+                self.samples.append((img_path, json_path, None))
+
+        if not self.samples:
+            raise RuntimeError(f"No GraspTool samples found in: {split_dir}")
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        img_path, json_path = self.samples[idx]
+        img_path, json_path, query_index = self.samples[idx]
 
         image = cv2.imread(img_path)
+        if image is None:
+            raise FileNotFoundError(f"Failed to read GraspTool image: {img_path}")
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         ori_h, ori_w = image.shape[:2]
 
-        with open(json_path, 'r') as f:
+        with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        obj = data["objects"][0]
-
-        lang = obj["language"]
+        if query_index is None:
+            target_idx = 0
+            obj = data["objects"][target_idx]
+            lang = obj["language"]
+            sent_id = os.path.basename(json_path)
+            query_type = "legacy"
+            difficulty = 1
+            program = []
+        else:
+            query = data["queries"][query_index]
+            target_idx = int(query["target_idx"])
+            obj = data["objects"][target_idx]
+            lang = query["text"]
+            sent_id = query.get(
+                "query_id", f"{os.path.splitext(os.path.basename(json_path))[0]}_q{query_index:02d}"
+            )
+            query_type = query.get("type", "unknown")
+            difficulty = int(query.get("difficulty", 0))
+            program = query.get("program", [])
         # lang = obj["category"]
         polygon = np.array(obj["mask"], dtype=np.int32)
         grasps = [np.array(g, dtype=np.float32) for g in obj.get("grasps", [])]
@@ -1217,9 +1273,9 @@ class GraspToolDataset(Dataset):
             grasps = np.zeros((0, 4, 2), dtype=np.float32)
             grasps_trans = np.zeros((0, 4, 2), dtype=np.float32)
         
-        grasp_target = self.grasp_transform(grasps, target=0)
+        grasp_target = self.grasp_transform(grasps, target=target_idx)
 
-        grasp_rect_format = self.grasp_transform(grasps_trans, target=0)
+        grasp_rect_format = self.grasp_transform(grasps_trans, target=target_idx)
 
         grasp_masks_raw = self.grasp_transform.generate_masks(grasp_rect_format)
 
@@ -1275,10 +1331,13 @@ class GraspToolDataset(Dataset):
             "grasps": grasp_target,
             "target": obj["category"],
             "sentence": lang,
-            "bbox": None,
-            "target_idx": 0,  # 无类别映射时可默认 0
-            "sent_id": os.path.basename(json_path),
-            "scene_id": os.path.basename(json_path),
+            "bbox": obj.get("bbox"),
+            "target_idx": target_idx,
+            "sent_id": sent_id,
+            "scene_id": data.get("scene_id", os.path.splitext(os.path.basename(json_path))[0]),
+            "query_type": query_type,
+            "difficulty": difficulty,
+            "program": program,
             "inverse": mat_inv,
             "ori_size": np.array([ori_h, ori_w]),
             "img_path": img_path
@@ -1322,6 +1381,9 @@ class GraspToolDataset(Dataset):
             "target_idx": [x["target_idx"] for x in batch],
             "sent_id": [x["sent_id"] for x in batch],
             "scene_id": [x["scene_id"] for x in batch],
+            "query_type": [x["query_type"] for x in batch],
+            "difficulty": [x["difficulty"] for x in batch],
+            "program": [x["program"] for x in batch],
             "inverse": [x["inverse"] for x in batch],
             "ori_size": [x["ori_size"] for x in batch],
             "img_path": [x["img_path"] for x in batch]
