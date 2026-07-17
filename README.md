@@ -99,7 +99,7 @@ Set `DATA.root_path`, `TRAIN.clip_pretrain`, and (for DROG variants)
 ## Embedded Grasp-Tools v2 data and augmentation
 
 The complete Grasp-Tools source set is included in this repository: 107
-annotated RGB images with JSON masks/grasps and 38 background images live under
+annotated RGB images with JSON masks/grasps and 42 background images live under
 `assets/grasp_tools/`. Generate the multi-object, multi-query v2 dataset from a
 fresh clone with:
 

@@ -9,7 +9,7 @@ a separate download before augmentation.
 ```text
 assets/grasp_tools/
 ├── graspall/       # 107 JPG + 107 JSON annotations
-└── backgrounds/    # 38 background JPG images
+└── backgrounds/    # 42 background JPG images
 ```
 
 The generator validates the 22 canonical categories and skips the two empty

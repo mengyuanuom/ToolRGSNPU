@@ -4,7 +4,7 @@ This directory contains the complete source material required by ToolRGS's
 compositional Grasp-Tools augmentation pipeline:
 
 - `graspall/`: 107 RGB images and their 107 polygon/grasp JSON annotations;
-- `backgrounds/`: 38 tool-free background images.
+- `backgrounds/`: 42 tool-free background images.
 
 The annotation categories are canonicalized to 22 classes. Two empty object
 records in `000000000076.json` are retained in the source annotation for
