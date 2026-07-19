@@ -4,7 +4,7 @@ Tool-oriented Referring Grasp Synthesis with a single configuration-driven
 codebase for CROG, CROG-OFF, DROG, DROG-OFF, ETRG-A, MapleGrasp, GraspMamba,
 LGD, GGCNN-CLIP, GR-ConvNet-CLIP, and DETRIS backbones. Grasp-Tools, VCoT/Grasp-Anything,
 and OCID-VLG data use the same model-facing batch contract. This repository is
-the Ascend NPU port: training and inference use `torch_npu`, AMP uses NPU AMP,
+the Ascend NPU port: training and inference use `torch_npu`; experiments default to FP32, while optional AMP uses NPU AMP,
 and distributed jobs use HCCL.
 
 Start with the [Ascend installation and smoke-test guide](docs/ascend_npu.md).

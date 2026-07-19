@@ -204,7 +204,7 @@ class NPUGraspRunner:
             )
 
         self.optimizer = build_optimizer(parameter_groups, cfg)
-        self.scaler = build_grad_scaler(enabled=bool(getattr(cfg, "amp", True)))
+        self.scaler = build_grad_scaler(enabled=bool(getattr(cfg, "amp", False)))
         self.optim_wrapper = build_optim_wrapper(
             cfg, optimizer=self.optimizer, scaler=self.scaler
         )

@@ -25,7 +25,7 @@ TRAIN:
   lgd_contrastive_temperature: 0.1
 
   sync_bn: True
-  amp: True
+  amp: False
   optimizer: adam
   pin_memory: False
   workers: 8

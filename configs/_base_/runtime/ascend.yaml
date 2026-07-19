@@ -6,7 +6,7 @@ RUNTIME:
   runner_hooks:
     - type: logger
     - type: checkpoint
-  amp: true
+  amp: False
   optimizer: adam
   pin_memory: false
   sync_bn: true

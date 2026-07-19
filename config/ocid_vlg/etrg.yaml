@@ -44,7 +44,7 @@ TRAIN:
   max_norm: 0.0
   manual_seed: 0
   print_freq: 50
-  amp: true
+  amp: False
   optimizer: adam
   pin_memory: false
   exp_name: etrg_r50_ocid_vlg

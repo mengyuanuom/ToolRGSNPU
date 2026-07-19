@@ -119,7 +119,7 @@ class GraspTrainLoop(BaseLoop):
             inputs = self._to_device(data)
             image = inputs[0]
 
-            with autocast(enabled=bool(getattr(self.cfg, "amp", True))):
+            with autocast(enabled=bool(getattr(self.cfg, "amp", False))):
                 result = GraspModelResult.from_legacy(self.model(*inputs))
             if result.loss is None:
                 raise RuntimeError("GraspTrainLoop requires a model result with a training loss")

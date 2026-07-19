@@ -16,7 +16,7 @@ TRAIN:
   word_dim: 1024
   dropout: False
   dropout_prob: 0.0
-  amp: True
+  amp: False
   optimizer: adam
   pin_memory: False
 

@@ -84,14 +84,14 @@ def move_to_device(value: Any, device: torch.device, non_blocking: bool = True):
     return value
 
 
-def autocast(enabled: bool = True):
+def autocast(enabled: bool = False):
     if not enabled:
         return nullcontext()
     adapter = get_torch_npu()
     return adapter.npu.amp.autocast(enabled=True)
 
 
-def build_grad_scaler(enabled: bool = True):
+def build_grad_scaler(enabled: bool = False):
     adapter = get_torch_npu()
     return adapter.npu.amp.GradScaler(enabled=bool(enabled))
 

@@ -463,7 +463,7 @@ def train_with_grasp(train_loader, model, optimizer, scheduler, scaler, epoch, a
         # image = F.interpolate(image, size=(new_size, new_size), mode='bilinear')
 
         # forward
-        with autocast(enabled=bool(getattr(args, "amp", True))):
+        with autocast(enabled=bool(getattr(args, "amp", False))):
             pred, target, loss, loss_dict = model(
                 image, text, ins_mask, grasp_qua_mask, grasp_sin_mask,
                 grasp_cos_mask, grasp_wid_mask, grasp_off_mask,

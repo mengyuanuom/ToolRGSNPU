@@ -18,7 +18,7 @@ TRAIN:
   word_dim: 1024
 
   sync_bn: True
-  amp: True
+  amp: False
   optimizer: adam
   pin_memory: False
   workers: 8  # per process; 16 workers total with two NPUs
