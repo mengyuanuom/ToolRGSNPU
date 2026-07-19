@@ -45,13 +45,13 @@ TRAIN:
   intermediate: False 
 
   # Training Setting
-  workers: 32  # data loader workers
-  workers_val: 16
+  workers: 4  # per process; 32 workers total with eight NPUs
+  workers_val: 2
   epochs: 65
   milestones: [35,55]
   start_epoch: 0
-  batch_size: 16  # batch size for training
-  batch_size_val: 16  # batch size for validation during training, memory and speed tradeoff
+  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
+  batch_size_val: 8
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 1
@@ -60,9 +60,9 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   # Resume & Save
-  exp_name: drog_ocid_vlg
+  exp_name: drog_ocid_vlg_8npu
   output_folder: exp/ocid_vlg
-  save_freq: 1
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:  # path to initial weight (default: none)
   resume: # path to latest checkpoint (default: none)
   evaluate: True 

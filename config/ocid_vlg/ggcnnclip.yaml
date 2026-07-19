@@ -16,32 +16,34 @@ TRAIN:
   word_len: 17
   word_dim: 1024
   amp: False
+  sync_bn: False
   optimizer: adam
   pin_memory: False
 
+  workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
   epochs: 50
   milestones: [35]
   start_epoch: 0
-  batch_size: 32
+  batch_size: 32  # per NPU; global batch size 256 with eight NPUs
   batch_size_val: 32
-  base_lr: 0.00001
+  base_lr: 0.00004
   lr_decay: 0.1
   lr_multi: 0.1
   weight_decay: 0.0
   max_norm: 0.0
   manual_seed: 0
-  print_freq: 50
-  exp_name: ggcnnclip_ocid_vlg
+  print_freq: 100
+  exp_name: ggcnnclip_ocid_vlg_8npu
   output_folder: exp/ocid_vlg
-  save_freq: 20
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: True
   use_pretrained_clip: True
   use_grasp_masks: True
 Distributed:
-  dist_url: tcp://localhost:3681
+  dist_url: env://
   dist_backend: hccl
   multiprocessing_distributed: True
   world_size: 1

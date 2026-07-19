@@ -30,14 +30,14 @@ TRAIN:
   dropout: 0.1
   intermediate: False
   # Training Setting
-  workers: 4  # data loader workers
+  workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
   epochs: 70
   milestones: [55, 65]
   start_epoch: 0
-  batch_size: 8  # batch size per NPU for training
-  batch_size_val: 8  # batch size for validation during training
-  base_lr: 0.00001
+  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
+  batch_size_val: 8
+  base_lr: 0.00004
   lr_decay: 0.1
   lr_multi: 0.1
   weight_decay: 0.
@@ -45,9 +45,9 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   # Resume & Save
-  exp_name: crog_ocid_vlg
+  exp_name: crog_ocid_vlg_8npu
   output_folder: exp/ocid_vlg
-  save_freq: 5
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: True  # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
@@ -56,7 +56,7 @@ TRAIN:
   use_pretrained_clip: True
   use_grasp_masks: True
 Distributed:
-  dist_url: tcp://localhost:3681
+  dist_url: env://
   dist_backend: 'hccl'
   multiprocessing_distributed: True
   world_size: 1

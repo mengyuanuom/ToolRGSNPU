@@ -34,12 +34,12 @@ TRAIN:
   maple_hard_mask: True
   maple_use_gt_masks: False
   maple_grasp_loss_weight: 1.0
-  workers: 8
-  workers_val: 4
+  workers: 4  # per process; 32 workers total with eight NPUs
+  workers_val: 2
   epochs: 50
   milestones: [35, 45]
   start_epoch: 0
-  batch_size: 8
+  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
   batch_size_val: 8
   base_lr: 0.0001
   lr_decay: 0.1
@@ -48,9 +48,9 @@ TRAIN:
   max_norm: 0.0
   manual_seed: 0
   print_freq: 100
-  exp_name: maplegrasp_ocid_vlg
+  exp_name: maplegrasp_ocid_vlg_8npu
   output_folder: exp/ocid_vlg
-  save_freq: 5
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: True

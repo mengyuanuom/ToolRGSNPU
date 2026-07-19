@@ -23,19 +23,19 @@ TRAIN:
   vis_dim: 512
   fpn_in: [512, 1024, 1024]
   fpn_out: [256, 512, 1024]
-  sync_bn: false
+  sync_bn: False
   num_layers: 3
   num_head: 8
   dim_ffn: 512
   dropout: 0.1
   intermediate: false
-  workers: 8
-  workers_val: 4
+  workers: 4  # per process; 32 workers total with eight NPUs
+  workers_val: 2
   epochs: 40
   milestones: [35]
   start_epoch: 0
   # Conservative per-NPU starting point; increase after the forward smoke test.
-  batch_size: 4
+  batch_size: 4  # per NPU; global batch size 32 with eight NPUs
   batch_size_val: 4
   base_lr: 0.0001
   lr_decay: 0.1
@@ -43,13 +43,13 @@ TRAIN:
   weight_decay: 0.01
   max_norm: 0.0
   manual_seed: 0
-  print_freq: 50
+  print_freq: 100
   amp: False
   optimizer: adam
   pin_memory: false
-  exp_name: etrg_r50_ocid_vlg
+  exp_name: etrg_r50_ocid_vlg_8npu
   output_folder: exp/ocid_vlg
-  save_freq: 1
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: true
@@ -61,4 +61,4 @@ Distributed:
   rank: 0
 TEST:
   test_split: test
-  visualize: false
+  visualize: False
