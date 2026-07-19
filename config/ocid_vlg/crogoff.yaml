@@ -30,25 +30,25 @@ TRAIN:
   dropout: 0.1
   intermediate: False
   # Training Setting
-  workers: 1  # data loader workers
-  workers_val: 1
-  epochs: 5000
-  milestones: [5000]
+  workers: 4  # data loader workers
+  workers_val: 2
+  epochs: 70
+  milestones: [55, 65]
   start_epoch: 0
-  batch_size: 2  # batch size for training
-  batch_size_val: 2  # batch size for validation during training, memory and speed tradeoff
+  batch_size: 8  # batch size per NPU for training
+  batch_size_val: 8  # batch size for validation during training
   base_lr: 0.00001
   lr_decay: 0.1
   lr_multi: 0.1
   weight_decay: 0.
   max_norm: 0.
   manual_seed: 0
-  print_freq: 1
+  print_freq: 100
   # Resume & Save
   exp_name: crogoff_ocid_vlg
   offset_loss_weight: 1.0
   output_folder: exp/ocid_vlg
-  save_freq: 20
+  save_freq: 5
   weight:
   resume:
   evaluate: True  # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
@@ -64,7 +64,7 @@ Distributed:
   rank: 0
 TEST:
   test_split: test
-  visualize: True
+  visualize: False
 
 
 
