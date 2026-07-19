@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class DrogoffResourceProfileTest(unittest.TestCase):
     def test_all_drogoff_configs_use_conservative_per_npu_defaults(self):
-        paths = sorted((ROOT / "config").glob("*/drogoff.yaml"))
+        paths = sorted((ROOT / "config").glob("*/drogoff*.yaml"))
         self.assertEqual(len(paths), 3)
         for path in paths:
             cfg = yaml.safe_load(path.read_text(encoding="utf-8-sig"))

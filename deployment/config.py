@@ -9,7 +9,7 @@ import yaml
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "model": {
-        "config": "config/grasp_tools/drogoff.yaml",
+        "config": "config/grasp_tools/drogoff_v2.yaml",
         "checkpoint": "exp/grasp_tools/drogoff_grasp_tools/best_jindex_model.pth",
         "device": "npu:0",
         "prompt": "the tool",

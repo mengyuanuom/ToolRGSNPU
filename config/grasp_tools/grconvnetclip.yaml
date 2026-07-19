@@ -24,7 +24,7 @@ TRAIN:
   workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
   epochs: 80
-  milestones: [70]
+  milestones: [35]
   start_epoch: 0
   batch_size: 32  # per NPU; global batch size 256 with eight NPUs
   batch_size_val: 32

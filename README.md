@@ -360,21 +360,21 @@ python train.py --config config/ocid_vlg/drog.yaml --opts \
 Single NPU:
 
 ```bash
-python train.py --config config/grasp_tools/drogoff.yaml
+python train.py --config config/grasp_tools/drogoff_v2.yaml
 ```
 
 Distributed:
 
 ```bash
 torchrun --nproc_per_node=2 train.py \
-  --config config/grasp_tools/drogoff.yaml
+  --config config/grasp_tools/drogoff_v2.yaml
 ```
 
 Evaluation:
 
 ```bash
 python evaluate.py \
-  --config config/grasp_tools/drogoff.yaml \
+  --config config/grasp_tools/drogoff_v2.yaml \
   --checkpoint exp/grasp_tools/drogoff_grasp_tools/best_jindex_model.pth
 ```
 
