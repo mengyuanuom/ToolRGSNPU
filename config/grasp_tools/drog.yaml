@@ -31,7 +31,7 @@ TRAIN:
   fpn_in: [768, 768, 768] #dinov2 backbone
   fpn_out: [256, 512, 1024]
 
-  sync_bn: True
+  sync_bn: False
   amp: False
   optimizer: adam
   pin_memory: False

@@ -19,7 +19,7 @@ TRAIN:
   fpn_in: [512, 1024, 1024]
   fpn_out: [256, 512, 1024]
 
-  sync_bn: True
+  sync_bn: False
   amp: False
   optimizer: adam
   pin_memory: False
