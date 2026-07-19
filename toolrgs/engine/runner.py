@@ -258,37 +258,56 @@ class NPUGraspRunner:
         precision = validation.get("precision", {})
         j_index = list(validation.get("j_index", []))
         j_at_one = float(j_index[0]) if j_index else 0.0
-        improved_iou = iou >= self.best_iou
-        improved_j = j_at_one >= self.best_j
-        self.best_iou = max(self.best_iou, iou)
-        self.best_j = max(self.best_j, j_at_one)
-
-        Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
-        last_path = Path(cfg.output_dir) / "last_model.pth"
-        torch.save(
-            {
-                "epoch": int(epoch),
-                "best_iou": self.best_iou,
-                "best_j_index": self.best_j,
-                "state_dict": self.model.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-                "scheduler": self.scheduler.state_dict(),
-                "precision": precision,
-                "j_index": j_index,
-                "meta": {
-                    "architecture": str(cfg.architecture),
-                    "config": getattr(cfg, "filename", None),
-                },
-            },
-            last_path,
-        )
+        improved_iou = iou > self.best_iou
+        improved_j = j_at_one > self.best_j
+        if not improved_iou and not improved_j:
+            return
         if improved_iou:
-            shutil.copyfile(last_path, Path(cfg.output_dir) / "best_iou_model.pth")
+            self.best_iou = iou
         if improved_j:
-            shutil.copyfile(last_path, Path(cfg.output_dir) / "best_jindex_model.pth")
-        save_freq = int(getattr(cfg, "save_freq", 0) or 0)
-        if save_freq and int(epoch) % save_freq == 0:
-            shutil.copyfile(last_path, Path(cfg.output_dir) / f"epoch_{epoch}.pth")
+            self.best_j = j_at_one
+
+        output_dir = Path(cfg.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        targets = []
+        if improved_iou:
+            targets.append(
+                (
+                    output_dir / f"best_iou_epoch_{int(epoch):03d}.pth",
+                    "best_iou_epoch_*.pth",
+                )
+            )
+        if improved_j:
+            targets.append(
+                (
+                    output_dir / f"best_jindex_epoch_{int(epoch):03d}.pth",
+                    "best_jindex_epoch_*.pth",
+                )
+            )
+
+        checkpoint = {
+            "epoch": int(epoch),
+            "best_iou": self.best_iou,
+            "best_j_index": self.best_j,
+            "state_dict": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
+            "precision": precision,
+            "j_index": j_index,
+            "meta": {
+                "architecture": str(cfg.architecture),
+                "config": getattr(cfg, "filename", None),
+            },
+        }
+        torch.save(checkpoint, targets[0][0])
+        for target, _ in targets[1:]:
+            shutil.copyfile(targets[0][0], target)
+
+        for target, pattern in targets:
+            for previous in output_dir.glob(pattern):
+                if previous != target:
+                    previous.unlink()
+            logger.info("Saved new best checkpoint: {}", target)
 
     def train(self):
         self.setup()

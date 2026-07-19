@@ -46,7 +46,7 @@ TRAIN:
   # Resume & Save
   exp_name: crog_grasp_tools_v2_8npu
   output_folder: exp/grasp_tools
-  save_freq: 5
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: True  # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
