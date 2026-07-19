@@ -455,10 +455,13 @@ class MultiTaskProjector(nn.Module):
             word: b, 512
         '''
         x = self.vis(x)
-        # NPU grouped conv backward requires zero-offset contiguous inputs.
-        # Channel splits are views with non-zero storage offsets after the
-        # first chunk, which can produce incorrect gradient shapes on Ascend.
-        x = [part.contiguous() for part in torch.tensor_split(x, 5, dim=1)]
+        # NPU grouped conv backward requires independent, zero-offset inputs.
+        # ``contiguous()`` may return the original view when a sliced tensor is
+        # logically contiguous despite a non-zero storage offset, so force a
+        # new allocation with ``clone()`` for every branch.
+        x = [part.clone() for part in torch.tensor_split(x, 5, dim=1)]
+        if any(part.storage_offset() != 0 for part in x):
+            raise RuntimeError("Projector split must have zero storage_offset")
         # x = torch.chunk(x, 5, dim=1)
 
         mask_x = x[0]
@@ -513,11 +516,11 @@ class MultiTaskProjector(nn.Module):
                             groups=weight.size(0),
                             bias=bias)
             
-        mask_out = mask_out.transpose(0, 1)
-        grasp_qua_out = grasp_qua_out.transpose(0, 1)
-        grasp_sin_out = grasp_sin_out.transpose(0, 1)
-        grasp_cos_out = grasp_cos_out.transpose(0, 1)
-        grasp_wid_out = grasp_wid_out.transpose(0, 1)
+        mask_out = mask_out.transpose(0, 1).contiguous()
+        grasp_qua_out = grasp_qua_out.transpose(0, 1).contiguous()
+        grasp_sin_out = grasp_sin_out.transpose(0, 1).contiguous()
+        grasp_cos_out = grasp_cos_out.transpose(0, 1).contiguous()
+        grasp_wid_out = grasp_wid_out.transpose(0, 1).contiguous()
         # b, 1, 104, 104
 
         return mask_out, grasp_qua_out, grasp_sin_out, grasp_cos_out, grasp_wid_out
