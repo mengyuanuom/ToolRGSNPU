@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from model import build_model
-from toolrgs.datasets import build_dataset
+from utils.data_builder import build_dataset
 from toolrgs.engine.hooks import HookList, LoopState
 from toolrgs.engine.loops import GraspTrainLoop  # noqa: F401 - registers loop
 from toolrgs.engine.optim import build_optim_wrapper, build_param_scheduler
