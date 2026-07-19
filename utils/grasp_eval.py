@@ -333,17 +333,15 @@ def calculate_iou(rect_p, rect_gt, shape=(720, 1280), angle_threshold=30):
     cc2 = cc2[mask_cc]
     rr2 = rr2[mask_cc]
 
-    area = np.zeros(shape)
-    area[cc1, rr1] += 1
-    area[cc2, rr2] += 1
-
-    union = np.sum(area > 0)
-    intersection = np.sum(area == 2)
-
+    pixels1 = np.unique(np.ravel_multi_index((cc1, rr1), shape))
+    pixels2 = np.unique(np.ravel_multi_index((cc2, rr2), shape))
+    intersection = np.intersect1d(
+        pixels1, pixels2, assume_unique=True
+    ).size
+    union = pixels1.size + pixels2.size - intersection
     if union <= 0:
         return 0
-    else:
-        return intersection / union
+    return intersection / union
 
 
 def calculate_max_iou(rects_p, rects_gt):
@@ -359,15 +357,14 @@ def calculate_max_iou(rects_p, rects_gt):
 
 
 def calculate_jacquard_index(grasp_preds, grasp_targets, iou_threshold=0.25):
-    j_index = 0
     grasp_preds = np.asarray(grasp_preds)
     grasp_targets = np.asarray(grasp_targets)
 
     grasp_targets[:, 3] = 20
     grasp_targets[:, 2] = np.clip(grasp_targets[:, 2], 0, 100)
-    
-    iou = calculate_max_iou(grasp_preds, grasp_targets)
-    if iou > iou_threshold:
-        j_index = 1
-    
-    return j_index
+
+    for rect_gt in grasp_targets:
+        for rect_p in grasp_preds:
+            if calculate_iou(rect_p, rect_gt) > iou_threshold:
+                return 1
+    return 0

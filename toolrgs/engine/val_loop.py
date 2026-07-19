@@ -25,11 +25,6 @@ from toolrgs.structures import GraspModelResult
 from utils.grasp_eval import calculate_jacquard_index
 
 
-def _sample_map(tensor, index):
-    array = tensor[index].detach().float().cpu().numpy()
-    return np.squeeze(array)
-
-
 def _resize_prediction(tensor, output_hw, mode="bicubic"):
     if tensor.shape[-2:] == tuple(output_hw):
         return tensor
@@ -55,6 +50,9 @@ class GraspValLoop(BaseLoop):
         self.cfg = cfg
         self.device = current_device(int(getattr(cfg, "npu", getattr(cfg, "gpu", 0))))
         self.topk = tuple(getattr(cfg, "grasp_topk", (1, 5)))
+        if not self.topk or any(int(value) <= 0 for value in self.topk):
+            raise ValueError(f"grasp_topk must contain positive integers, got {self.topk}")
+        self.max_topk = max(self.topk)
         self.segmentation_metric = METRICS.build(
             getattr(cfg, "segmentation_metric", None)
             or {
@@ -164,6 +162,25 @@ class GraspValLoop(BaseLoop):
             if predictions.offset is not None:
                 offset = _resize_prediction(predictions.offset, input_hw, mode="bilinear")
 
+            dense_tensors = [
+                segmentation,
+                target_segmentation,
+                quality,
+                sine,
+                cosine,
+                width,
+            ]
+            if offset is not None:
+                dense_tensors.append(offset)
+            dense_maps = (
+                torch.cat(dense_tensors, dim=1)
+                .detach()
+                .float()
+                .cpu()
+                .numpy()
+            )
+            offset_maps = dense_maps[:, 6:8] if offset is not None else None
+
             for index in range(image.shape[0]):
                 inverse_matrix = data["inverse"][index]
                 if hasattr(inverse_matrix, "detach"):
@@ -173,10 +190,10 @@ class GraspValLoop(BaseLoop):
                     int(data["ori_size"][index][1]),
                 )
                 predicted_segmentation = inverse_warp(
-                    _sample_map(segmentation, index), inverse_matrix, original_hw
+                    dense_maps[index, 0], inverse_matrix, original_hw
                 )
                 target_segmentation_original = inverse_warp(
-                    _sample_map(target_segmentation, index), inverse_matrix, original_hw
+                    dense_maps[index, 1], inverse_matrix, original_hw
                 )
                 self.segmentation_metric.update(
                     predicted_segmentation,
@@ -184,41 +201,42 @@ class GraspValLoop(BaseLoop):
                 )
 
                 quality_original = inverse_warp(
-                    _sample_map(quality, index), inverse_matrix, original_hw
+                    dense_maps[index, 2], inverse_matrix, original_hw
                 )
                 sine_original = inverse_warp(
-                    _sample_map(sine, index), inverse_matrix, original_hw
+                    dense_maps[index, 3], inverse_matrix, original_hw
                 )
                 cosine_original = inverse_warp(
-                    _sample_map(cosine, index), inverse_matrix, original_hw
+                    dense_maps[index, 4], inverse_matrix, original_hw
                 )
                 width_original = inverse_warp(
-                    _sample_map(width, index), inverse_matrix, original_hw
+                    dense_maps[index, 5], inverse_matrix, original_hw
                 )
                 grasp_targets = data["grasps"][index]
                 if hasattr(grasp_targets, "detach"):
                     grasp_targets = grasp_targets.detach().cpu().numpy()
                 target_six = targets_to_six(grasp_targets)
 
-                for topk in self.topk:
-                    detections = self.postprocessor(
-                        quality_original,
-                        sine_original,
-                        cosine_original,
-                        width_original,
-                        num_grasps=topk,
+                detections = self.postprocessor(
+                    quality_original,
+                    sine_original,
+                    cosine_original,
+                    width_original,
+                    num_grasps=self.max_topk,
+                )
+                rectangles = [detection.as_rectangle() for detection in detections]
+                if offset_maps is not None and rectangles:
+                    rectangles = refine_with_offset(
+                        rectangles,
+                        offset_maps[index : index + 1],
+                        inverse_matrix,
+                        self._offset_radius(input_hw),
                     )
-                    rectangles = [detection.as_rectangle() for detection in detections]
-                    if offset is not None and rectangles:
-                        rectangles = refine_with_offset(
-                            rectangles,
-                            offset[index : index + 1],
-                            inverse_matrix,
-                            self._offset_radius(input_hw),
-                        )
-                    else:
-                        rectangles = rectangles_to_five(rectangles)
-                    success = calculate_jacquard_index(rectangles, target_six)
+                else:
+                    rectangles = rectangles_to_five(rectangles)
+
+                for topk in self.topk:
+                    success = calculate_jacquard_index(rectangles[:topk], target_six)
                     self.grasp_metric.update(topk, success)
 
             self.state.result = result
