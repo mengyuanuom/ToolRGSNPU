@@ -20,6 +20,8 @@ class ConfigInheritanceTest(unittest.TestCase):
         self.assertEqual(cfg.param_scheduler["milestones"], [35])
         self.assertEqual(cfg.epochs, 40)
         self.assertEqual(cfg.sections.MODEL.word_dim, 1024)
+        self.assertEqual(cfg.etrg_input_mode, "rgb")
+        self.assertFalse(cfg.with_depth)
 
     def test_cli_override_updates_flat_and_hierarchical_views(self):
         cfg = load_cfg_from_cfg_file(

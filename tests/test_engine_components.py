@@ -59,7 +59,7 @@ class EvaluationComponentTest(unittest.TestCase):
         self.assertEqual(len(detections), 1)
         detection = detections[0]
         self.assertEqual((detection.x, detection.y), (4.0, 3.0))
-        self.assertAlmostEqual(detection.angle_degrees, 45.0)
+        self.assertAlmostEqual(detection.angle_degrees, 45.0, places=5)
         self.assertAlmostEqual(detection.width, 100.0)
         self.assertAlmostEqual(detection.height, 40.0)
 

@@ -14,7 +14,7 @@ from toolrgs.engine import GraspValLoop  # imports and registers the default loo
 from toolrgs.preflight import validate_required_artifacts
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import device_name, require_npu, set_device
-from utils.data_builder import build_dataset
+from toolrgs.datasets import build_dataset
 from utils.misc import setup_logger
 
 

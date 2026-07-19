@@ -62,6 +62,7 @@ class NPUSourceContractTest(unittest.TestCase):
             ROOT / "toolrgs" / "engine" / "runner.py",
             ROOT / "toolrgs" / "engine" / "optim.py",
             ROOT / "tools" / "train.py",
+            ROOT / "tools" / "smoke_train_ocid.py",
             ROOT / "deployment" / "inference.py",
         )
         forbidden = (".cuda(", "torch.cuda", '"nccl"', "'nccl'")

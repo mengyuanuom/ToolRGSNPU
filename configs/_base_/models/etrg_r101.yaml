@@ -1,5 +1,6 @@
 MODEL:
   architecture: etrg
+  etrg_input_mode: rgb
   clip_pretrain: pretrain/RN101.pt
   depth_pretrain:
   depth_backbone_pretrained: true

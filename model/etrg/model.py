@@ -113,13 +113,20 @@ def _build_depth_backbone(cfg):
 
 
 class ETRG(BaseGraspModel):
-    """Parameter-efficient CLIP adapter model with explicit depth fusion."""
+    """Parameter-efficient CLIP adapter with RGB or RGB-D auxiliary fusion."""
 
     requires_depth = True
     supports_offset = False
 
     def __init__(self, cfg):
         super().__init__()
+        self.input_mode = str(getattr(cfg, "etrg_input_mode", "rgbd")).lower()
+        if self.input_mode not in {"rgb", "rgbd"}:
+            raise ValueError(
+                "etrg_input_mode must be 'rgb' or 'rgbd', "
+                f"got {self.input_mode!r}"
+            )
+        self.requires_depth = self.input_mode == "rgbd"
         logger.info("Loading ETRG CLIP backbone: {}", cfg.clip_pretrain)
         clip_model = torch.jit.load(cfg.clip_pretrain, map_location="cpu").eval()
         self.backbone = build_clip_model(
@@ -200,25 +207,44 @@ class ETRG(BaseGraspModel):
         grasp_off_mask=None,
         grasp_off_weight=None,
     ):
-        if depth is None:
-            raise ValueError(
-                "ETRG requires aligned depth maps. Use OCID-VLG with "
-                "DATA.with_depth=True."
+        if self.input_mode == "rgb":
+            # RGB-only calls omit depth, so the legacy positional signature is
+            # shifted one place by the common ToolRGS batch contract.
+            (
+                word,
+                mask,
+                grasp_qua_mask,
+                grasp_sin_mask,
+                grasp_cos_mask,
+                grasp_wid_mask,
+                grasp_off_mask,
+                grasp_off_weight,
+            ) = (
+                depth,
+                word,
+                mask,
+                grasp_qua_mask,
+                grasp_sin_mask,
+                grasp_cos_mask,
+                grasp_wid_mask,
+                grasp_off_mask,
             )
-        if depth.ndim == 3:
-            depth = depth.unsqueeze(1)
-        if depth.ndim != 4 or depth.shape[1] != 1:
-            raise ValueError(
-                f"ETRG depth must have shape [B,1,H,W], got {tuple(depth.shape)}"
-            )
-        if depth.shape[-2:] != image.shape[-2:]:
-            depth = F.interpolate(
-                depth, size=image.shape[-2:], mode="nearest"
-            )
+            auxiliary = image.float()
+        else:
+            if depth is None:
+                raise ValueError("ETRG RGB-D mode requires aligned depth maps")
+            if depth.ndim == 3:
+                depth = depth.unsqueeze(1)
+            if depth.ndim != 4 or depth.shape[1] != 1:
+                raise ValueError(
+                    f"ETRG depth must have shape [B,1,H,W], got {tuple(depth.shape)}"
+                )
+            if depth.shape[-2:] != image.shape[-2:]:
+                depth = F.interpolate(depth, size=image.shape[-2:], mode="nearest")
+            auxiliary = self._normalize_depth(depth).repeat(1, 3, 1, 1)
 
         pad_mask = word.eq(0)
-        depth = self._normalize_depth(depth)
-        depth_features = self.zoom_in(self.resnet18(depth.repeat(1, 3, 1, 1)))
+        depth_features = self.zoom_in(self.resnet18(auxiliary))
         depth_features = depth_features.flatten(2).permute(2, 0, 1)
 
         visual, words, sentence = self.bridger(

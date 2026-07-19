@@ -50,7 +50,7 @@ coverage.xml
 docs/_build/
 
 # Datasets
-datasets/
+/datasets/
 pretrain/
 /split/vcot/train.csv
 

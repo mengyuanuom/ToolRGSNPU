@@ -3,13 +3,14 @@ DATA:
   # Recommended server setup: `ln -sfn ../data datasets` in the repo root.
   root_path: ./datasets/OCID-VLG
   version: multiple
-  with_depth: true
+  with_depth: false
   train_split: train
   val_split: val
 MODEL:
   architecture: etrg
 TRAIN:
-  # Official ETRG-A R50 RGB-D profile.
+  # RGB-only ETRG R50 profile. The auxiliary encoder consumes RGB.
+  etrg_input_mode: rgb
   clip_pretrain: pretrain/RN50.pt
   depth_pretrain:
   depth_backbone_pretrained: true

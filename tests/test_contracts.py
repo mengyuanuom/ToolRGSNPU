@@ -12,7 +12,7 @@ from model.layers import OffsetMultiTaskProjector
 from model.lgd import CosineDiffusion, LGDCore
 from model.maplegrasp import MapleGraspProjector
 from utils.dataset import GraspTransforms, make_dense_offset_with_radius_np
-from utils.data_builder import DATASET_REGISTRY
+from toolrgs.datasets import DATASET_REGISTRY
 from utils.ocid_vlg_dataset import parse_ocid_image_filename, resolve_ocid_vlg_split
 from utils.vcot_dataset import grasp_anything_to_quads, resolve_vcot_split
 
@@ -84,7 +84,7 @@ class ToolRGSContractsTest(unittest.TestCase):
             self.assertIn(dataset, DATASET_REGISTRY, path)
 
         for directory, dataset_name, expected_configs in (
-            ("grasp_tools", "grasptool", expected),
+            ("grasp_tools", "grasptool", (expected - {"drogoff"}) | {"drogoff_v2"}),
             ("vcot", "vcot", expected),
             ("ocid_vlg", "ocid_vlg", expected | {"etrg", "etrg_r101"}),
         ):
