@@ -62,77 +62,60 @@ class MultiTaskProjector(nn.Module):
         self.txt = nn.Linear(word_dim, out_dim)
 
     def forward(self, x, word):
-        '''
-            x: b, 512, 26, 26
-            word: b, 512
-        '''
+        """Apply the five text-conditioned heads in one NPU-safe grouped conv."""
         x = self.vis(x)
-        x = [part.clone() for part in torch.tensor_split(x, 5, dim=1)]
-        if any(part.storage_offset() != 0 for part in x):
-            raise RuntimeError("CROG projector split must have zero storage_offset")
-        # x = torch.chunk(x, 5, dim=1)
+        batch_size, total_channels, height, width = x.shape
+        branch_count = 5
+        if total_channels % branch_count != 0:
+            raise RuntimeError(
+                f"Projector channels {total_channels} are not divisible by {branch_count}"
+            )
+        channels = total_channels // branch_count
 
-        mask_x = x[0]
-        grasp_qua_x = x[1]
-        grasp_sin_x = x[2]
-        grasp_cos_x = x[3]
-        grasp_wid_x = x[4]
+        dynamic_params = self.txt(word)
+        weight = dynamic_params[:, :-1].reshape(
+            batch_size, channels, self.kernel_size, self.kernel_size
+        )
+        bias = dynamic_params[:, -1]
 
-        B, C, H, W = mask_x.size()
-
-
-        # 1, b*256, 104, 104
-        mask_x = mask_x.reshape(1, B * C, H, W)
-        grasp_qua_x = grasp_qua_x.reshape(1, B * C, H, W)
-        grasp_sin_x = grasp_sin_x.reshape(1, B * C, H, W)
-        grasp_cos_x = grasp_cos_x.reshape(1, B * C, H, W)
-        grasp_wid_x = grasp_wid_x.reshape(1, B * C, H, W)
-
-
-        # txt: b, (256*3*3 + 1) -> b, 256, 3, 3 / b
-        word = self.txt(word)
-        weight, bias = word[:, :-1], word[:, -1]
-        weight = weight.reshape(B, C, self.kernel_size, self.kernel_size)
-        # Conv2d - 1, b*256, 104, 104 -> 1, b, 104, 104
-        mask_out = F.conv2d(mask_x,
-                       weight,
-                       padding=self.kernel_size // 2,
-                       groups=weight.size(0),
-                       bias=bias)
-        
-        grasp_qua_out = F.conv2d(grasp_qua_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-        
-        grasp_sin_out = F.conv2d(grasp_sin_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-
-        grasp_cos_out = F.conv2d(grasp_cos_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-        
-        grasp_wid_out = F.conv2d(grasp_wid_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-            
-        mask_out = mask_out.transpose(0, 1).contiguous()
-        grasp_qua_out = grasp_qua_out.transpose(0, 1).contiguous()
-        grasp_sin_out = grasp_sin_out.transpose(0, 1).contiguous()
-        grasp_cos_out = grasp_cos_out.transpose(0, 1).contiguous()
-        grasp_wid_out = grasp_wid_out.transpose(0, 1).contiguous()
-        # b, 1, 104, 104
-
-        return mask_out, grasp_qua_out, grasp_sin_out, grasp_cos_out, grasp_wid_out
-
+        # Arrange groups as (sample 0/head 0..4, sample 1/head 0..4, ...).
+        # This is mathematically equivalent to five separate grouped convs but
+        # avoids split views with non-zero storage offsets on Ascend.
+        grouped_input = x.reshape(
+            1, batch_size * branch_count * channels, height, width
+        )
+        grouped_weight = (
+            weight[:, None]
+            .expand(-1, branch_count, -1, -1, -1)
+            .reshape(
+                batch_size * branch_count,
+                channels,
+                self.kernel_size,
+                self.kernel_size,
+            )
+            .contiguous()
+        )
+        grouped_bias = (
+            bias[:, None]
+            .expand(-1, branch_count)
+            .reshape(batch_size * branch_count)
+            .contiguous()
+        )
+        output = F.conv2d(
+            grouped_input,
+            grouped_weight,
+            bias=grouped_bias,
+            padding=self.kernel_size // 2,
+            groups=batch_size * branch_count,
+        ).reshape(batch_size, branch_count, height, width)
+        return tuple(
+            torch.index_select(
+                output,
+                1,
+                torch.arange(index, index + 1, device=output.device),
+            )
+            for index in range(branch_count)
+        )
 
 class Projector(nn.Module):
     def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
