@@ -67,7 +67,9 @@ class MultiTaskProjector(nn.Module):
             word: b, 512
         '''
         x = self.vis(x)
-        x = torch.tensor_split(x, 5, dim=1) # no tensor_split api in torch 1.7, please use it in higher version
+        x = [part.clone() for part in torch.tensor_split(x, 5, dim=1)]
+        if any(part.storage_offset() != 0 for part in x):
+            raise RuntimeError("CROG projector split must have zero storage_offset")
         # x = torch.chunk(x, 5, dim=1)
 
         mask_x = x[0]
@@ -122,11 +124,11 @@ class MultiTaskProjector(nn.Module):
                             groups=weight.size(0),
                             bias=bias)
             
-        mask_out = mask_out.transpose(0, 1)
-        grasp_qua_out = grasp_qua_out.transpose(0, 1)
-        grasp_sin_out = grasp_sin_out.transpose(0, 1)
-        grasp_cos_out = grasp_cos_out.transpose(0, 1)
-        grasp_wid_out = grasp_wid_out.transpose(0, 1)
+        mask_out = mask_out.transpose(0, 1).contiguous()
+        grasp_qua_out = grasp_qua_out.transpose(0, 1).contiguous()
+        grasp_sin_out = grasp_sin_out.transpose(0, 1).contiguous()
+        grasp_cos_out = grasp_cos_out.transpose(0, 1).contiguous()
+        grasp_wid_out = grasp_wid_out.transpose(0, 1).contiguous()
         # b, 1, 104, 104
 
         return mask_out, grasp_qua_out, grasp_sin_out, grasp_cos_out, grasp_wid_out
@@ -206,7 +208,9 @@ class MultiTaskProjectorOff(nn.Module):
         device = x.device
         dtype  = x.dtype
         x = self.vis(x)
-        x = torch.tensor_split(x, 6, dim=1) # no tensor_split api in torch 1.7, please use it in higher version
+        x = [part.clone() for part in torch.tensor_split(x, 6, dim=1)]
+        if any(part.storage_offset() != 0 for part in x):
+            raise RuntimeError("CROG-OFF projector split must have zero storage_offset")
         # x = torch.chunk(x, 6, dim=1)
 
         mask_x = x[0]
@@ -274,11 +278,11 @@ class MultiTaskProjectorOff(nn.Module):
         
         grasp_off_out = self.grasp_off_conv(grasp_off_x)
             
-        mask_out = mask_out.transpose(0, 1)
-        grasp_qua_out = grasp_qua_out.transpose(0, 1)
-        grasp_sin_out = grasp_sin_out.transpose(0, 1)
-        grasp_cos_out = grasp_cos_out.transpose(0, 1)
-        grasp_wid_out = grasp_wid_out.transpose(0, 1)
+        mask_out = mask_out.transpose(0, 1).contiguous()
+        grasp_qua_out = grasp_qua_out.transpose(0, 1).contiguous()
+        grasp_sin_out = grasp_sin_out.transpose(0, 1).contiguous()
+        grasp_cos_out = grasp_cos_out.transpose(0, 1).contiguous()
+        grasp_wid_out = grasp_wid_out.transpose(0, 1).contiguous()
         # grasp_off_out = grasp_off_out.transpose(0, 1)
         # b, 1, 104, 104
 
