@@ -34,9 +34,9 @@ TRAIN:
   epochs: 70
   milestones: [55, 65]
   start_epoch: 0
-  batch_size: 8  # batch size per NPU for training
+  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
   batch_size_val: 8  # batch size for validation during training
-  base_lr: 0.00001
+  base_lr: 0.00004  # conservative linear scaling for eight-NPU training
   lr_decay: 0.1
   lr_multi: 0.1
   weight_decay: 0.
@@ -44,7 +44,7 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   # Resume & Save
-  exp_name: crog_grasp_tools_v2
+  exp_name: crog_grasp_tools_v2_8npu
   output_folder: exp/grasp_tools
   save_freq: 5
   weight:
@@ -55,7 +55,7 @@ TRAIN:
   use_pretrained_clip: True
   use_grasp_masks: True
 Distributed:
-  dist_url: tcp://localhost:3681
+  dist_url: env://
   dist_backend: 'hccl'
   multiprocessing_distributed: True
   world_size: 1
