@@ -455,7 +455,10 @@ class MultiTaskProjector(nn.Module):
             word: b, 512
         '''
         x = self.vis(x)
-        x = torch.tensor_split(x, 5, dim=1) # no tensor_split api in torch 1.7, please use it in higher version
+        # NPU grouped conv backward requires zero-offset contiguous inputs.
+        # Channel splits are views with non-zero storage offsets after the
+        # first chunk, which can produce incorrect gradient shapes on Ascend.
+        x = [part.contiguous() for part in torch.tensor_split(x, 5, dim=1)]
         # x = torch.chunk(x, 5, dim=1)
 
         mask_x = x[0]
