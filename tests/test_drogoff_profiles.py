@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DrogoffResourceProfileTest(unittest.TestCase):
-    def test_all_drogoff_configs_use_conservative_two_npu_defaults(self):
+    def test_all_drogoff_configs_use_conservative_per_npu_defaults(self):
         paths = sorted((ROOT / "config").glob("*/drogoff.yaml"))
         self.assertEqual(len(paths), 3)
         for path in paths:
@@ -20,7 +20,8 @@ class DrogoffResourceProfileTest(unittest.TestCase):
             self.assertEqual(train["workers"], 4, path)
             self.assertEqual(train["workers_val"], 2, path)
             self.assertEqual(train["print_freq"], 100, path)
-            self.assertEqual(train["save_freq"], 5, path)
+            expected_save_freq = 0 if path.parent.name == "grasp_tools" else 5
+            self.assertEqual(train["save_freq"], expected_save_freq, path)
             self.assertEqual(cfg["Distributed"]["dist_backend"], "hccl", path)
 
 

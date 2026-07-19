@@ -1,6 +1,6 @@
 ﻿DATA:
   dataset: GraspTool
-  root_path: ./datasets/grasp-tools/aug_graspall_v1128
+  root_path: ./datasets/grasp-tools/aug_graspall_v2
   train_split: train
   val_split: val
   offset_r: 20
@@ -11,7 +11,7 @@ TRAIN:
   clip_pretrain: pretrain/RN50.pt
   version: multiple
   input_size: 224
-  word_len: 17
+  word_len: 32
   word_dim: 1024
   use_pretrained_clip: True
   use_grasp_masks: True
@@ -27,12 +27,12 @@ TRAIN:
   amp: False
   optimizer: adam
   pin_memory: False
-  workers: 8
-  workers_val: 4
+  workers: 4  # per process; 32 workers total with eight NPUs
+  workers_val: 2
   epochs: 100
   milestones: [70, 90]
   start_epoch: 0
-  batch_size: 16
+  batch_size: 16  # per NPU; global batch size 128 with eight NPUs
   batch_size_val: 8
   base_lr: 0.0001
   lr_decay: 0.1
@@ -40,10 +40,10 @@ TRAIN:
   weight_decay: 0.0
   max_norm: 0.0
   manual_seed: 0
-  print_freq: 50
-  exp_name: lgd_grasp_tools
+  print_freq: 100
+  exp_name: lgd_grasp_tools_v2_8npu
   output_folder: exp/grasp_tools
-  save_freq: 5
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: True
@@ -54,7 +54,7 @@ Distributed:
   world_size: 1
   rank: 0
 TEST:
-  test_split: val-test
+  test_split: test
   visualize: False
 
 

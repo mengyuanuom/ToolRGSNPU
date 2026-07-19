@@ -1,6 +1,6 @@
 ﻿DATA:
   dataset: GraspTool
-  root_path: ./datasets/grasp-tools/aug_graspall_v0711
+  root_path: ./datasets/grasp-tools/aug_graspall_v2
   train_split: train
   val_split: val
   offset_r: 20
@@ -17,19 +17,19 @@ TRAIN:
   graspmamba_instance_loss_weight: 1.0
   version: multiple
   input_size: 416
-  word_len: 17
+  word_len: 32
   word_dim: 1024
 
   sync_bn: False
   amp: False
   optimizer: adam
   pin_memory: False
-  workers: 4
-  workers_val: 4
+  workers: 4  # per process; 32 workers total with eight NPUs
+  workers_val: 2
   epochs: 65
   milestones: [35, 55]
   start_epoch: 0
-  batch_size: 8
+  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
   batch_size_val: 8
   base_lr: 0.001
   lr_decay: 0.1
@@ -37,22 +37,22 @@ TRAIN:
   weight_decay: 0.0
   max_norm: 1.0
   manual_seed: 0
-  print_freq: 50
-  exp_name: graspmamba_grasp_tools
+  print_freq: 100
+  exp_name: graspmamba_grasp_tools_v2_8npu
   output_folder: exp/grasp_tools
-  save_freq: 10
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
   resume:
   evaluate: True
   use_grasp_masks: True
 Distributed:
-  dist_url: tcp://localhost:3681
+  dist_url: env://
   dist_backend: hccl
   multiprocessing_distributed: True
   world_size: 1
   rank: 0
 TEST:
-  test_split: val-test
+  test_split: test
   visualize: False
 
 

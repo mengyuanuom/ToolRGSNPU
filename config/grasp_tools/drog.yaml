@@ -1,6 +1,6 @@
 ﻿DATA:
   dataset: GraspTool
-  root_path: ./datasets/grasp-tools/aug_graspall_v1128
+  root_path: ./datasets/grasp-tools/aug_graspall_v2
   train_split: train
   val_split: val
   offset_r: 20
@@ -21,7 +21,7 @@ TRAIN:
   dino_name: dino-base
   model_name: CLIP-b-16
   input_size: 448
-  word_len: 17
+  word_len: 32
   word_dim: 512
   ladder_dim: 128
   nhead: 8
@@ -44,13 +44,13 @@ TRAIN:
   intermediate: False 
 
   # Training Setting
-  workers: 32  # data loader workers
-  workers_val: 16
+  workers: 4  # per process; 32 workers total with eight NPUs
+  workers_val: 2
   epochs: 65
   milestones: [35,55]
   start_epoch: 0
-  batch_size: 16  # batch size for training
-  batch_size_val: 16  # batch size for validation during training, memory and speed tradeoff
+  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
+  batch_size_val: 8
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 1
@@ -59,9 +59,9 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   # Resume & Save
-  exp_name: drog_grasp_tools
+  exp_name: drog_grasp_tools_v2_8npu
   output_folder: exp/grasp_tools
-  save_freq: 1
+  save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:  # path to initial weight (default: none)
   resume: # path to latest checkpoint (default: none)
   evaluate: True 
@@ -74,7 +74,7 @@ Distributed:
   rank: 0
 
 TEST:
-  test_split: val-test
+  test_split: test
   visualize: False
 
 
