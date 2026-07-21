@@ -110,7 +110,8 @@ python -u tools/dataset_converters/grasp_tools/augment.py
 The default output is `datasets/grasp-tools/aug_graspall_v2`. It uses the
 difficulty-1 starter curriculum: two or three unique-category tools per scene,
 expanded category vocabulary, shared language templates, and mild appearance
-augmentation. Train the supplied NPU DROG-OFF experiment with:
+augmentation. The default split contains 6000 train, 500 validation, and 1000
+test scenes. Train the supplied NPU DROG-OFF experiment with:
 
 ```bash
 python train.py --config config/grasp_tools/drogoff_v2.yaml

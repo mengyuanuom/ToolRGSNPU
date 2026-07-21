@@ -83,7 +83,7 @@ individual setting:
 ```bash
 python -u tools/dataset_converters/grasp_tools/augment.py \
   --out-dir datasets/grasp-tools/aug_graspall_v2 \
-  --train-scenes 3000 \
+  --train-scenes 6000 \
   --val-scenes 500 \
   --test-scenes 1000 \
   --objects-min 2 \

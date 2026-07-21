@@ -249,7 +249,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--src-dir", default="assets/grasp_tools/graspall")
     parser.add_argument("--background-dir", default="assets/grasp_tools/backgrounds")
     parser.add_argument("--out-dir", default="datasets/grasp-tools/aug_graspall_v2")
-    parser.add_argument("--train-scenes", type=int, default=3000)
+    parser.add_argument("--train-scenes", type=int, default=6000)
     parser.add_argument("--val-scenes", type=int, default=500)
     parser.add_argument("--test-scenes", type=int, default=1000)
     parser.add_argument("--objects-min", type=int, default=2)
