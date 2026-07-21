@@ -117,6 +117,13 @@ test scenes. Train the supplied NPU DROG-OFF experiment with:
 python train.py --config config/grasp_tools/drogoff_v2.yaml
 ```
 
+To train CROG, DROG-OFF, and LGD sequentially on eight NPUs, closing each
+distributed session before starting the next one, run:
+
+```bash
+bash tools/train_grasp_tools_8npu.sh
+```
+
 See `docs/grasp_tools_v2.md` for the smoke test, output schema, and full
 generation options.
 

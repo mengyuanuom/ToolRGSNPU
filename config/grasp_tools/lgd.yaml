@@ -29,12 +29,12 @@ TRAIN:
   pin_memory: False
   workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
-  epochs: 100
-  milestones: [70, 90]
+  epochs: 50
+  milestones: [40]
   start_epoch: 0
   batch_size: 16  # per NPU; global batch size 128 with eight NPUs
   batch_size_val: 8
-  base_lr: 0.0001
+  base_lr: 0.0008  # 0.0001 x 8 NPUs
   lr_decay: 0.1
   lr_multi: 0.1
   weight_decay: 0.0
@@ -56,5 +56,4 @@ Distributed:
 TEST:
   test_split: test
   visualize: False
-
 

@@ -46,15 +46,15 @@ TRAIN:
   dropout: 0.1
   intermediate: False
 
-  # Conservative per-process profile for two NPUs.
+  # Per-process profile for eight-NPU distributed training.
   workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
-  epochs: 65
-  milestones: [35,55]
+  epochs: 50
+  milestones: [40]
   start_epoch: 0
   batch_size: 8  # per NPU; global batch size 64 with eight NPUs
   batch_size_val: 4
-  base_lr: 0.0001
+  base_lr: 0.0008  # 0.0001 x 8 NPUs
   lr_decay: 0.1
   lr_multi: 1
   weight_decay: 0.
