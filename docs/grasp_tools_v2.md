@@ -94,7 +94,7 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
   --language-templates shared \
   --category-vocabulary expanded \
   --scales 0.9,1.0,1.15,1.3 \
-  --angle-bins 8 \
+  --angle-bins 24 \
   --same-category-probability 0 \
   --hard-negative-probability 0 \
   --brightness-jitter 0.05 \

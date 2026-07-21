@@ -288,7 +288,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scales", type=parse_scales, default=parse_scales("0.9,1.0,1.15,1.3")
     )
-    parser.add_argument("--angle-bins", type=int, default=8)
+    parser.add_argument(
+        "--angle-bins",
+        type=int,
+        default=24,
+        help=(
+            "Number of balanced rotation strata across 360 degrees; "
+            "24 gives 15-degree bins with continuous +/-7.5-degree jitter."
+        ),
+    )
     parser.add_argument("--same-category-probability", type=float, default=0.0)
     parser.add_argument("--hard-negative-probability", type=float, default=0.0)
     parser.add_argument("--placement-attempts", type=int, default=200)
