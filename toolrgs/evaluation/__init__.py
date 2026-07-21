@@ -10,6 +10,7 @@ from .geometry import (
     rect_to_five,
     rectangles_to_five,
     refine_with_offset,
+    resample_grasp_geometry,
     targets_to_six,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     "rect_to_five",
     "rectangles_to_five",
     "refine_with_offset",
+    "resample_grasp_geometry",
     "targets_to_six",
 ]

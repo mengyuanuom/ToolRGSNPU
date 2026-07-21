@@ -11,6 +11,7 @@ from toolrgs.evaluation import (
     five_to_corners,
     inverse_warp,
     refine_with_offset,
+    resample_grasp_geometry,
     targets_to_six,
 )
 from toolrgs.registry import HOOKS, METRICS, POSTPROCESSORS
@@ -36,6 +37,26 @@ class EvaluationComponentTest(unittest.TestCase):
         )
         np.testing.assert_allclose(refined[0][:2], [20.0, 15.0], atol=1e-4)
         np.testing.assert_allclose(refined[0][2:4], [8.0, 4.0], atol=1e-4)
+
+    def test_geometry_is_bilinearly_resampled_at_refined_center(self):
+        sine = np.zeros((4, 4), dtype=np.float32)
+        cosine = np.ones((4, 4), dtype=np.float32)
+        width = np.zeros((4, 4), dtype=np.float32)
+        sine[1:3, 1:3] = 1.0
+        cosine[1:3, 1:3] = 0.0
+        width[1:3, 1:3] = np.array([[0.2, 0.4], [0.6, 0.8]])
+
+        refined = resample_grasp_geometry(
+            [[1.5, 1.5, 7.0, 4.0, 0.0]],
+            sine,
+            cosine,
+            width,
+            width_factor=100.0,
+        )
+        np.testing.assert_allclose(refined[0][:2], [1.5, 1.5], atol=1e-6)
+        self.assertAlmostEqual(refined[0][2], 50.0, places=5)
+        self.assertAlmostEqual(refined[0][3], 4.0, places=5)
+        self.assertAlmostEqual(refined[0][4], 45.0, places=5)
 
     def test_target_adapter_keeps_six_values_and_expands_other_formats(self):
         six = np.array([10, 20, 30, 40, 50, 7], dtype=np.float32)

@@ -126,6 +126,22 @@ def _sample_offset(offset, x, y):
     return float(values[0, row, column]), float(values[1, row, column])
 
 
+def _sample_bilinear(array, x, y):
+    """Sample one 2-D map at a floating-point image coordinate."""
+    values = np.asarray(array, dtype=np.float32).squeeze()
+    if values.ndim != 2:
+        raise ValueError(f"Expected a 2-D map, got {values.shape}")
+    height, width = values.shape
+    x = float(np.clip(x, 0.0, width - 1.0))
+    y = float(np.clip(y, 0.0, height - 1.0))
+    x0, y0 = int(np.floor(x)), int(np.floor(y))
+    x1, y1 = min(x0 + 1, width - 1), min(y0 + 1, height - 1)
+    wx, wy = x - x0, y - y0
+    top = (1.0 - wx) * values[y0, x0] + wx * values[y0, x1]
+    bottom = (1.0 - wx) * values[y1, x0] + wx * values[y1, x1]
+    return float((1.0 - wy) * top + wy * bottom)
+
+
 def refine_with_offset(rectangles, offset, inverse_matrix, radius):
     """Apply normalized input-space center offsets and return five-value grasps."""
     if hasattr(offset, "detach"):
@@ -148,4 +164,44 @@ def refine_with_offset(rectangles, offset, inverse_matrix, radius):
         corners[:, 0] += translation[0]
         corners[:, 1] += translation[1]
         refined.append(corners_to_five(corners))
+    return refined
+
+
+def resample_grasp_geometry(
+    rectangles,
+    sine,
+    cosine,
+    width,
+    width_factor=100.0,
+):
+    """Resample angle and width maps at already-refined grasp centers."""
+    sine = np.asarray(sine, dtype=np.float32).squeeze()
+    cosine = np.asarray(cosine, dtype=np.float32).squeeze()
+    width = np.asarray(width, dtype=np.float32).squeeze()
+    if not (sine.ndim == cosine.ndim == width.ndim == 2):
+        raise ValueError("sine/cosine/width maps must be 2-D")
+    if not (sine.shape == cosine.shape == width.shape):
+        raise ValueError("sine/cosine/width maps must share one shape")
+
+    refined = []
+    for rectangle in rectangles:
+        center_x, center_y, _old_width, height, _old_angle = rect_to_five(rectangle)
+        sampled_sine = _sample_bilinear(sine, center_x, center_y)
+        sampled_cosine = _sample_bilinear(cosine, center_x, center_y)
+        sampled_width = _sample_bilinear(width, center_x, center_y)
+        angle_degrees = float(
+            0.5 * np.arctan2(sampled_sine, sampled_cosine) / np.pi * 180.0
+        )
+        refined.append(
+            np.array(
+                [
+                    center_x,
+                    center_y,
+                    max(1.0, sampled_width * float(width_factor)),
+                    height,
+                    angle_degrees,
+                ],
+                dtype=np.float32,
+            )
+        )
     return refined

@@ -33,33 +33,17 @@ from typing import Any, Deque, Dict, Iterable, List, Optional, Sequence, Tuple
 import cv2
 import numpy as np
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from utils.grasp_tool_language import (
+    CANONICAL_CATEGORY_NAMES,
+    CATEGORY_DESCRIPTION_VARIANTS,
+    COMMAND_TEMPLATES,
+)
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
-
-CANONICAL_CATEGORY_NAMES = {
-    "tape measure": "tape measure",
-    "t-hex key": "T-hex key",
-    "l-hex key": "L-hex key",
-    "marker": "marker",
-    "wrench": "wrench",
-    "pliers": "pliers",
-    "mallet": "mallet",
-    "screwdriver": "screwdriver",
-    "clamps": "clamps",
-    "spool": "spool",
-    "sponge": "sponge",
-    "clip": "clip",
-    "crimp tool": "crimp tool",
-    "screw": "screw",
-    "tape": "tape",
-    "box": "box",
-    "nut": "nut",
-    "ruler": "ruler",
-    "file": "file",
-    "stapler": "stapler",
-    "scissors": "scissors",
-    "cable": "cable",
-}
 
 CATEGORY_ALIASES = {
     "box": "box",
@@ -79,23 +63,6 @@ HARD_NEGATIVE_GROUPS = (
     ("marker", "screwdriver", "file"),
     ("screw", "nut", "clip"),
 )
-
-COMMAND_TEMPLATES = {
-    "train": (
-        "Pick up {description}.",
-        "Grasp {description}.",
-        "Please pick up {description}.",
-        "Grab {description}, please.",
-        "I would like you to grasp {description}.",
-        "Please select {description}.",
-    ),
-    "eval": (
-        "Could you pick up {description}?",
-        "Please retrieve {description}.",
-        "Select {description} for grasping.",
-        "Can you grasp {description}?",
-    ),
-}
 
 # Description wording is also split.  Evaluation therefore changes both the
 # command prefix and the referring expression, rather than merely swapping the
@@ -241,6 +208,9 @@ class GeneratorConfig:
     objects_max: int
     queries_min: int
     queries_max: int
+    max_query_difficulty: int
+    language_templates: str
+    category_vocabulary: str
     scales: Tuple[float, ...]
     angle_bins: int
     same_category_probability: float
@@ -287,6 +257,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queries-min", type=int, default=4)
     parser.add_argument("--queries-max", type=int, default=8)
     parser.add_argument(
+        "--max-query-difficulty",
+        type=int,
+        choices=(1, 2, 3, 4),
+        default=4,
+        help=(
+            "Keep queries up to this difficulty: 1=category, "
+            "2=category and absolute location, 3=single-reference relations, "
+            "4=all queries including between relations."
+        ),
+    )
+    parser.add_argument(
+        "--language-templates",
+        choices=("heldout", "shared"),
+        default="heldout",
+        help=(
+            "Use held-out wording for validation/test, or share the training "
+            "wording across all splits."
+        ),
+    )
+    parser.add_argument(
+        "--category-vocabulary",
+        choices=("canonical", "expanded"),
+        default="canonical",
+        help=(
+            "Use only canonical category names, or sample aliases and common "
+            "near-synonyms while preserving canonical labels."
+        ),
+    )
+    parser.add_argument(
         "--scales", type=parse_scales, default=parse_scales("0.6,0.8,1.0,1.25,1.5")
     )
     parser.add_argument("--angle-bins", type=int, default=12)
@@ -324,6 +323,12 @@ def build_config(args: argparse.Namespace) -> GeneratorConfig:
         raise ValueError("objects-min must be >=2 and <= objects-max")
     if args.queries_min < 1 or args.queries_max < args.queries_min:
         raise ValueError("queries-min must be >=1 and <= queries-max")
+    if not 1 <= args.max_query_difficulty <= 4:
+        raise ValueError("max-query-difficulty must be in [1, 4]")
+    if args.language_templates not in {"heldout", "shared"}:
+        raise ValueError("language-templates must be 'heldout' or 'shared'")
+    if args.category_vocabulary not in {"canonical", "expanded"}:
+        raise ValueError("category-vocabulary must be 'canonical' or 'expanded'")
     if args.angle_bins < 1:
         raise ValueError("angle-bins must be positive")
     for name in ("same_category_probability", "hard_negative_probability"):
@@ -344,6 +349,9 @@ def build_config(args: argparse.Namespace) -> GeneratorConfig:
         objects_max=args.objects_max,
         queries_min=args.queries_min,
         queries_max=args.queries_max,
+        max_query_difficulty=args.max_query_difficulty,
+        language_templates=args.language_templates,
+        category_vocabulary=args.category_vocabulary,
         scales=tuple(args.scales),
         angle_bins=args.angle_bins,
         same_category_probability=args.same_category_probability,
@@ -781,6 +789,7 @@ def logical_candidates(
                 "target_idx": index,
                 "type": "category",
                 "difficulty": 1,
+                "category_key": category,
                 "description": f"the {CANONICAL_CATEGORY_NAMES[category]}",
                 "program": [{"op": "filter_category", "value": category}, {"op": "unique"}],
             })
@@ -982,11 +991,15 @@ def render_queries(
     scene_id: str,
     minimum: int,
     maximum: int,
+    max_difficulty: int,
+    language_templates: str,
+    category_vocabulary: str,
     rng: random.Random,
 ) -> List[Dict[str, Any]]:
     by_type: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for candidate in candidates:
-        by_type[candidate["type"]].append(candidate)
+        if int(candidate["difficulty"]) <= max_difficulty:
+            by_type[candidate["type"]].append(candidate)
     for values in by_type.values():
         rng.shuffle(values)
 
@@ -1012,13 +1025,26 @@ def render_queries(
     if len(selected) < minimum:
         return []
 
-    template_pool = COMMAND_TEMPLATES["train" if split == "train" else "eval"]
+    template_split = (
+        "train"
+        if split == "train" or language_templates == "shared"
+        else "eval"
+    )
+    template_pool = COMMAND_TEMPLATES[template_split]
     queries: List[Dict[str, Any]] = []
     used_texts = set()
     for candidate in selected:
-        description_split = "train" if split == "train" else "eval"
+        description_split = template_split
         description_pool = candidate.get("descriptions", {}).get(description_split)
-        if description_pool:
+        category_term = None
+        if candidate["type"] == "category":
+            category_key = candidate["category_key"]
+            if category_vocabulary == "expanded":
+                category_term = rng.choice(CATEGORY_DESCRIPTION_VARIANTS[category_key])
+            else:
+                category_term = CANONICAL_CATEGORY_NAMES[category_key]
+            description = f"the {category_term}"
+        elif description_pool:
             description = rng.choice(list(description_pool))
         else:
             description = candidate["description"]
@@ -1043,6 +1069,10 @@ def render_queries(
         }
         if candidate.get("reference_indices"):
             query["reference_indices"] = [int(i) for i in candidate["reference_indices"]]
+        if category_term is not None:
+            query["category_term"] = category_term
+            if category_vocabulary == "expanded":
+                query["prompt_cycle"] = "category_v1"
         queries.append(query)
     return queries
 
@@ -1212,6 +1242,9 @@ def build_scene(
             scene_id,
             config.queries_min,
             config.queries_max,
+            config.max_query_difficulty,
+            config.language_templates,
+            config.category_vocabulary,
             rng,
         )
         if len(queries) < config.queries_min:
@@ -1243,6 +1276,9 @@ Schema:
 
 Important:
   - grasp rectangle height is fixed at {config.grasp_height:g} pixels.
+  - maximum query difficulty is {config.max_query_difficulty}.
+  - language template protocol is {config.language_templates}.
+  - category vocabulary is {config.category_vocabulary}.
   - train/val/test use disjoint background image files.
   - source cutouts are shared across splits, so this is a compositional split,
     not a novel-instance split.

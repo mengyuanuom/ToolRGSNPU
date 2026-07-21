@@ -24,6 +24,7 @@ class DrogoffResourceProfileTest(unittest.TestCase):
             expected_save_freq = 0 if path.parent.name in best_only else 5
             self.assertEqual(train["save_freq"], expected_save_freq, path)
             self.assertEqual(cfg["Distributed"]["dist_backend"], "hccl", path)
+            self.assertTrue(cfg["TEST"]["offset_resample_geometry"], path)
 
 
 if __name__ == "__main__":

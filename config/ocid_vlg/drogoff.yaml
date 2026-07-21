@@ -78,7 +78,7 @@ Distributed:
 
 TEST:
   test_split: test
+  offset_resample_geometry: True
   visualize: False
-
 
 

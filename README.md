@@ -385,6 +385,11 @@ Offset variants append a `(dx, dy)` map normalized by `DATA.offset_r`.
 GGCNN-CLIP and GR-ConvNet-CLIP are grasp-only baselines, so their quality map
 also occupies the segmentation slot required by the shared engine.
 
+For DROG-OFF evaluation, `TEST.offset_resample_geometry: true` first refines the
+quality-peak center and then bilinearly re-reads angle and width at that refined
+center. Set it to `false` to reproduce the legacy center-only decoder in an
+ablation; this switch changes only decoding and does not require retraining.
+
 `LGD` is a ToolRGS dense-map port of Language-driven Grasp Detection. It keeps
 the public cosine diffusion schedule, x0 quality-map denoising, language/image
 conditioning, and contrastive alignment while exposing the shared segmentation,

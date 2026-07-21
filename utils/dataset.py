@@ -8,6 +8,7 @@ import pyarrow as pa
 import torch
 from torch.utils.data import Dataset
 from .OCID_sub_class_dict import cnames, colors, subnames, sub_to_class
+from .grasp_tool_language import category_prompt_for_epoch
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
 import matplotlib.pyplot as plt
 from skimage.draw import polygon
@@ -1152,8 +1153,11 @@ class GraspToolTransforms:
 class GraspToolDataset(Dataset):
 
     def __init__(self, root_dir, input_size=416, split='train', word_length=17,
-                 with_offset=False, offset_radius=20.0, offset_sigma=None):
+                 with_offset=False, offset_radius=20.0, offset_sigma=None,
+                 dynamic_train_prompts=True, dynamic_prompt_seed=2025):
         self.root_dir = root_dir
+        self.split = str(split)
+        self.epoch = 1
         self.input_size = (input_size, input_size)
         self.word_length = word_length
         self.samples = []
@@ -1163,6 +1167,8 @@ class GraspToolDataset(Dataset):
         self.with_offset = bool(with_offset)
         self.offset_radius = float(offset_radius)
         self.offset_sigma = offset_sigma
+        self.dynamic_train_prompts = bool(dynamic_train_prompts)
+        self.dynamic_prompt_seed = int(dynamic_prompt_seed)
 
         
         split_dir = os.path.join(root_dir, split)
@@ -1215,6 +1221,10 @@ class GraspToolDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
+    def set_epoch(self, epoch):
+        """Select this epoch's reproducibly shuffled training prompts."""
+        self.epoch = max(1, int(epoch))
+
     def __getitem__(self, idx):
         img_path, json_path, query_index = self.samples[idx]
 
@@ -1246,6 +1256,20 @@ class GraspToolDataset(Dataset):
             query_type = query.get("type", "unknown")
             difficulty = int(query.get("difficulty", 0))
             program = query.get("program", [])
+            if (
+                self.dynamic_train_prompts
+                and self.split == "train"
+                and query_type == "category"
+                and query.get("prompt_cycle") == "category_v1"
+            ):
+                sample_key = (
+                    f"{data.get('scene_id', os.path.basename(json_path))}:"
+                    f"{target_idx}:{sent_id}"
+                )
+                lang = category_prompt_for_epoch(
+                    obj["category"], sample_key, self.epoch,
+                    seed=self.dynamic_prompt_seed,
+                )
         # lang = obj["category"]
         polygon = np.array(obj["mask"], dtype=np.int32)
         grasps = [np.array(g, dtype=np.float32) for g in obj.get("grasps", [])]

@@ -17,6 +17,7 @@ from toolrgs.evaluation import (
     inverse_warp,
     rectangles_to_five,
     refine_with_offset,
+    resample_grasp_geometry,
     targets_to_six,
 )
 from toolrgs.registry import LOOPS, METRICS, POSTPROCESSORS
@@ -232,6 +233,16 @@ class GraspValLoop(BaseLoop):
                         inverse_matrix,
                         self._offset_radius(input_hw),
                     )
+                    if bool(
+                        getattr(self.cfg, "offset_resample_geometry", False)
+                    ):
+                        rectangles = resample_grasp_geometry(
+                            rectangles,
+                            sine_original,
+                            cosine_original,
+                            width_original,
+                            width_factor=self.postprocessor.width_factor,
+                        )
                 else:
                     rectangles = rectangles_to_five(rectangles)
 

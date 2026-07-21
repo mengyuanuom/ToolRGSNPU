@@ -5,6 +5,9 @@
   val_split: val
   offset_r: 20
   offset_sigma:
+  # Randomize marked category prompts per epoch; val/test remain fixed.
+  dynamic_train_prompts: True
+  dynamic_prompt_seed: 2025
 MODEL:
   architecture: crog
 TRAIN:
@@ -63,6 +66,5 @@ Distributed:
 TEST:
   test_split: test
   visualize: False
-
 
 

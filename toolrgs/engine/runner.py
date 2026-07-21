@@ -320,6 +320,8 @@ class NPUGraspRunner:
                 self.state = LoopState(epoch=epoch)
                 if self.train_sampler is not None:
                     self.train_sampler.set_epoch(epoch)
+                if hasattr(self.train_loader.dataset, "set_epoch"):
+                    self.train_loader.dataset.set_epoch(epoch)
                 self.hooks.call("before_epoch", self, self.state)
                 train_logs = self.train_loop.run_epoch(epoch)
                 iou, precision, j_index = self.val_loop.run_epoch(epoch)
