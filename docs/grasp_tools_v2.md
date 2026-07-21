@@ -29,7 +29,7 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
 
 Inspect `/tmp/grasp_tools_v2_smoke/_preview` before starting the full run.
 
-## Full generation
+## Full difficulty-4 generation
 
 The repository's `datasets` symlink normally points to `../data`. The default
 command therefore writes the generated corpus outside Git while keeping all
@@ -37,6 +37,7 @@ source assets inside the clone:
 
 ```bash
 python -u tools/dataset_converters/grasp_tools/augment.py \
+  --out-dir datasets/grasp-tools/aug_graspall_v2_full \
   --train-scenes 3000 \
   --val-scenes 500 \
   --test-scenes 1000 \
@@ -44,16 +45,22 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
   --objects-max 5 \
   --queries-min 4 \
   --queries-max 8 \
+  --max-query-difficulty 4 \
+  --language-templates heldout \
+  --category-vocabulary canonical \
   --scales 0.6,0.8,1.0,1.25,1.5 \
   --angle-bins 12 \
   --same-category-probability 0.40 \
   --hard-negative-probability 0.30 \
+  --brightness-jitter 0.12 \
+  --contrast-jitter 0.12 \
+  --saturation-jitter 0.10 \
   --grasp-height 20 \
   --image-ext jpg \
   --jpeg-quality 95
 ```
 
-The output defaults to `datasets/grasp-tools/aug_graspall_v2` and contains
+This command writes `datasets/grasp-tools/aug_graspall_v2_full` and contains
 `train`, `val`, `test`, `_preview`, `metadata.json`, and one `index.jsonl` per
 split.
 
@@ -63,11 +70,19 @@ For the simplest first-stage experiment, place two or three larger tools on
 varied backgrounds, keep every category unique within a scene, and create one
 category query for each target object. Train, validation, and test share one
 larger prompt pool while retaining independent rendered scenes and disjoint
-background-image splits:
+background-image splits. This starter protocol is now the generator default,
+so a full dataset only needs one command from the repository root:
+
+```bash
+python -u tools/dataset_converters/grasp_tools/augment.py
+```
+
+The expanded form below is equivalent and remains useful when overriding an
+individual setting:
 
 ```bash
 python -u tools/dataset_converters/grasp_tools/augment.py \
-  --out-dir datasets/grasp-tools/aug_graspall_v2_starter \
+  --out-dir datasets/grasp-tools/aug_graspall_v2 \
   --train-scenes 3000 \
   --val-scenes 500 \
   --test-scenes 1000 \
@@ -103,7 +118,8 @@ compare language schedules.
 Difficulty levels are cumulative: `1` keeps category queries, `2` adds
 absolute-location queries, `3` adds same-category and single-reference spatial
 queries, and `4` also enables between-object relations. The default generator
-settings remain the full difficulty-4 protocol.
+settings use the difficulty-1 starter protocol; pass the full set of options
+above when running the difficulty-4 comparison.
 
 Each scene image is stored once. Its JSON contains multiple language queries;
 every query records `text`, `target_idx`, `type`, `difficulty`, and a symbolic
