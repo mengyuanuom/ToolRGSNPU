@@ -12,6 +12,7 @@ MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT_START="${MASTER_PORT_START:-29500}"
 SESSION_GAP_SECONDS="${SESSION_GAP_SECONDS:-3}"
 LOG_DIR="${LOG_DIR:-${REPO_ROOT}/logs/grasp_tools_8npu}"
+RUN_ID="${RUN_ID:-$(date '+%Y%m%d_%H%M%S')}"
 
 MODEL_NAMES=(crog drogoff lgd)
 MODEL_CONFIGS=(
@@ -49,7 +50,10 @@ handle_interrupt() {
   exit 130
 }
 
-trap handle_interrupt HUP INT TERM
+# SSH disconnects deliver SIGHUP. Keep the sequence and its current torchrun
+# session alive; only explicit interrupt/termination signals stop the workers.
+trap '' HUP
+trap handle_interrupt INT TERM
 
 run_model() {
   local model_name="$1"
@@ -57,27 +61,27 @@ run_model() {
   local master_port="$3"
   local timestamp
   local log_file
+  local exp_name
   local status
 
   timestamp="$(date '+%Y%m%d_%H%M%S')"
-  log_file="${LOG_DIR}/${timestamp}_${model_name}.log"
+  log_file="${LOG_DIR}/${RUN_ID}_${timestamp}_${model_name}.log"
+  exp_name="${model_name}_grasp_tools_v2_8npu_${RUN_ID}"
 
   echo "[sequence] starting ${model_name} with ${NPROC_PER_NODE} NPUs"
   echo "[sequence] config: ${config_path}"
+  echo "[sequence] experiment: ${exp_name}"
   echo "[sequence] log: ${log_file}"
 
-  setsid bash -o pipefail -c '
-    log_file="$1"
-    shift
-    "$@" 2>&1 | tee "${log_file}"
-  ' toolrgs-training-session "${log_file}" \
-    torchrun \
+  setsid torchrun \
       --nnodes=1 \
       --node_rank=0 \
       --nproc_per_node="${NPROC_PER_NODE}" \
       --master_addr="${MASTER_ADDR}" \
       --master_port="${master_port}" \
-      train.py --config "${config_path}" &
+      train.py --config "${config_path}" --opts \
+      TRAIN.exp_name "${exp_name}" \
+      >>"${log_file}" 2>&1 </dev/null &
 
   ACTIVE_SESSION_PID=$!
   set +e
@@ -108,6 +112,12 @@ command -v setsid >/dev/null 2>&1 || {
 }
 
 mkdir -p "${LOG_DIR}"
+SEQUENCE_LOG="${LOG_DIR}/${RUN_ID}_sequence.log"
+echo "[sequence] detached log: ${SEQUENCE_LOG}"
+# Do not leave stdout/stderr attached to an SSH pseudo-terminal. This makes a
+# direct invocation survive terminal disconnects without requiring tmux/nohup.
+exec </dev/null >>"${SEQUENCE_LOG}" 2>&1
+echo "[sequence] run id: ${RUN_ID}"
 
 for index in "${!MODEL_NAMES[@]}"; do
   model_name="${MODEL_NAMES[${index}]}"

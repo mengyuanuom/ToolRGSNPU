@@ -57,7 +57,8 @@ class NPUGraspRunner:
         self.optim_wrapper = None
         self.train_sampler = None
         self.best_iou = 0.0
-        self.best_j = 0.0
+        self.best_j1 = 0.0
+        self.best_j5 = 0.0
         self._is_setup = False
         hooks = getattr(cfg, "runner_hooks", None) or (
             {"type": "logger"},
@@ -225,7 +226,12 @@ class NPUGraspRunner:
             self.scheduler.load_state_dict(checkpoint["scheduler"])
             cfg.start_epoch = int(checkpoint["epoch"])
             self.best_iou = float(checkpoint.get("best_iou", 0.0))
-            self.best_j = float(checkpoint.get("best_j_index", 0.0))
+            self.best_j1 = float(
+                checkpoint.get(
+                    "best_j1_index", checkpoint.get("best_j_index", 0.0)
+                )
+            )
+            self.best_j5 = float(checkpoint.get("best_j5_index", 0.0))
             logger.info("Resumed experiment from epoch {}", cfg.start_epoch)
 
         train_loop_class = LOOPS.require(getattr(cfg, "train_loop", "grasp_train"))
@@ -258,14 +264,16 @@ class NPUGraspRunner:
         precision = validation.get("precision", {})
         j_index = list(validation.get("j_index", []))
         j_at_one = float(j_index[0]) if j_index else 0.0
+        j_at_five = float(j_index[1]) if len(j_index) > 1 else 0.0
         improved_iou = iou > self.best_iou
-        improved_j = j_at_one > self.best_j
-        if not improved_iou and not improved_j:
-            return
+        improved_j1 = j_at_one > self.best_j1
+        improved_j5 = j_at_five > self.best_j5
         if improved_iou:
             self.best_iou = iou
-        if improved_j:
-            self.best_j = j_at_one
+        if improved_j1:
+            self.best_j1 = j_at_one
+        if improved_j5:
+            self.best_j5 = j_at_five
 
         output_dir = Path(cfg.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -277,33 +285,56 @@ class NPUGraspRunner:
                     "best_iou_epoch_*.pth",
                 )
             )
-        if improved_j:
+        if improved_j1:
             targets.append(
                 (
-                    output_dir / f"best_jindex_epoch_{int(epoch):03d}.pth",
-                    "best_jindex_epoch_*.pth",
+                    output_dir / f"best_j1_epoch_{int(epoch):03d}.pth",
+                    "best_j1_epoch_*.pth",
+                )
+            )
+        if improved_j5:
+            targets.append(
+                (
+                    output_dir / f"best_j5_epoch_{int(epoch):03d}.pth",
+                    "best_j5_epoch_*.pth",
                 )
             )
 
         checkpoint = {
             "epoch": int(epoch),
             "best_iou": self.best_iou,
-            "best_j_index": self.best_j,
+            # Keep the legacy field for old resume/evaluation consumers. It is
+            # explicitly J@1; J@5 has its own field and checkpoint series.
+            "best_j_index": self.best_j1,
+            "best_j1_index": self.best_j1,
+            "best_j5_index": self.best_j5,
             "state_dict": self.model.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "scheduler": self.scheduler.state_dict(),
             "precision": precision,
             "j_index": j_index,
+            "validation": {
+                "iou": iou,
+                "j_at_one": j_at_one,
+                "j_at_five": j_at_five,
+            },
             "meta": {
                 "architecture": str(cfg.architecture),
                 "config": getattr(cfg, "filename", None),
             },
         }
-        torch.save(checkpoint, targets[0][0])
-        for target, _ in targets[1:]:
-            shutil.copyfile(targets[0][0], target)
+
+        # Always keep the most recent fully completed epoch. Write it
+        # atomically so interruption during serialization cannot corrupt the
+        # previous resumable checkpoint.
+        last_path = output_dir / "last.pth"
+        temporary_path = output_dir / ".last.pth.tmp"
+        torch.save(checkpoint, temporary_path)
+        os.replace(temporary_path, last_path)
+        logger.info("Saved latest completed epoch checkpoint: {}", last_path)
 
         for target, pattern in targets:
+            shutil.copyfile(last_path, target)
             for previous in output_dir.glob(pattern):
                 if previous != target:
                     previous.unlink()

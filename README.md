@@ -124,6 +124,12 @@ distributed session before starting the next one, run:
 bash tools/train_grasp_tools_8npu.sh
 ```
 
+The sequence ignores SSH hangups, writes a detached sequence log under
+`logs/grasp_tools_8npu/`, and gives every invocation a unique experiment
+directory. Each completed epoch atomically refreshes `last.pth`; validation
+best checkpoints are tracked independently as `best_iou_epoch_*.pth`,
+`best_j1_epoch_*.pth`, and `best_j5_epoch_*.pth`.
+
 See `docs/grasp_tools_v2.md` for the smoke test, output schema, and full
 generation options.
 
