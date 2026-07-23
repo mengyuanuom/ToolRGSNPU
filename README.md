@@ -133,6 +133,18 @@ atomically refreshes `last.pth`; validation best checkpoints are tracked
 independently as `best_iou_epoch_*.pth`, `best_j1_epoch_*.pth`, and
 `best_j5_epoch_*.pth`.
 
+After CROG training has produced a checkpoint, render ten distinct test scenes
+with predicted masks and the top-five grasp rectangles:
+
+```bash
+python tools/visualize_test_demo.py
+```
+
+The script automatically selects the newest CROG `best_j1_epoch_*.pth`
+checkpoint and saves the annotated images plus `manifest.json` under
+`demo_outputs/crog_test/`. Use `--checkpoint /path/to/model.pth` to select a
+specific checkpoint.
+
 See `docs/grasp_tools_v2.md` for the smoke test, output schema, and full
 generation options.
 
