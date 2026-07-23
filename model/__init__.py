@@ -53,8 +53,16 @@ def _build_parameter_groups(model, cfg):
         else:
             head.append(parameter)
     parameter_groups = [
-        {"params": backbone, "initial_lr": cfg.lr_multi * cfg.base_lr},
-        {"params": head, "initial_lr": cfg.base_lr},
+        {
+            "params": backbone,
+            "lr": cfg.lr_multi * cfg.base_lr,
+            "initial_lr": cfg.lr_multi * cfg.base_lr,
+        },
+        {
+            "params": head,
+            "lr": cfg.base_lr,
+            "initial_lr": cfg.base_lr,
+        },
     ]
     return parameter_groups, backbone, head, frozen
 
