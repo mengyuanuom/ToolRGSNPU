@@ -383,6 +383,21 @@ python train.py --config config/ocid_vlg/drog.yaml --opts \
   DATA.root_path /path/to/OCID-VLG
 ```
 
+To train the NPU-ready OCID-VLG models except CROGOFF sequentially on eight
+NPUs, closing each distributed session before starting the next one, run:
+
+```bash
+bash tools/train_ocid_vlg_8npu.sh
+```
+
+The default dataset path is `datasets/OCID-VLG`. Override it without editing
+the script with `OCID_VLG_ROOT=/absolute/path/to/OCID-VLG`. If a long sequence
+was interrupted, resume from a model name such as
+`START_FROM=lgd bash tools/train_ocid_vlg_8npu.sh`. GraspMamba is excluded
+because its upstream CUDA selective-scan extension is not NPU-compatible.
+Durable logs are
+written under `logs/ocid_vlg_8npu/`.
+
 ## Training
 
 Single NPU:
