@@ -41,6 +41,9 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
             self.assertEqual(train["batch_size"], expected_batch, path)
             self.assertEqual(train["batch_size_val"], expected_batch, path)
             self.assertEqual(train["base_lr"], 0.0001, path)
+            expected_epochs = 40 if path.stem.startswith("etrg") else 50
+            self.assertEqual(train["epochs"], expected_epochs, path)
+            self.assertEqual(train["milestones"], [35], path)
             self.assertEqual(train["workers"], 4, path)
             self.assertEqual(train["workers_val"], 2, path)
             self.assertEqual(train["print_freq"], 100, path)
