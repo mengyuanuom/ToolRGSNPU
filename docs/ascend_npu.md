@@ -91,8 +91,8 @@ The registered `NPUGraspRunner` owns HCCL setup, dataloaders, loops, resume, and
 runner hooks. `NPUAmpOptimWrapper` owns scaled backward and gradient clipping.
 
 `LOCAL_RANK` selects the local NPU and the process group always uses HCCL.
-Batch sizes in YAML are per NPU. Start conservatively and increase them after
-the model smoke test succeeds.
+Batch sizes in YAML are global across all processes and must be divisible by
+`WORLD_SIZE`. Start conservatively and increase them after the model smoke test succeeds.
 
 Use standard Adam by default. To test the Ascend fused optimizer, set:
 

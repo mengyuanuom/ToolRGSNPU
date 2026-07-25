@@ -17,6 +17,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from model import build_model
 from toolrgs.datasets import build_dataset
+from toolrgs.engine.batch import per_process_batch_size
 from toolrgs.engine.hooks import HookList, LoopState
 from toolrgs.engine.loops import GraspTrainLoop  # noqa: F401 - registers loop
 from toolrgs.engine.optim import build_optim_wrapper, build_param_scheduler
@@ -41,6 +42,7 @@ def _clean_state_dict(state):
     }
 
 
+
 @RUNNERS.register_module(name="npu_grasp", aliases=("npu_runner", "runner"))
 class NPUGraspRunner:
     """Build and run one ToolRGS experiment from a flat compatibility config."""
@@ -56,6 +58,8 @@ class NPUGraspRunner:
         self.scaler = None
         self.optim_wrapper = None
         self.train_sampler = None
+        self.train_batch_size_per_process = None
+        self.val_batch_size_per_process = None
         self.best_iou = 0.0
         self.best_j1 = 0.0
         self.best_j5 = 0.0
@@ -86,6 +90,17 @@ class NPUGraspRunner:
             dist.init_process_group(backend="hccl", init_method=cfg.dist_url)
         cfg.distributed = self.distributed
         self.is_main = cfg.rank == 0
+
+    def _configure_batch_sizes(self):
+        cfg = self.cfg
+        cfg.global_batch_size = int(cfg.batch_size)
+        cfg.global_batch_size_val = int(cfg.batch_size_val)
+        self.train_batch_size_per_process = per_process_batch_size(
+            cfg.global_batch_size, cfg.world_size, "batch_size"
+        )
+        self.val_batch_size_per_process = per_process_batch_size(
+            cfg.global_batch_size_val, cfg.world_size, "batch_size_val"
+        )
 
     def _load_initial_weight(self, filename):
         checkpoint = torch.load(filename, map_location="cpu")
@@ -136,7 +151,11 @@ class NPUGraspRunner:
             )
         loader = DataLoader(
             dataset,
-            batch_size=int(cfg.batch_size if train else cfg.batch_size_val),
+            batch_size=(
+                self.train_batch_size_per_process
+                if train
+                else self.val_batch_size_per_process
+            ),
             shuffle=bool(train and sampler is None),
             sampler=sampler,
             num_workers=workers,
@@ -154,6 +173,7 @@ class NPUGraspRunner:
         require_npu()
         cv2.setNumThreads(0)
         self._setup_distributed()
+        self._configure_batch_sizes()
         cfg.manual_seed = init_random_seed(
             cfg.manual_seed,
             device=self.device,
@@ -171,6 +191,15 @@ class NPUGraspRunner:
         )
         logger.info(cfg)
         logger.info("Ascend device: {} ({})", self.device, device_name(cfg.npu))
+        logger.info(
+            "Batch sizes: train global={} per-process={}; "
+            "validation global={} per-process={}; world_size={}",
+            cfg.global_batch_size,
+            self.train_batch_size_per_process,
+            cfg.global_batch_size_val,
+            self.val_batch_size_per_process,
+            cfg.world_size,
+        )
 
         try:
             artifacts = validate_required_artifacts(cfg)
@@ -230,13 +259,13 @@ class NPUGraspRunner:
         self.val_loader, _ = self._build_dataloader(val_data, train=False)
         if self.is_main:
             logger.info(
-                "Effective batch: train_per_npu={}, world_size={}, "
-                "train_global={}, val_per_npu={}, val_global={}, steps_per_epoch={}",
-                int(cfg.batch_size),
+                "Effective batch: train_per_process={}, world_size={}, "
+                "train_global={}, val_per_process={}, val_global={}, steps_per_epoch={}",
+                self.train_batch_size_per_process,
                 int(cfg.world_size),
-                int(cfg.batch_size) * int(cfg.world_size),
-                int(cfg.batch_size_val),
-                int(cfg.batch_size_val) * int(cfg.world_size),
+                int(cfg.global_batch_size),
+                self.val_batch_size_per_process,
+                int(cfg.global_batch_size_val),
                 len(self.train_loader),
             )
 

@@ -46,13 +46,13 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
             self.assertEqual(test["test_split"], "test", path)
             self.assertFalse(test["visualize"], path)
 
-    def test_crog_matches_the_stable_eight_npu_control(self):
+    def test_crog_uses_the_official_global_batch_and_learning_rate(self):
         path = ROOT / "config" / "ocid_vlg" / "crog.yaml"
         train = yaml.safe_load(path.read_text(encoding="utf-8-sig"))["TRAIN"]
-        self.assertEqual(train["batch_size"], 16)
-        self.assertEqual(train["batch_size"] * 8, 128)
-        self.assertEqual(train["base_lr"], 0.0004)
-        self.assertEqual(train["lr_multi"], 1.0)
+        self.assertEqual(train["batch_size"], 24)
+        self.assertEqual(train["batch_size"] // 8, 3)
+        self.assertEqual(train["base_lr"], 0.0001)
+        self.assertEqual(train["lr_multi"], 0.1)
         self.assertEqual(train["epochs"], 50)
         self.assertEqual(train["milestones"], [35])
         self.assertFalse(train["sync_bn"])

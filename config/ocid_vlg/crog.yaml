@@ -36,15 +36,11 @@ TRAIN:
   epochs: 50
   milestones: [35]
   start_epoch: 0
-  batch_size: 16  # per NPU; global batch size 128 with eight NPUs
-  batch_size_val: 16
-  # Reproduce the stable CROG-NPU control experiment: global batch 128,
-  # LR 4e-4, then decay once at epoch 35.
-  base_lr: 0.0004
+  batch_size: 24  # official CROG global batch size; 3 samples per process on 8 NPUs
+  batch_size_val: 24  # official global validation batch size
+  base_lr: 0.0001  # official CROG base LR; do not multiply by NPU count
   lr_decay: 0.1
-  # CROG-NPU effectively trains both backbone and head at base_lr. Setting this
-  # explicitly avoids the historical initial_lr-only optimizer-group ambiguity.
-  lr_multi: 1.0
+  lr_multi: 0.1
   weight_decay: 0.
   max_norm: 0.
   manual_seed: 0

@@ -1,4 +1,4 @@
-DATA:
+﻿DATA:
   dataset: OCID-VLG
   # Recommended server setup: `ln -sfn ../data datasets` in the repo root.
   root_path: ./datasets/OCID-VLG
@@ -35,9 +35,9 @@ TRAIN:
   epochs: 40
   milestones: [35]
   start_epoch: 0
-  # Conservative per-NPU starting point for the larger CLIP backbone.
-  batch_size: 2  # per NPU; global batch size 16 with eight NPUs
-  batch_size_val: 2
+  # Conservative global-batch starting point for the larger CLIP backbone.
+  batch_size: 16  # global batch size
+  batch_size_val: 16  # global validation batch size
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 1.0

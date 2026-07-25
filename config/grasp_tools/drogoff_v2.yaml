@@ -1,4 +1,4 @@
-DATA:
+﻿DATA:
   dataset: GraspTool
   root_path: ./datasets/grasp-tools/aug_graspall_v2
   train_split: train
@@ -52,8 +52,8 @@ TRAIN:
   epochs: 50
   milestones: [40]
   start_epoch: 0
-  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
-  batch_size_val: 4
+  batch_size: 64  # global batch size
+  batch_size_val: 32  # global validation batch size
   base_lr: 0.0008  # 0.0001 x 8 NPUs
   lr_decay: 0.1
   lr_multi: 1

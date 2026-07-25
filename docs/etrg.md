@@ -85,7 +85,7 @@ torchrun --nproc_per_node=2 tools/train.py \
 ```
 
 `configs/etrg/etrg_r101_ocid_vlg.yaml` selects the stronger CLIP RN101 variant. Batch
-sizes are per NPU. The supplied values are conservative Ascend starting points,
+sizes are global across all processes. The supplied values are conservative Ascend starting points,
 not published throughput settings; tune them after a successful smoke test.
 
 ETRG requires `DATA.with_depth: true`. ToolRGSNPU fails before dataset construction

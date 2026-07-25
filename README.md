@@ -228,22 +228,22 @@ python train.py --config config/vcot/drogoff.yaml --opts \
 
 ### Initial VCoT profile for two Ascend NPUs
 
-VCoT YAML batch sizes and worker counts are per distributed process (per NPU).
-The inherited values are starting points, not published Ascend throughput or
-memory benchmarks:
+VCoT YAML batch sizes are global across all distributed processes. The runner
+requires each value to be divisible by `WORLD_SIZE` and gives the quotient to
+each NPU. Worker counts remain per process. These values are starting points,
+not published Ascend throughput or memory benchmarks:
 
-| Model | Input | Train batch/NPU | Global batch | Epochs | LR milestones |
+| Model | Input | Global train batch | Batch/NPU (2 NPUs) | Epochs | LR milestones |
 | --- | ---: | ---: | ---: | ---: | --- |
-| CROG / CROG-OFF | 416 | 8 | 16 | 70 | 55, 65 |
-| MapleGrasp | 416 | 8 | 16 | 70 | 55, 65 |
-| DROG / DROG-OFF | 448 | 8 | 16 | 65 | 35, 55 |
-| GGCNN-CLIP | 416 | 32 | 64 | 50 | 35 |
-| GRConvNet-CLIP | 416 | 32 | 64 | 80 | 70 |
-| GraspMamba | 416 | 8 | 16 | 50 | 35, 45 |
-| LGD | 224 | 16 | 32 | 100 | 70, 90 |
+| CROG / CROG-OFF | 416 | 16 | 8 | 70 | 55, 65 |
+| MapleGrasp | 416 | 16 | 8 | 70 | 55, 65 |
+| DROG / DROG-OFF | 448 | 16 | 8 | 65 | 35, 55 |
+| GGCNN-CLIP | 416 | 64 | 32 | 50 | 35 |
+| GRConvNet-CLIP | 416 | 64 | 32 | 80 | 70 |
+| GraspMamba | 416 | 16 | 8 | 50 | 35, 45 |
+| LGD | 224 | 32 | 16 | 100 | 70, 90 |
 
-Each process uses eight training workers and four validation workers, producing
-16 training workers across two NPUs. Start a two-NPU run with `torchrun`:
+Start a two-NPU run with `torchrun`:
 
 ```bash
 torchrun --nproc_per_node=2 train.py \
@@ -251,8 +251,8 @@ torchrun --nproc_per_node=2 train.py \
   DATA.root_path /mnt/ssd0/mengyuan/data/grasp-anything
 ```
 
-If a heavy model runs out of memory, reduce both per-NPU batches without
-editing YAML, for example `TRAIN.batch_size 4 TRAIN.batch_size_val 4`.
+If a heavy model runs out of memory, reduce both global batches without
+editing YAML. Keep both values divisible by the number of processes.
 
 ## OCID-VLG data
 
@@ -397,6 +397,18 @@ was interrupted, resume from a model name such as
 because its upstream CUDA selective-scan extension is not NPU-compatible.
 Durable logs are
 written under `logs/ocid_vlg_8npu/`.
+
+To run eight independent single-NPU OCID-VLG models concurrently, with global
+training and validation batch sizes of 24 for every model, run:
+
+```bash
+bash tools/train_ocid_vlg_8models.sh
+```
+
+The script assigns CROG, LGD, DROG, DROG-OFF, GGCNN-CLIP, GRConvNet-CLIP,
+RGB-only ETRG, and MapleGrasp to NPUs 0 through 7 respectively. Logs and a PID
+manifest are written under `logs/ocid_vlg_8models/`. Override the dataset path
+with `OCID_VLG_ROOT=/absolute/path/to/OCID-VLG`.
 
 ## Training
 
