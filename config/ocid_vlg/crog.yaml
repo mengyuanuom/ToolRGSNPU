@@ -19,10 +19,8 @@ TRAIN:
   fpn_in: [512, 1024, 1024]
   fpn_out: [256, 512, 1024]
 
-  # CROG contains many BatchNorm layers. Keep their statistics consistent
-  # across all eight processes so validation cannot be dominated by rank-local
-  # running statistics.
-  sync_bn: True
+  # Keep this disabled to match the stable CROG-NPU control experiment.
+  sync_bn: False
   amp: False
   optimizer: adam
   pin_memory: False
@@ -71,4 +69,3 @@ Distributed:
 TEST:
   test_split: test
   visualize: False
-

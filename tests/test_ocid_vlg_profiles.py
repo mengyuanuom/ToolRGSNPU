@@ -36,7 +36,7 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
             expected_word_len = 20 if path.stem.startswith("etrg") else 17
             self.assertEqual(train["word_len"], expected_word_len, path)
             self.assertFalse(train["amp"], path)
-            self.assertEqual(train["sync_bn"], path.stem == "crog", path)
+            self.assertFalse(train["sync_bn"], path)
             self.assertEqual(train["workers"], 4, path)
             self.assertEqual(train["workers_val"], 2, path)
             self.assertEqual(train["print_freq"], 100, path)
@@ -55,7 +55,7 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
         self.assertEqual(train["lr_multi"], 1.0)
         self.assertEqual(train["epochs"], 50)
         self.assertEqual(train["milestones"], [35])
-        self.assertTrue(train["sync_bn"])
+        self.assertFalse(train["sync_bn"])
 
 
 if __name__ == "__main__":
