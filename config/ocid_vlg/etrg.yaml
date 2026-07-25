@@ -36,8 +36,8 @@ TRAIN:
   milestones: [35]
   start_epoch: 0
   # Conservative global-batch starting point; increase after the forward smoke test.
-  batch_size: 32  # global batch size
-  batch_size_val: 32  # global validation batch size
+  batch_size: 24  # global batch size
+  batch_size_val: 24  # global validation batch size
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 1.0

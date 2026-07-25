@@ -5,7 +5,7 @@ _base_:
   - ../_base_/runtime/ascend.yaml
 
 TRAIN:
-  batch_size: 4  # global batch size
-  batch_size_val: 4  # global validation batch size
+  batch_size: 24  # global batch size
+  batch_size_val: 24  # global validation batch size
   exp_name: etrg_r101_ocid_vlg
   output_folder: exp/ocid_vlg

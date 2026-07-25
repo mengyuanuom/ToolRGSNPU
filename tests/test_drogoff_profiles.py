@@ -17,7 +17,7 @@ class DrogoffResourceProfileTest(unittest.TestCase):
             train = cfg["TRAIN"]
             expected_batches = {
                 "grasp_tools": (64, 32),
-                "ocid_vlg": (64, 32),
+                "ocid_vlg": (24, 24),
                 "vcot": (16, 8),
             }
             self.assertEqual(

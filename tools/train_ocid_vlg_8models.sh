@@ -8,8 +8,6 @@ cd "${REPO_ROOT}"
 OCID_VLG_ROOT="${OCID_VLG_ROOT:-${REPO_ROOT}/datasets/OCID-VLG}"
 LOG_DIR="${LOG_DIR:-${REPO_ROOT}/logs/ocid_vlg_8models}"
 RUN_ID="${RUN_ID:-$(date '+%Y%m%d_%H%M%S')}"
-TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-24}"
-VAL_BATCH_SIZE="${VAL_BATCH_SIZE:-24}"
 
 MODEL_NAMES=(
   crog
@@ -64,8 +62,6 @@ launch_model() {
       --opts \
       DATA.root_path "${OCID_VLG_ROOT}" \
       TRAIN.exp_name "${exp_name}" \
-      TRAIN.batch_size "${TRAIN_BATCH_SIZE}" \
-      TRAIN.batch_size_val "${VAL_BATCH_SIZE}" \
       >"${log_file}" 2>&1 </dev/null &
 
   local pid=$!
@@ -83,5 +79,5 @@ for index in "${!MODEL_NAMES[@]}"; do
 done
 
 echo "[8models] all eight independent jobs were launched."
-echo "[8models] train batch=${TRAIN_BATCH_SIZE}, validation batch=${VAL_BATCH_SIZE}"
+echo "[8models] train and validation batch sizes are read from YAML (24/24)."
 echo "[8models] PID file: ${PID_FILE}"
