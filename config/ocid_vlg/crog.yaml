@@ -19,7 +19,10 @@ TRAIN:
   fpn_in: [512, 1024, 1024]
   fpn_out: [256, 512, 1024]
 
-  sync_bn: False
+  # CROG contains many BatchNorm layers. Keep their statistics consistent
+  # across all eight processes so validation cannot be dominated by rank-local
+  # running statistics.
+  sync_bn: True
   amp: False
   optimizer: adam
   pin_memory: False
@@ -32,14 +35,18 @@ TRAIN:
   # Training Setting
   workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
-  epochs: 70
-  milestones: [55, 65]
+  epochs: 50
+  milestones: [35]
   start_epoch: 0
-  batch_size: 8  # per NPU; global batch size 64 with eight NPUs
-  batch_size_val: 8
-  base_lr: 0.0001  # official CROG base LR; do not multiply by NPU count
+  batch_size: 16  # per NPU; global batch size 128 with eight NPUs
+  batch_size_val: 16
+  # Reproduce the stable CROG-NPU control experiment: global batch 128,
+  # LR 4e-4, then decay once at epoch 35.
+  base_lr: 0.0004
   lr_decay: 0.1
-  lr_multi: 0.1
+  # CROG-NPU effectively trains both backbone and head at base_lr. Setting this
+  # explicitly avoids the historical initial_lr-only optimizer-group ambiguity.
+  lr_multi: 1.0
   weight_decay: 0.
   max_norm: 0.
   manual_seed: 0
@@ -64,5 +71,4 @@ Distributed:
 TEST:
   test_split: test
   visualize: False
-
 

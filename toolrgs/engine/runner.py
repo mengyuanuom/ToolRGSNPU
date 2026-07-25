@@ -210,6 +210,16 @@ class NPUGraspRunner:
             cfg, optimizer=self.optimizer, scaler=self.scaler
         )
         self.scheduler = build_param_scheduler(cfg, optimizer=self.optimizer)
+        if self.is_main:
+            logger.info(
+                "Precision path: amp={}, scaler={}",
+                bool(getattr(cfg, "amp", False)),
+                type(self.scaler).__name__,
+            )
+            logger.info(
+                "Optimizer learning rates by parameter group: {}",
+                [group["lr"] for group in self.optimizer.param_groups],
+            )
 
         needs_offset = str(cfg.architecture).lower() in {"crogoff", "drogoff"}
         train_data = build_dataset(cfg, cfg.train_split, with_offset=needs_offset)
@@ -218,6 +228,17 @@ class NPUGraspRunner:
             train_data, train=True
         )
         self.val_loader, _ = self._build_dataloader(val_data, train=False)
+        if self.is_main:
+            logger.info(
+                "Effective batch: train_per_npu={}, world_size={}, "
+                "train_global={}, val_per_npu={}, val_global={}, steps_per_epoch={}",
+                int(cfg.batch_size),
+                int(cfg.world_size),
+                int(cfg.batch_size) * int(cfg.world_size),
+                int(cfg.batch_size_val),
+                int(cfg.batch_size_val) * int(cfg.world_size),
+                len(self.train_loader),
+            )
 
         if getattr(cfg, "resume", None):
             checkpoint = torch.load(cfg.resume, map_location="cpu")

@@ -79,6 +79,8 @@ class NPUSourceContractTest(unittest.TestCase):
         self.assertIn("import torch_npu", source)
         self.assertIn("torch_npu.npu.set_device", source)
         self.assertIn("adapter.npu.amp.autocast", source)
+        self.assertIn("class NoOpGradScaler:", source)
+        self.assertIn("return NoOpGradScaler()", source)
         self.assertNotIn("from torch_npu.contrib.transfer_to_npu", source)
 
     def test_mmengine_style_runner_and_optim_components_are_registered(self):
