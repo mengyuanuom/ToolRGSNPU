@@ -398,16 +398,17 @@ because its upstream CUDA selective-scan extension is not NPU-compatible.
 Durable logs are
 written under `logs/ocid_vlg_8npu/`.
 
-To run eight independent single-NPU OCID-VLG models concurrently, with global
-training and validation batch sizes of 24 for every model, run:
+To run eight independent single-NPU OCID-VLG models concurrently, using each
+model YAML for its training and validation batch sizes, run:
 
 ```bash
 bash tools/train_ocid_vlg_8models.sh
 ```
 
 The script assigns CROG, LGD, DROG, DROG-OFF, GGCNN-CLIP, GRConvNet-CLIP,
-RGB-only ETRG, and MapleGrasp to NPUs 0 through 7 respectively. Logs and a PID
-manifest are written under `logs/ocid_vlg_8models/`. Override the dataset path
+RGB-only ETRG, and MapleGrasp to NPUs 0 through 7 respectively. ETRG follows
+its official R50 batch of 10/10; the other seven launched models use 24/24. Logs
+and a PID manifest are written under `logs/ocid_vlg_8models/`. Override the dataset path
 with `OCID_VLG_ROOT=/absolute/path/to/OCID-VLG`.
 
 ## Training

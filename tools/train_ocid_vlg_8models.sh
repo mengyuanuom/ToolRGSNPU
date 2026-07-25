@@ -79,5 +79,5 @@ for index in "${!MODEL_NAMES[@]}"; do
 done
 
 echo "[8models] all eight independent jobs were launched."
-echo "[8models] train and validation batch sizes are read from YAML (24/24)."
+echo "[8models] batches come from YAML: ETRG=10/10, all other launched models=24/24."
 echo "[8models] PID file: ${PID_FILE}"

@@ -3,9 +3,9 @@ TRAIN:
   workers_val: 4
   epochs: 40
   start_epoch: 0
-  batch_size: 24  # global batch size
-  batch_size_val: 24  # global validation batch size
-  base_lr: 0.0001
+  batch_size: 10  # official ETRG single-device batch size
+  batch_size_val: 10  # official ETRG validation batch size
+  base_lr: 0.0001  # official ETRG base LR
   lr_multi: 1.0
   weight_decay: 0.01
   max_norm: 0.0
