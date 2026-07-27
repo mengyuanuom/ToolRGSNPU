@@ -252,7 +252,7 @@ python train.py --config config/vcot/drogoff.yaml
 ```
 
 The checked-in VCoT profiles point to
-`/data1/ma00959358/pangu/graspanything-vcot`; override `DATA.root_path` and
+`./datasets/graspanything-vcot`; override `DATA.root_path` and
 `DATA.split_root` when running on another machine.
 
 ### Official VCoT evaluation on NPU

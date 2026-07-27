@@ -1,7 +1,7 @@
 ﻿DATA:
   dataset: vcot
-  root_path: /data1/ma00959358/pangu/graspanything-vcot
-  split_root: /data1/ma00959358/pangu/graspanything-vcot/split/vcot
+  root_path: ./datasets/graspanything-vcot
+  split_root: ./datasets/graspanything-vcot/split/vcot
   prompt_template: "Grasp the {object_name}"
   train_split: train
   val_split: unseen
