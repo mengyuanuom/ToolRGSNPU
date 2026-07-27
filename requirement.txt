@@ -7,7 +7,7 @@ loguru==0.7.2
 pycocotools==2.0.7
 matplotlib==3.8.0
 tqdm==4.66.1
-opencv-python==4.8.1.78
+opencv-python-headless==4.8.1.78
 fvcore==0.1.5.post20221221
 wandb==0.15.11
 Pillow==10.0.1

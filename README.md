@@ -548,7 +548,10 @@ python train.py --config config/vcot/graspmamba.yaml --opts \
 Install CANN and the mutually compatible `torch`/`torch_npu` wheels first, then
 install `requirement-npu.txt`. The exact versions are determined by the CANN
 release on the Ascend server; do not blindly install the old CUDA project's
-PyTorch pin. Pretrained CLIP and DINOv2 weights are not stored in Git.
+PyTorch pin. The NPU training requirements use `opencv-python-headless` so
+`cv2` does not require the desktop-only `libGL.so.1`; uninstall
+`opencv-python` before installing the requirements if it is already present.
+Pretrained CLIP and DINOv2 weights are not stored in Git.
 
 Check the NPU runtime before downloading datasets or starting a long job:
 
