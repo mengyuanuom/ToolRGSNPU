@@ -248,9 +248,12 @@ All nine grasp-aware ToolRGS models can use VCoT without code changes. Use the
 matching file under `config/vcot/`, for example:
 
 ```bash
-python train.py --config config/vcot/drogoff.yaml --opts \
-  DATA.root_path /mnt/ssd0/mengyuan/data/grasp-anything
+python train.py --config config/vcot/drogoff.yaml
 ```
+
+The checked-in VCoT profiles point to
+`/data1/ma00959358/pangu/graspanything-vcot`; override `DATA.root_path` and
+`DATA.split_root` when running on another machine.
 
 ### Official VCoT evaluation on NPU
 

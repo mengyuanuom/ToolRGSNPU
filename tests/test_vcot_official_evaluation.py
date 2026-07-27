@@ -70,6 +70,16 @@ class VCoTOfficialEvaluationTest(unittest.TestCase):
         for path in paths:
             cfg = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             self.assertEqual(
+                cfg["DATA"]["root_path"],
+                "/data1/ma00959358/pangu/graspanything-vcot",
+                path,
+            )
+            self.assertEqual(
+                cfg["DATA"]["split_root"],
+                "/data1/ma00959358/pangu/graspanything-vcot/split/vcot",
+                path,
+            )
+            self.assertEqual(
                 cfg["TEST"]["evaluation_protocol"],
                 "vcot_official",
                 path,
