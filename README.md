@@ -283,7 +283,8 @@ not published Ascend throughput or memory benchmarks:
 | --- | ---: | ---: | ---: | ---: | --- |
 | CROG / CROG-OFF | 416 | 16 | 8 | 70 | 55, 65 |
 | MapleGrasp | 416 | 16 | 8 | 70 | 55, 65 |
-| DROG / DROG-OFF | 448 | 16 | 8 | 65 | 35, 55 |
+| DROG | 448 | 16 | 8 | 65 | 35, 55 |
+| DROG-OFF | 448 | 128 | 64 | 50 | 35 |
 | GGCNN-CLIP | 416 | 64 | 32 | 50 | 35 |
 | GRConvNet-CLIP | 416 | 64 | 32 | 80 | 70 |
 | GraspMamba | 416 | 16 | 8 | 50 | 35, 45 |

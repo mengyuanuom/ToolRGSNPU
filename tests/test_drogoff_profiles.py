@@ -18,13 +18,16 @@ class DrogoffResourceProfileTest(unittest.TestCase):
             expected_batches = {
                 "grasp_tools": (64, 32),
                 "ocid_vlg": (24, 24),
-                "vcot": (16, 8),
+                "vcot": (128, 8),
             }
             self.assertEqual(
                 (train["batch_size"], train["batch_size_val"]),
                 expected_batches[path.parent.name],
                 path,
             )
+            if path.parent.name == "vcot":
+                self.assertEqual(train["epochs"], 50, path)
+                self.assertEqual(train["milestones"], [35], path)
             self.assertEqual(train["workers"], 4, path)
             self.assertEqual(train["workers_val"], 2, path)
             self.assertEqual(train["print_freq"], 100, path)
