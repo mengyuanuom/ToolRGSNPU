@@ -34,6 +34,20 @@ def resolve_vcot_split(split):
     return _SPLIT_FILES[key]
 
 
+def resolve_vcot_grasp_root(root_dir):
+    """Prefer the official Grasp-Anything label directory with legacy fallback."""
+
+    root_dir = Path(root_dir).expanduser()
+    candidates = (
+        root_dir / "grasp_label_positive",
+        root_dir / "positive_grasp",
+    )
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return candidates[0]
+
+
 def grasp_anything_to_quads(grasps):
     """Convert ``[score, x, y, w, h, theta_deg]`` rows to XY quadrilaterals."""
     values = np.asarray(grasps, dtype=np.float32)
@@ -127,6 +141,13 @@ class VCoTDataset(Dataset):
             )
         if not self.root_dir.is_dir():
             raise FileNotFoundError(f"Grasp-Anything root not found: {self.root_dir}")
+        self.grasp_root = resolve_vcot_grasp_root(self.root_dir)
+        if not self.grasp_root.is_dir():
+            raise FileNotFoundError(
+                "VCoT positive grasp directory not found; expected "
+                f"{self.root_dir / 'grasp_label_positive'} (official) or "
+                f"{self.root_dir / 'positive_grasp'} (legacy)."
+            )
 
         self.samples = []
         with self.csv_path.open("r", encoding="utf-8", newline="") as stream:
@@ -189,7 +210,7 @@ class VCoTDataset(Dataset):
             self.root_dir / "image" / f"{scene_id}.jpg", "image", grasp_id
         )
         grasp_path = self._require(
-            self.root_dir / "positive_grasp" / f"{grasp_id}.pt", "grasp", grasp_id
+            self.grasp_root / f"{grasp_id}.pt", "grasp", grasp_id
         )
         mask_path = self._require(
             self.root_dir / "mask" / f"{grasp_id}.npy", "mask", grasp_id

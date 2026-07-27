@@ -14,9 +14,11 @@ from toolrgs.evaluation import (
     BinarySegmentationMetric,
     DenseGraspPostProcessor,
     GraspSuccessMetric,
+    calculate_vcot_grasp_success,
     inverse_warp,
     rectangles_to_five,
     refine_with_offset,
+    resolve_evaluation_protocol,
     resample_grasp_geometry,
     targets_to_six,
 )
@@ -42,7 +44,7 @@ def _resize_prediction(tensor, output_hw, mode="bicubic"):
 
 @LOOPS.register_module(name="grasp_val", aliases=("validate_with_grasp",))
 class GraspValLoop(BaseLoop):
-    """Evaluate instance IoU plus top-1/top-5 grasp Jacquard success."""
+    """Evaluate segmentation plus protocol-selected grasp success."""
 
     def __init__(self, dataloader, model, cfg, hooks=None):
         super().__init__(hooks=hooks)
@@ -50,9 +52,20 @@ class GraspValLoop(BaseLoop):
         self.model = model
         self.cfg = cfg
         self.device = current_device(int(getattr(cfg, "npu", getattr(cfg, "gpu", 0))))
-        self.topk = tuple(getattr(cfg, "grasp_topk", (1, 5)))
+        self.evaluation_protocol = resolve_evaluation_protocol(
+            getattr(cfg, "evaluation_protocol", "toolrgs")
+        )
+        self.topk = tuple(
+            getattr(
+                cfg,
+                "grasp_topk",
+                self.evaluation_protocol.default_grasp_topk,
+            )
+        )
         if not self.topk or any(int(value) <= 0 for value in self.topk):
             raise ValueError(f"grasp_topk must contain positive integers, got {self.topk}")
+        if self.evaluation_protocol.grasp_evaluator == "vcot_official" and self.topk != (1,):
+            raise ValueError("vcot_official evaluates exactly one prediction; set grasp_topk: [1]")
         self.max_topk = max(self.topk)
         self.segmentation_metric = METRICS.build(
             getattr(cfg, "segmentation_metric", None)
@@ -73,6 +86,7 @@ class GraspValLoop(BaseLoop):
                     getattr(cfg, "grasp_quality_threshold", 0.4)
                 ),
                 "min_distance": int(getattr(cfg, "grasp_min_distance", 2)),
+                "minimum_width": self.evaluation_protocol.minimum_grasp_width,
             }
         )
 
@@ -115,6 +129,10 @@ class GraspValLoop(BaseLoop):
         self.segmentation_metric.reset()
         self.grasp_metric.reset()
         self.model.eval()
+        # Evaluation needs no gradient synchronization. Calling the wrapped
+        # module directly lets exact non-padding rank shards have unequal
+        # lengths without mismatched DDP forward collectives.
+        evaluation_model = getattr(self.model, "module", self.model)
         rank = int(getattr(self.cfg, "rank", 0))
         progress = tqdm(self.dataloader, disable=rank != 0)
         device = self.device
@@ -149,7 +167,7 @@ class GraspValLoop(BaseLoop):
                         "validation dataset did not provide it."
                     )
                 inputs = (image, move_to_device(depth, device), *inputs[1:])
-            result = GraspModelResult.from_legacy(self.model(*inputs))
+            result = GraspModelResult.from_legacy(evaluation_model(*inputs))
             predictions = result.predictions
             input_hw = image.shape[-2:]
             segmentation = _resize_prediction(
@@ -191,27 +209,52 @@ class GraspValLoop(BaseLoop):
                     int(data["ori_size"][index][1]),
                 )
                 predicted_segmentation = inverse_warp(
-                    dense_maps[index, 0], inverse_matrix, original_hw
+                    dense_maps[index, 0],
+                    inverse_matrix,
+                    original_hw,
+                    interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 target_segmentation_original = inverse_warp(
-                    dense_maps[index, 1], inverse_matrix, original_hw
+                    dense_maps[index, 1],
+                    inverse_matrix,
+                    original_hw,
+                    interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
+                target_mask_threshold = (
+                    self.evaluation_protocol.target_mask_threshold
+                )
+                if target_mask_threshold is not None:
+                    target_segmentation_original = (
+                        target_segmentation_original > target_mask_threshold
+                    )
                 self.segmentation_metric.update(
                     predicted_segmentation,
-                    target_segmentation_original > 0.5,
+                    target_segmentation_original,
                 )
 
                 quality_original = inverse_warp(
-                    dense_maps[index, 2], inverse_matrix, original_hw
+                    dense_maps[index, 2],
+                    inverse_matrix,
+                    original_hw,
+                    interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 sine_original = inverse_warp(
-                    dense_maps[index, 3], inverse_matrix, original_hw
+                    dense_maps[index, 3],
+                    inverse_matrix,
+                    original_hw,
+                    interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 cosine_original = inverse_warp(
-                    dense_maps[index, 4], inverse_matrix, original_hw
+                    dense_maps[index, 4],
+                    inverse_matrix,
+                    original_hw,
+                    interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 width_original = inverse_warp(
-                    dense_maps[index, 5], inverse_matrix, original_hw
+                    dense_maps[index, 5],
+                    inverse_matrix,
+                    original_hw,
+                    interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 grasp_targets = data["grasps"][index]
                 if hasattr(grasp_targets, "detach"):
@@ -246,9 +289,24 @@ class GraspValLoop(BaseLoop):
                 else:
                     rectangles = rectangles_to_five(rectangles)
 
-                for topk in self.topk:
-                    success = calculate_jacquard_index(rectangles[:topk], target_six)
-                    self.grasp_metric.update(topk, success)
+                if self.evaluation_protocol.grasp_evaluator == "vcot_official":
+                    success = calculate_vcot_grasp_success(
+                        rectangles[0] if rectangles else None,
+                        target_six,
+                        iou_threshold=self.evaluation_protocol.grasp_iou_threshold,
+                        angle_threshold=self.evaluation_protocol.grasp_angle_threshold,
+                    )
+                    self.grasp_metric.update(1, success)
+                else:
+                    for topk in self.topk:
+                        success = calculate_jacquard_index(
+                            rectangles[:topk],
+                            target_six,
+                            iou_threshold=self.evaluation_protocol.grasp_iou_threshold,
+                            shape=self.evaluation_protocol.grasp_canvas,
+                            angle_threshold=self.evaluation_protocol.grasp_angle_threshold,
+                        )
+                        self.grasp_metric.update(topk, success)
 
             self.state.result = result
             self.hooks.call("after_iter", self, self.state)
@@ -264,10 +322,16 @@ class GraspValLoop(BaseLoop):
             precision_text = "  ".join(
                 f"{name}: {100.0 * value:.2f}" for name, value in precision.items()
             )
-            grasp_text = "  ".join(
-                f"J_index@{topk}: {100.0 * value:.2f}"
-                for topk, value in zip(self.topk, j_index)
-            )
+            if self.evaluation_protocol.grasp_evaluator == "vcot_official":
+                grasp_text = (
+                    f"{self.evaluation_protocol.grasp_metric_label}: "
+                    f"{100.0 * j_index[0]:.2f}"
+                )
+            else:
+                grasp_text = "  ".join(
+                    f"J_index@{topk}: {100.0 * value:.2f}"
+                    for topk, value in zip(self.topk, j_index)
+                )
             logger.info(
                 "Evaluation: Epoch=[{}/{}]  IoU={:.2f}  {}  {}",
                 epoch,

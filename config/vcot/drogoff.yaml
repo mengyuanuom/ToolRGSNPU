@@ -79,6 +79,8 @@ Distributed:
 
 TEST:
   test_split: unseen
+  evaluation_protocol: vcot_official
+  grasp_topk: [1]
   offset_resample_geometry: True
   visualize: False
 

@@ -20,7 +20,8 @@ Alternatively, clone the official repository and copy
 
 Each row stores `grasp_id, object_name, scene_description`. The images and
 annotations are not copied into this repository; set `DATA.root_path` to the
-local Grasp-Anything root containing `image/`, `positive_grasp/`, and `mask/`.
+local Grasp-Anything root containing `image/`, `grasp_label_positive/`, and
+`mask/`. The adapter retains compatibility with the older `positive_grasp/` name.
 
 Source: [official VCoT-Grasp repository](https://github.com/zhanghr2001/VCoT-Grasp/tree/main/split/vcot)
 (MIT License).

@@ -77,6 +77,8 @@ Distributed:
 
 TEST:
   test_split: unseen
+  evaluation_protocol: vcot_official
+  grasp_topk: [1]
   visualize: False
 
 

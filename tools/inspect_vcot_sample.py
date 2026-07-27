@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 import torch
 
+from utils.vcot_dataset import resolve_vcot_grasp_root
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -29,7 +31,7 @@ def main():
     description = ",".join(description)
     scene_id = grasp_id.rsplit("_", 1)[0]
     image_path = args.dataset_root / "image" / f"{scene_id}.jpg"
-    grasp_path = args.dataset_root / "positive_grasp" / f"{grasp_id}.pt"
+    grasp_path = resolve_vcot_grasp_root(args.dataset_root) / f"{grasp_id}.pt"
     mask_path = args.dataset_root / "mask" / f"{grasp_id}.npy"
 
     image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)

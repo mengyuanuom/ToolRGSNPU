@@ -33,12 +33,14 @@ class DenseGraspPostProcessor:
         num_grasps: int = 1,
         width_factor: float = 100.0,
         grasp_height: float = 20.0,
+        minimum_width: float = 1.0,
     ):
         self.quality_threshold = float(quality_threshold)
         self.min_distance = int(min_distance)
         self.num_grasps = int(num_grasps)
         self.width_factor = float(width_factor)
         self.grasp_height = float(grasp_height)
+        self.minimum_width = float(minimum_width)
 
     def __call__(
         self,
@@ -70,7 +72,10 @@ class DenseGraspPostProcessor:
             GraspDetection(
                 x=float(column),
                 y=float(row),
-                width=max(1.0, float(width[row, column]) * self.width_factor * scale),
+                width=max(
+                    self.minimum_width,
+                    float(width[row, column]) * self.width_factor * scale,
+                ),
                 height=self.grasp_height * scale,
                 angle_degrees=float(angle[row, column] / np.pi * 180.0),
                 score=float(quality[row, column]),

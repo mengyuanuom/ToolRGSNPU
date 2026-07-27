@@ -1,5 +1,6 @@
 import unittest
 
+import cv2
 import numpy as np
 
 from toolrgs.engine.hooks import Hook, HookList, LoopState
@@ -11,6 +12,7 @@ from toolrgs.evaluation import (
     five_to_corners,
     inverse_warp,
     refine_with_offset,
+    resolve_evaluation_protocol,
     resample_grasp_geometry,
     targets_to_six,
 )
@@ -83,6 +85,30 @@ class EvaluationComponentTest(unittest.TestCase):
         self.assertAlmostEqual(detection.angle_degrees, 45.0, places=5)
         self.assertAlmostEqual(detection.width, 100.0)
         self.assertAlmostEqual(detection.height, 40.0)
+
+    def test_crog_source_protocol_reproduces_public_evaluator_contract(self):
+        protocol = resolve_evaluation_protocol("crog_source")
+        self.assertEqual(protocol.name, "crog_legacy")
+        self.assertEqual(protocol.inverse_interpolation, cv2.INTER_CUBIC)
+        self.assertEqual(protocol.grasp_canvas, (480, 640))
+        self.assertIsNone(protocol.target_mask_threshold)
+
+    def test_crog_source_decoder_does_not_clamp_predicted_width(self):
+        quality = np.zeros((8, 8), dtype=np.float32)
+        quality[3, 4] = 0.9
+        sine = np.zeros_like(quality)
+        cosine = np.ones_like(quality)
+        width = np.zeros_like(quality)
+        processor = DenseGraspPostProcessor(
+            num_grasps=1,
+            minimum_width=resolve_evaluation_protocol(
+                "crog_legacy"
+            ).minimum_grasp_width,
+        )
+
+        detections = processor(quality, sine, cosine, width)
+        self.assertEqual(len(detections), 1)
+        self.assertEqual(detections[0].width, 0.0)
 
     def test_binary_segmentation_metric_uses_per_sample_iou(self):
         prediction = np.array(

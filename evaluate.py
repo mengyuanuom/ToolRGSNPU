@@ -75,7 +75,15 @@ def main():
     load_state(model, checkpoint.get("state_dict", checkpoint))
 
     needs_offset = args.architecture.lower() in {"crogoff", "drogoff"}
-    dataset = build_dataset(args, args.val_split, with_offset=needs_offset)
+    evaluation_split = getattr(
+        args, "test_split", getattr(args, "val_split", "val")
+    )
+    logger.info(
+        "Evaluation split={} protocol={}",
+        evaluation_split,
+        getattr(args, "evaluation_protocol", "toolrgs"),
+    )
+    dataset = build_dataset(args, evaluation_split, with_offset=needs_offset)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size_val,
@@ -92,7 +100,15 @@ def main():
         hooks=getattr(args, "val_hooks", None),
     )
     iou, precision, j_index = val_loop.run_epoch(getattr(args, "start_epoch", 0))
-    logger.info("Final IoU={}, precision={}, J={}", iou, precision, j_index)
+    if str(getattr(args, "evaluation_protocol", "")).lower() == "vcot_official":
+        logger.info(
+            "Final IoU={}, precision={}, GraspSR={}",
+            iou,
+            precision,
+            j_index[0] if j_index else 0.0,
+        )
+    else:
+        logger.info("Final IoU={}, precision={}, J={}", iou, precision, j_index)
 
 
 if __name__ == "__main__":

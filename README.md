@@ -191,6 +191,32 @@ Git in this layout:
 └── mask/<grasp_id>.npy
 ```
 
+### Extract only the VCoT subset
+
+Build a resumable subset containing only rows referenced by the official
+train/seen/unseen CSVs:
+
+```bash
+python tools/extract_vcot_subset.py \
+  --split-root /path/to/VCoT-Grasp/split/vcot \
+  --image-parts /path/to/image_part_aa /path/to/image_part_ab \
+  --positive-zip /path/to/grasp_label_positive.zip \
+  --mask-zip /path/to/mask.zip \
+  --output-root /path/to/graspanything-vcot
+```
+
+The tool reads the raw image parts as one virtual ZIP, avoiding a temporary
+65 GB `image.zip`, and writes the official layout:
+
+```text
+/path/to/graspanything-vcot/
+|-- image/<scene_id>.jpg
+|-- grasp_label_positive/<grasp_id>.pt
+|-- mask/<grasp_id>.npy
+|-- split/vcot/*.csv
+`-- vcot_subset_manifest.json
+```
+
 Set the dataset in YAML:
 
 ```yaml
@@ -207,7 +233,7 @@ The adapter reads `.pt` grasps as
 `[score, x, y, width, height, theta_degrees]`, discards the score for geometry,
 reorders the quadrilateral for ToolRGS's width/angle convention, and generates
 grasp maps after letterboxing. Original-coordinate grasp
-targets are retained for Jacquard evaluation. Files are loaded lazily per
+targets are retained for protocol-selected evaluation. Files are loaded lazily per
 sample; the dataset does not preload the full annotation corpus.
 
 Inspect the same sample you verified previously:
@@ -225,6 +251,26 @@ matching file under `config/vcot/`, for example:
 python train.py --config config/vcot/drogoff.yaml --opts \
   DATA.root_path /mnt/ssd0/mengyuan/data/grasp-anything
 ```
+
+### Official VCoT evaluation on NPU
+
+Every `config/vcot/*.yaml` selects `TEST.evaluation_protocol: vcot_official`
+and `TEST.grasp_topk: [1]`. The protocol follows the public VCoT-Grasp
+`eval_cli.py` and `inference.py`:
+
+- evaluate exactly the highest-scoring grasp prediction;
+- compute continuous rotated-rectangle IoU with OpenCV;
+- accept IoU greater than or equal to 0.25 and periodic angle error at most 30
+  degrees; and
+- preserve every ground-truth rectangle's original width and height.
+
+The log reports this value as `GraspSR`. Missing predictions count as failures,
+and distributed NPU evaluation sums successes and sample counts across all HCCL
+ranks. The existing segmentation IoU/precision values remain useful auxiliary
+diagnostics, but they are not part of the official VCoT grasp success rate.
+
+Do not select `crog_legacy` for VCoT paper comparison: that protocol retains
+CROG's fixed OCID canvas and historical rasterized Jacquard behavior.
 
 ### Initial VCoT profile for two Ascend NPUs
 
@@ -320,6 +366,26 @@ The adapter keeps original-coordinate grasp rectangles for Jacquard evaluation,
 then transforms the rectangle corners before generating input-resolution grasp
 maps. This avoids the fixed-416 map misalignment in the legacy loader. It also
 supports the center-offset supervision required by CROG-OFF and DROG-OFF.
+
+### CROG-compatible OCID-VLG evaluation
+
+Every checked-in `config/ocid_vlg/*.yaml` selects
+`TEST.evaluation_protocol: crog_legacy`. This mode reproduces the public CROG
+source evaluator: bicubic inverse warping, mask threshold 0.35, top-1/top-5
+peak decoding, a fixed `(480, 640)` grasp canvas, 30-degree angle tolerance,
+and grasp IoU greater than 0.25. Distributed runs still aggregate all ranks so
+the reported score covers the complete split.
+
+The fixed canvas and historical x/y rasterization behavior are intentionally
+retained for paper-compatible comparison. Other datasets keep the ToolRGS
+default evaluator because their image sizes do not match OCID-VLG.
+
+Standalone evaluation reads `TEST.test_split`:
+
+```bash
+python evaluate.py --config config/ocid_vlg/crog.yaml \
+  --checkpoint exp/ocid_vlg/crog_ocid_vlg_8npu/best_jindex_model.pth
+```
 
 Inspect one expression before training:
 

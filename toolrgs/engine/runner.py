@@ -21,6 +21,7 @@ from toolrgs.engine.batch import per_process_batch_size
 from toolrgs.engine.hooks import HookList, LoopState
 from toolrgs.engine.loops import GraspTrainLoop  # noqa: F401 - registers loop
 from toolrgs.engine.optim import build_optim_wrapper, build_param_scheduler
+from toolrgs.engine.samplers import DistributedEvalSampler
 from toolrgs.engine.val_loop import GraspValLoop  # noqa: F401 - registers loop
 from toolrgs.models.base import model_requires_depth
 from toolrgs.preflight import validate_required_artifacts
@@ -139,7 +140,14 @@ class NPUGraspRunner:
         cfg = self.cfg
         sampler = None
         if self.distributed:
-            sampler = DistributedSampler(dataset, shuffle=bool(train))
+            if train:
+                sampler = DistributedSampler(dataset, shuffle=True)
+            else:
+                sampler = DistributedEvalSampler(
+                    dataset,
+                    num_replicas=cfg.world_size,
+                    rank=cfg.rank,
+                )
         workers = int(cfg.workers if train else cfg.workers_val)
         init_fn = None
         if train and workers:

@@ -28,6 +28,19 @@ class ValidationPerformanceContractTest(unittest.TestCase):
         self.assertIn("np.ravel_multi_index", implementation)
         self.assertIn("np.intersect1d", implementation)
 
+    def test_validation_selects_named_evaluation_protocol(self):
+        source = (ROOT / "toolrgs" / "engine" / "val_loop.py").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertIn("resolve_evaluation_protocol", source)
+        self.assertIn("shape=self.evaluation_protocol.grasp_canvas", source)
+        self.assertIn("self.evaluation_protocol.inverse_interpolation", source)
+
+    def test_standalone_evaluation_uses_test_split(self):
+        source = (ROOT / "evaluate.py").read_text(encoding="utf-8-sig")
+        self.assertIn('args, "test_split"', source)
+        self.assertIn('getattr(args, "val_split", "val")', source)
+
 
 if __name__ == "__main__":
     unittest.main()

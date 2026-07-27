@@ -51,6 +51,7 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
             self.assertEqual(distributed["dist_url"], "env://", path)
             self.assertEqual(distributed["dist_backend"], "hccl", path)
             self.assertEqual(test["test_split"], "test", path)
+            self.assertEqual(test["evaluation_protocol"], "crog_legacy", path)
             self.assertFalse(test["visualize"], path)
 
     def test_crog_uses_the_official_global_batch_and_learning_rate(self):

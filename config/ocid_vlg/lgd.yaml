@@ -56,6 +56,7 @@ Distributed:
   rank: 0
 TEST:
   test_split: test
+  evaluation_protocol: crog_legacy
   visualize: False
 
 
