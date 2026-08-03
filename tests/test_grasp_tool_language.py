@@ -56,6 +56,11 @@ class GraspToolLanguageCurriculumTest(unittest.TestCase):
             ],
         )
 
+    def test_train_and_eval_templates_are_disjoint(self):
+        self.assertFalse(
+            set(COMMAND_TEMPLATES["train"]) & set(COMMAND_TEMPLATES["eval"])
+        )
+
     def test_runner_propagates_epoch_to_dataset(self):
         source = (ROOT / "toolrgs" / "engine" / "runner.py").read_text(
             encoding="utf-8-sig"

@@ -4,9 +4,9 @@
 The generator keeps each rendered scene only once and stores multiple language
 queries in the paired JSON file.  Every query contains a target_idx pointing to
 the target object.  Geometry is transformed consistently; grasp height remains
-20 pixels to match ToolRGS evaluation.
+20 pixels to match the current ToolRGS grasp evaluation.
 
-Typical usage from the ToolRGS repository root:
+Typical usage from the ToolRGSNPU repository root:
 
     python tools/dataset_converters/grasp_tools/augment.py
 
@@ -27,6 +27,7 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from dataclasses import asdict, dataclass
+from itertools import combinations
 from pathlib import Path
 from typing import Any, Deque, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -206,8 +207,8 @@ class GeneratorConfig:
     test_scenes: int
     objects_min: int
     objects_max: int
-    queries_min: int
-    queries_max: int
+    train_queries_per_scene: int
+    eval_queries_per_scene: int
     max_query_difficulty: int
     language_templates: str
     category_vocabulary: str
@@ -250,17 +251,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--background-dir", default="assets/grasp_tools/backgrounds")
     parser.add_argument("--out-dir", default="datasets/grasp-tools/aug_graspall_v2")
     parser.add_argument("--train-scenes", type=int, default=6000)
-    parser.add_argument("--val-scenes", type=int, default=500)
-    parser.add_argument("--test-scenes", type=int, default=1000)
-    parser.add_argument("--objects-min", type=int, default=2)
-    parser.add_argument("--objects-max", type=int, default=3)
-    parser.add_argument("--queries-min", type=int, default=2)
-    parser.add_argument("--queries-max", type=int, default=4)
+    parser.add_argument("--val-scenes", type=int, default=800)
+    parser.add_argument("--test-scenes", type=int, default=1200)
+    parser.add_argument("--objects-min", type=int, default=3)
+    parser.add_argument("--objects-max", type=int, default=5)
+    parser.add_argument("--train-queries-per-scene", type=int, default=6)
+    parser.add_argument("--eval-queries-per-scene", type=int, default=4)
     parser.add_argument(
         "--max-query-difficulty",
         type=int,
         choices=(1, 2, 3, 4),
-        default=1,
+        default=4,
         help=(
             "Keep queries up to this difficulty: 1=category, "
             "2=category and absolute location, 3=single-reference relations, "
@@ -270,7 +271,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--language-templates",
         choices=("heldout", "shared"),
-        default="shared",
+        default="heldout",
         help=(
             "Use held-out wording for validation/test, or share the training "
             "wording across all splits."
@@ -297,8 +298,8 @@ def parse_args() -> argparse.Namespace:
             "24 gives 15-degree bins with continuous +/-7.5-degree jitter."
         ),
     )
-    parser.add_argument("--same-category-probability", type=float, default=0.0)
-    parser.add_argument("--hard-negative-probability", type=float, default=0.0)
+    parser.add_argument("--same-category-probability", type=float, default=0.35)
+    parser.add_argument("--hard-negative-probability", type=float, default=0.30)
     parser.add_argument("--placement-attempts", type=int, default=200)
     parser.add_argument("--scene-attempts", type=int, default=30)
     parser.add_argument("--border-margin", type=int, default=4)
@@ -317,20 +318,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--smoke-test",
         action="store_true",
-        help="Generate 4 train, 2 val, and 2 test scenes.",
+        help="Generate 12 scenes in each split for a stable end-to-end check.",
     )
     return parser.parse_args()
 
 
 def build_config(args: argparse.Namespace) -> GeneratorConfig:
     if args.smoke_test:
-        args.train_scenes, args.val_scenes, args.test_scenes = 4, 2, 2
-        args.preview_count = min(args.preview_count, 8)
+        args.train_scenes, args.val_scenes, args.test_scenes = 12, 12, 12
+        args.preview_count = min(args.preview_count, 18)
 
     if args.objects_min < 2 or args.objects_max < args.objects_min:
         raise ValueError("objects-min must be >=2 and <= objects-max")
-    if args.queries_min < 1 or args.queries_max < args.queries_min:
-        raise ValueError("queries-min must be >=1 and <= queries-max")
+    if args.train_queries_per_scene < 1 or args.eval_queries_per_scene < 1:
+        raise ValueError("query counts per scene must be positive")
     if not 1 <= args.max_query_difficulty <= 4:
         raise ValueError("max-query-difficulty must be in [1, 4]")
     if args.language_templates not in {"heldout", "shared"}:
@@ -355,8 +356,8 @@ def build_config(args: argparse.Namespace) -> GeneratorConfig:
         test_scenes=args.test_scenes,
         objects_min=args.objects_min,
         objects_max=args.objects_max,
-        queries_min=args.queries_min,
-        queries_max=args.queries_max,
+        train_queries_per_scene=args.train_queries_per_scene,
+        eval_queries_per_scene=args.eval_queries_per_scene,
         max_query_difficulty=args.max_query_difficulty,
         language_templates=args.language_templates,
         category_vocabulary=args.category_vocabulary,
@@ -384,7 +385,7 @@ def build_config(args: argparse.Namespace) -> GeneratorConfig:
 
 def canonicalize_category(value: str) -> Tuple[str, str]:
     key = (value or "").strip().lower().replace("_", " ")
-    key = key.replace("—", "-").replace("–", "-")
+    key = key.replace("–", "-").replace("—", "-")
     key = " ".join(key.split())
     key = CATEGORY_ALIASES.get(key, key)
     if key not in CANONICAL_CATEGORY_NAMES:
@@ -679,90 +680,298 @@ def paste_object(
     return None
 
 
-class BalancedCategorySampler:
-    def __init__(self, categories: Sequence[str], rng: random.Random):
-        self.categories = list(categories)
-        self.rng = rng
-        self.queue: Deque[str] = deque()
+def balanced_quotas(
+    total: int, keys: Sequence[str], rng: random.Random
+) -> Dict[str, int]:
+    """Split an integer total so that all key counts differ by at most one."""
+    ordered = list(keys)
+    if not ordered:
+        raise ValueError("Cannot allocate a quota without keys")
+    base, remainder = divmod(int(total), len(ordered))
+    rng.shuffle(ordered)
+    return {
+        key: base + (1 if index < remainder else 0)
+        for index, key in enumerate(ordered)
+    }
 
-    def next(self) -> str:
-        if not self.queue:
-            values = self.categories.copy()
-            self.rng.shuffle(values)
-            self.queue.extend(values)
-        return self.queue.popleft()
+
+def balanced_scene_sizes(
+    scene_count: int,
+    minimum: int,
+    maximum: int,
+    rng: random.Random,
+) -> List[int]:
+    """Use every allowed object count nearly equally, then shuffle the order."""
+    values = list(range(minimum, maximum + 1))
+    base, remainder = divmod(scene_count, len(values))
+    sizes = values * base
+    if remainder:
+        target_sum = remainder * (minimum + maximum) / 2.0
+        choices = list(combinations(values, remainder))
+        best_error = min(abs(sum(choice) - target_sum) for choice in choices)
+        best = [
+            choice for choice in choices
+            if abs(sum(choice) - target_sum) == best_error
+        ]
+        sizes.extend(rng.choice(best))
+    rng.shuffle(sizes)
+    return sizes
+
+
+def _pick_largest_remaining(
+    remaining: Counter,
+    rng: random.Random,
+    allowed: Optional[Iterable[str]] = None,
+) -> str:
+    candidates = [
+        key for key in (allowed if allowed is not None else remaining)
+        if remaining[key] > 0
+    ]
+    if not candidates:
+        raise RuntimeError("No remaining category quota can satisfy the scene")
+    best = max(remaining[key] for key in candidates)
+    tied = [key for key in candidates if remaining[key] == best]
+    return rng.choice(tied)
+
+
+def plan_split_scenes(
+    scene_count: int,
+    objects_by_category: Dict[str, List[SourceObject]],
+    config: GeneratorConfig,
+    rng: random.Random,
+) -> Tuple[List[List[SourceObject]], Dict[str, int]]:
+    """Plan exact per-category and per-source quotas before rendering starts."""
+    categories = sorted(objects_by_category)
+    sizes = balanced_scene_sizes(
+        scene_count, config.objects_min, config.objects_max, rng
+    )
+    category_quota = balanced_quotas(sum(sizes), categories, rng)
+    remaining = Counter(category_quota)
+    category_plans: List[List[str]] = []
+
+    for size in sizes:
+        anchor = _pick_largest_remaining(remaining, rng)
+        selected = [anchor]
+        remaining[anchor] -= 1
+
+        if (
+            len(selected) < size
+            and remaining[anchor] > 0
+            and rng.random() < config.same_category_probability
+        ):
+            selected.append(anchor)
+            remaining[anchor] -= 1
+
+        if len(selected) < size and rng.random() < config.hard_negative_probability:
+            neighbors = hard_neighbors(anchor, remaining)
+            neighbors = [key for key in neighbors if remaining[key] > 0]
+            if neighbors:
+                hard = _pick_largest_remaining(remaining, rng, neighbors)
+                selected.append(hard)
+                remaining[hard] -= 1
+
+        while len(selected) < size:
+            fresh = [
+                key for key in categories
+                if remaining[key] > 0 and key not in selected
+            ]
+            category = _pick_largest_remaining(
+                remaining, rng, fresh if fresh else categories
+            )
+            selected.append(category)
+            remaining[category] -= 1
+        rng.shuffle(selected)
+        category_plans.append(selected)
+
+    if any(remaining.values()):
+        raise RuntimeError(f"Unconsumed category quotas: {dict(remaining)}")
+
+    source_queues: Dict[str, Deque[SourceObject]] = {}
+    source_usage: Counter = Counter()
+    for category in categories:
+        sources = sorted(objects_by_category[category], key=lambda item: item.source_id)
+        quotas = balanced_quotas(
+            category_quota[category],
+            [source.source_id for source in sources],
+            rng,
+        )
+        by_id = {source.source_id: source for source in sources}
+        assignments = [
+            by_id[source_id]
+            for source_id, count in quotas.items()
+            for _ in range(count)
+        ]
+        rng.shuffle(assignments)
+        source_queues[category] = deque(assignments)
+
+    plans: List[List[SourceObject]] = []
+    for categories_in_scene in category_plans:
+        scene_sources = []
+        for category in categories_in_scene:
+            source = source_queues[category].popleft()
+            scene_sources.append(source)
+            source_usage[source.source_id] += 1
+        plans.append(scene_sources)
+    if any(source_queues[category] for category in categories):
+        raise RuntimeError("Unconsumed source-instance quotas")
+    return plans, dict(source_usage)
 
 
 class BalancedTransformSampler:
     def __init__(
         self,
-        objects_by_category: Dict[str, List[SourceObject]],
         scales: Sequence[float],
         angle_bins: int,
         rng: random.Random,
     ):
-        self.objects_by_category = objects_by_category
         self.scales = tuple(scales)
         self.angle_bins = int(angle_bins)
         self.rng = rng
-        self.queues: Dict[str, Deque[Tuple[SourceObject, float, int]]] = {}
+        self.queues: Dict[str, Deque[Tuple[float, int]]] = {}
 
-    def _refill(self, category: str) -> None:
+    def _refill(self, source: SourceObject) -> None:
         tasks = [
-            (source, scale, angle_bin)
-            for source in self.objects_by_category[category]
+            (scale, angle_bin)
             for scale in self.scales
             for angle_bin in range(self.angle_bins)
         ]
         self.rng.shuffle(tasks)
-        self.queues[category] = deque(tasks)
+        self.queues[source.source_id] = deque(tasks)
 
-    def next(self, category: str) -> Tuple[SourceObject, float, float]:
-        if category not in self.queues or not self.queues[category]:
-            self._refill(category)
-        source, scale, angle_bin = self.queues[category].popleft()
+    def next(self, source: SourceObject) -> Tuple[float, float]:
+        if source.source_id not in self.queues or not self.queues[source.source_id]:
+            self._refill(source)
+        scale, angle_bin = self.queues[source.source_id].popleft()
         bin_width = 360.0 / self.angle_bins
         center = angle_bin * bin_width
-        angle = (center + self.rng.uniform(-bin_width / 2.0, bin_width / 2.0)) % 360.0
-        return source, scale, angle
+        angle = (
+            center + self.rng.uniform(-bin_width / 2.0, bin_width / 2.0)
+        ) % 360.0
+        return scale, angle
 
 
 def hard_neighbors(category: str, available: Iterable[str]) -> List[str]:
     available_set = set(available)
     for group in HARD_NEGATIVE_GROUPS:
         if category in group:
-            return [item for item in group if item != category and item in available_set]
+            return [
+                item for item in group
+                if item != category and item in available_set
+            ]
     return []
 
 
-def choose_scene_categories(
-    count: int,
-    category_sampler: BalancedCategorySampler,
-    available: Sequence[str],
-    rng: random.Random,
-    same_category_probability: float,
-    hard_negative_probability: float,
-) -> List[str]:
-    anchor = category_sampler.next()
-    selected = [anchor]
-    if count > 1 and rng.random() < same_category_probability:
-        selected.append(anchor)
-    if len(selected) < count and rng.random() < hard_negative_probability:
-        candidates = hard_neighbors(anchor, available)
-        if candidates:
-            selected.append(rng.choice(candidates))
-    fill = list(available)
-    rng.shuffle(fill)
-    for category in fill:
-        if len(selected) >= count:
-            break
-        if category not in selected:
-            selected.append(category)
-    while len(selected) < count:
-        selected.append(rng.choice(list(available)))
-    rng.shuffle(selected)
-    return selected[:count]
+class _Dinic:
+    """Small integer max-flow solver used to balance query targets exactly."""
 
+    def __init__(self, node_count: int):
+        self.graph: List[List[List[int]]] = [[] for _ in range(node_count)]
+
+    def add_edge(self, source: int, target: int, capacity: int) -> List[int]:
+        forward = [target, len(self.graph[target]), int(capacity)]
+        backward = [source, len(self.graph[source]), 0]
+        self.graph[source].append(forward)
+        self.graph[target].append(backward)
+        return forward
+
+    def max_flow(self, source: int, sink: int) -> int:
+        flow = 0
+        node_count = len(self.graph)
+        while True:
+            level = [-1] * node_count
+            level[source] = 0
+            queue = deque([source])
+            while queue:
+                node = queue.popleft()
+                for target, _, capacity in self.graph[node]:
+                    if capacity > 0 and level[target] < 0:
+                        level[target] = level[node] + 1
+                        queue.append(target)
+            if level[sink] < 0:
+                return flow
+            work = [0] * node_count
+
+            def send(node: int, amount: int) -> int:
+                if node == sink:
+                    return amount
+                while work[node] < len(self.graph[node]):
+                    edge = self.graph[node][work[node]]
+                    target, reverse, capacity = edge
+                    if capacity > 0 and level[target] == level[node] + 1:
+                        pushed = send(target, min(amount, capacity))
+                        if pushed:
+                            edge[2] -= pushed
+                            self.graph[target][reverse][2] += pushed
+                            return pushed
+                    work[node] += 1
+                return 0
+
+            while True:
+                pushed = send(source, 10 ** 9)
+                if not pushed:
+                    break
+                flow += pushed
+
+
+def plan_query_targets(
+    scene_plans: Sequence[Sequence[SourceObject]],
+    queries_per_scene: int,
+    rng: random.Random,
+) -> Tuple[List[List[int]], Dict[str, int]]:
+    """Allocate query targets with exact scene totals and class delta <= 1."""
+    categories = sorted({
+        source.category_key for scene in scene_plans for source in scene
+    })
+    total_queries = len(scene_plans) * int(queries_per_scene)
+    quotas = balanced_quotas(total_queries, categories, rng)
+
+    source_node = 0
+    category_offset = 1
+    scene_offset = category_offset + len(categories)
+    sink = scene_offset + len(scene_plans)
+    network = _Dinic(sink + 1)
+    category_index = {category: index for index, category in enumerate(categories)}
+    edge_refs: Dict[Tuple[str, int], Tuple[List[int], int]] = {}
+
+    for category, quota in quotas.items():
+        network.add_edge(source_node, category_offset + category_index[category], quota)
+    for scene_index, scene in enumerate(scene_plans):
+        present = sorted({source.category_key for source in scene})
+        for category in present:
+            edge = network.add_edge(
+                category_offset + category_index[category],
+                scene_offset + scene_index,
+                queries_per_scene,
+            )
+            edge_refs[(category, scene_index)] = (edge, queries_per_scene)
+        network.add_edge(scene_offset + scene_index, sink, queries_per_scene)
+
+    achieved = network.max_flow(source_node, sink)
+    if achieved != total_queries:
+        raise RuntimeError(
+            f"Could not balance query targets: assigned {achieved}/{total_queries}"
+        )
+
+    targets: List[List[int]] = []
+    for scene_index, scene in enumerate(scene_plans):
+        indices_by_category: Dict[str, List[int]] = defaultdict(list)
+        for object_index, source in enumerate(scene):
+            indices_by_category[source.category_key].append(object_index)
+        scene_targets: List[int] = []
+        for category in categories:
+            ref = edge_refs.get((category, scene_index))
+            if ref is None:
+                continue
+            edge, original_capacity = ref
+            assigned = original_capacity - edge[2]
+            object_indices = indices_by_category[category]
+            for offset in range(assigned):
+                scene_targets.append(object_indices[offset % len(object_indices)])
+        rng.shuffle(scene_targets)
+        if len(scene_targets) != queries_per_scene:
+            raise RuntimeError("Query planner produced an invalid scene total")
+        targets.append(scene_targets)
+    return targets, quotas
 
 def object_centers(objects: Sequence[Dict[str, Any]]) -> np.ndarray:
     return np.asarray(
@@ -993,97 +1202,173 @@ def logical_candidates(
     return candidates
 
 
-def render_queries(
-    candidates: Sequence[Dict[str, Any]],
-    split: str,
-    scene_id: str,
-    minimum: int,
-    maximum: int,
-    max_difficulty: int,
-    language_templates: str,
-    category_vocabulary: str,
-    rng: random.Random,
-) -> List[Dict[str, Any]]:
-    by_type: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for candidate in candidates:
-        if int(candidate["difficulty"]) <= max_difficulty:
-            by_type[candidate["type"]].append(candidate)
-    for values in by_type.values():
-        rng.shuffle(values)
+class LanguageScheduler:
+    """Round-robin language choices with deterministic randomized tie breaks."""
 
-    type_priority = [
-        "same_category_location",
-        "between_relation",
-        "direction_relation",
-        "nearest_relation",
-        "farthest_relation",
-        "absolute_location",
-        "category",
-    ]
-    selected: List[Dict[str, Any]] = []
-    while len(selected) < maximum:
-        added = False
-        for query_type in type_priority:
-            if by_type[query_type] and len(selected) < maximum:
-                selected.append(by_type[query_type].pop())
-                added = True
-        if not added:
-            break
+    def __init__(self, rng: random.Random):
+        self.rng = rng
+        self.template_usage: Counter = Counter()
+        self.term_usage: Dict[str, Counter] = defaultdict(Counter)
+        self.total_queries = 0
 
-    if len(selected) < minimum:
-        return []
+    def _least_used(self, choices: Sequence[str], usage: Counter) -> Tuple[int, str]:
+        minimum = min(usage[value] for value in choices)
+        indices = [
+            index for index, value in enumerate(choices)
+            if usage[value] == minimum
+        ]
+        index = self.rng.choice(indices)
+        return index, choices[index]
 
-    template_split = (
-        "train"
-        if split == "train" or language_templates == "shared"
-        else "eval"
-    )
-    template_pool = COMMAND_TEMPLATES[template_split]
-    queries: List[Dict[str, Any]] = []
-    used_texts = set()
-    for candidate in selected:
-        description_split = template_split
-        description_pool = candidate.get("descriptions", {}).get(description_split)
+    def render(
+        self,
+        candidate: Dict[str, Any],
+        objects: Sequence[Dict[str, Any]],
+        split: str,
+        scene_id: str,
+        query_index: int,
+        language_templates: str,
+        category_vocabulary: str,
+    ) -> Dict[str, Any]:
+        target_idx = int(candidate["target_idx"])
+        category_key = category_key_from_object(objects[target_idx])
+        template_split = (
+            "train"
+            if split == "train" or language_templates == "shared"
+            else "eval"
+        )
+        templates = list(COMMAND_TEMPLATES[template_split])
+        template_index, template = self._least_used(
+            templates, self.template_usage
+        )
+        self.template_usage[template] += 1
+
         category_term = None
-        if candidate["type"] == "category":
-            category_key = candidate["category_key"]
-            if category_vocabulary == "expanded":
-                category_term = rng.choice(CATEGORY_DESCRIPTION_VARIANTS[category_key])
-            else:
-                category_term = CANONICAL_CATEGORY_NAMES[category_key]
-            description = f"the {category_term}"
-        elif description_pool:
-            description = rng.choice(list(description_pool))
+        if candidate.get("balanced_category_description"):
+            terms = (
+                list(CATEGORY_DESCRIPTION_VARIANTS[category_key])
+                if category_vocabulary == "expanded"
+                else [CANONICAL_CATEGORY_NAMES[category_key]]
+            )
+            term_index, category_term = self._least_used(
+                terms, self.term_usage[category_key]
+            )
+            self.term_usage[category_key][category_term] += 1
+            qualifier = candidate.get("qualifier", "")
+            description = f"the {qualifier}{category_term}"
         else:
-            description = candidate["description"]
-        templates = list(template_pool)
-        rng.shuffle(templates)
-        text = ""
-        for template in templates:
-            proposal = template.format(description=description)
-            if proposal not in used_texts:
-                text = proposal
-                break
-        if not text:
-            continue
-        used_texts.add(text)
+            pool = candidate.get("descriptions", {}).get(template_split)
+            description = (
+                self.rng.choice(list(pool))
+                if pool
+                else candidate.get(
+                    "description",
+                    f"the {CANONICAL_CATEGORY_NAMES[category_key]}",
+                )
+            )
+            term_index = -1
+
         query = {
-            "query_id": f"{scene_id}_q{len(queries):02d}",
-            "text": text,
-            "target_idx": int(candidate["target_idx"]),
+            "query_id": f"{scene_id}_q{query_index:02d}",
+            "text": template.format(description=description),
+            "target_idx": target_idx,
+            "canonical_category": CANONICAL_CATEGORY_NAMES[category_key],
             "type": candidate["type"],
             "difficulty": int(candidate["difficulty"]),
             "program": candidate.get("program", []),
+            "template_split": template_split,
+            "template_id": f"{template_split}_{template_index:02d}",
         }
         if candidate.get("reference_indices"):
-            query["reference_indices"] = [int(i) for i in candidate["reference_indices"]]
+            query["reference_indices"] = [
+                int(index) for index in candidate["reference_indices"]
+            ]
         if category_term is not None:
             query["category_term"] = category_term
-            if category_vocabulary == "expanded":
-                query["prompt_cycle"] = "category_v1"
-        queries.append(query)
-    return queries
+            query["description_variant_id"] = int(term_index)
+        self.total_queries += 1
+        return query
 
+
+def balanced_category_candidate(
+    objects: Sequence[Dict[str, Any]], target_idx: int
+) -> Dict[str, Any]:
+    categories = [category_key_from_object(obj) for obj in objects]
+    category = categories[target_idx]
+    matching = [index for index, value in enumerate(categories) if value == category]
+    qualifier = ""
+    query_type = "category"
+    difficulty = 1
+    program = [{"op": "filter_category", "value": category}]
+
+    if len(matching) > 1:
+        centers = object_centers(objects)
+        subset = centers[matching]
+        x_span = float(subset[:, 0].max() - subset[:, 0].min())
+        y_span = float(subset[:, 1].max() - subset[:, 1].min())
+        if x_span >= y_span:
+            ordered = sorted(matching, key=lambda index: centers[index, 0])
+            qualifier = "leftmost " if target_idx == ordered[0] else "rightmost "
+            relation = "leftmost" if target_idx == ordered[0] else "rightmost"
+        else:
+            ordered = sorted(matching, key=lambda index: centers[index, 1])
+            qualifier = "topmost " if target_idx == ordered[0] else "bottommost "
+            relation = "topmost" if target_idx == ordered[0] else "bottommost"
+        query_type = "same_category_location"
+        difficulty = 2
+        program.append({"op": relation})
+    program.append({"op": "unique"})
+    return {
+        "target_idx": int(target_idx),
+        "type": query_type,
+        "difficulty": difficulty,
+        "category_key": category,
+        "balanced_category_description": True,
+        "qualifier": qualifier,
+        "program": program,
+    }
+
+
+def render_target_queries(
+    candidates: Sequence[Dict[str, Any]],
+    target_indices: Sequence[int],
+    objects: Sequence[Dict[str, Any]],
+    split: str,
+    scene_id: str,
+    max_difficulty: int,
+    language_templates: str,
+    category_vocabulary: str,
+    language_scheduler: LanguageScheduler,
+    rng: random.Random,
+) -> List[Dict[str, Any]]:
+    by_target: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    for candidate in candidates:
+        if int(candidate["difficulty"]) <= max_difficulty:
+            by_target[int(candidate["target_idx"])].append(candidate)
+
+    queries: List[Dict[str, Any]] = []
+    for query_index, target_idx in enumerate(target_indices):
+        # Three quarters of queries explicitly exercise category synonyms.  The
+        # remaining quarter samples spatial/relational descriptions when valid.
+        use_relation = language_scheduler.total_queries % 4 == 3
+        relation_candidates = [
+            candidate for candidate in by_target[int(target_idx)]
+            if candidate["type"] != "category"
+        ]
+        if use_relation and relation_candidates:
+            candidate = rng.choice(relation_candidates)
+        else:
+            candidate = balanced_category_candidate(objects, int(target_idx))
+        queries.append(language_scheduler.render(
+            candidate,
+            objects,
+            split,
+            scene_id,
+            query_index,
+            language_templates,
+            category_vocabulary,
+        ))
+    return queries
 
 def split_backgrounds(paths: Sequence[Path], seed: int) -> Dict[str, List[Path]]:
     if len(paths) < 3:
@@ -1189,37 +1474,30 @@ def build_scene(
     split: str,
     scene_number: int,
     background_paths: Sequence[Path],
-    objects_by_category: Dict[str, List[SourceObject]],
+    planned_sources: Sequence[SourceObject],
+    planned_query_targets: Sequence[int],
     prepared_cache: Dict[str, PreparedObject],
-    category_sampler: BalancedCategorySampler,
     transform_sampler: BalancedTransformSampler,
+    language_scheduler: LanguageScheduler,
     rng: random.Random,
     config: GeneratorConfig,
 ) -> Optional[Tuple[np.ndarray, Dict[str, Any]]]:
-    available_categories = sorted(objects_by_category)
     scene_id = f"{split}_scene_{scene_number:06d}"
 
     for scene_attempt in range(config.scene_attempts):
-        background_path = background_paths[(scene_number + scene_attempt) % len(background_paths)]
+        background_path = background_paths[
+            (scene_number + scene_attempt) % len(background_paths)
+        ]
         canvas = cv2.imread(str(background_path), cv2.IMREAD_COLOR)
         if canvas is None:
             raise FileNotFoundError(f"Cannot read background: {background_path}")
         occupancy = np.zeros(canvas.shape[:2], dtype=bool)
-        requested_count = rng.randint(config.objects_min, config.objects_max)
-        category_plan = choose_scene_categories(
-            requested_count,
-            category_sampler,
-            available_categories,
-            rng,
-            config.same_category_probability,
-            config.hard_negative_probability,
-        )
-
         placed_objects: List[Dict[str, Any]] = []
-        for category in category_plan:
+
+        for source in planned_sources:
             placed: Optional[Dict[str, Any]] = None
             for _ in range(12):
-                source, scale, angle = transform_sampler.next(category)
+                scale, angle = transform_sampler.next(source)
                 if source.source_id not in prepared_cache:
                     prepared_cache[source.source_id] = prepare_source_object(source)
                 transformed = transform_object(
@@ -1231,9 +1509,11 @@ def build_scene(
                     placed_objects.append(placed)
                     break
             if placed is None:
-                continue
+                break
 
-        if len(placed_objects) < config.objects_min:
+        # A planned scene is atomic: never keep a partial scene because doing so
+        # would silently destroy the category/source balance guarantees.
+        if len(placed_objects) != len(planned_sources):
             continue
 
         height, width = canvas.shape[:2]
@@ -1244,22 +1524,23 @@ def build_scene(
             config.relation_margin,
             config.nearest_ratio,
         )
-        queries = render_queries(
+        queries = render_target_queries(
             candidates,
+            planned_query_targets,
+            placed_objects,
             split,
             scene_id,
-            config.queries_min,
-            config.queries_max,
             config.max_query_difficulty,
             config.language_templates,
             config.category_vocabulary,
+            language_scheduler,
             rng,
         )
-        if len(queries) < config.queries_min:
+        if len(queries) != len(planned_query_targets):
             continue
 
         annotation = {
-            "schema_version": "2.0",
+            "schema_version": "2.1",
             "split": split,
             "scene_id": scene_id,
             "image_filename": f"{scene_id}.{config.image_ext}",
@@ -1272,30 +1553,78 @@ def build_scene(
         return canvas, annotation
     return None
 
-
 def write_readme(out_dir: Path, config: GeneratorConfig) -> None:
-    text = f"""Grasp-Tools compositional augmentation v2
+    text = f"""Grasp-Tools balanced compositional dataset (schema 2.1)
 
-Schema:
-  Each split contains one image and one JSON per rendered scene.
-  JSON objects contain masks and grasp rectangles.
-  JSON queries contain text, target_idx, type, difficulty, and a symbolic program.
-  The same image is intentionally shared by multiple language queries.
+Layout:
+  train|val|test/
+    <scene>.jpg
+    <scene>.json
+    index.jsonl
+  metadata.json
+  _preview/
 
-Important:
-  - grasp rectangle height is fixed at {config.grasp_height:g} pixels.
-  - maximum query difficulty is {config.max_query_difficulty}.
-  - language template protocol is {config.language_templates}.
-  - category vocabulary is {config.category_vocabulary}.
+Each scene JSON stores all objects and multiple language queries. Every query
+uses target_idx to select an object. index.jsonl expands those queries into
+independent training samples without duplicating the image.
+
+Generation contract:
+  - object counts vary from {config.objects_min} to {config.objects_max} per image.
+  - train has {config.train_queries_per_scene} queries per image.
+  - val/test have {config.eval_queries_per_scene} queries per image.
+  - class placements differ by at most one inside each split.
+  - query target counts differ by at most one inside each split.
+  - reuse counts of source instances from the same class differ by at most one.
+  - category terms cycle through canonical names, aliases, and near-synonyms.
+  - command templates are balanced; heldout mode separates train/eval wording.
   - train/val/test use disjoint background image files.
-  - source cutouts are shared across splits, so this is a compositional split,
-    not a novel-instance split.
-  - ToolRGS must use a v2-aware GraspToolDataset that expands the queries list.
+  - source cutouts are shared across splits (a compositional split).
+  - grasp rectangle height is fixed at {config.grasp_height:g} pixels.
 
-Recommended ToolRGS configuration:
-  word_len: 32
+metadata.json records all counts and the post-generation balance audit.
 """
     (out_dir / "README.txt").write_text(text, encoding="utf-8")
+
+def _balance_delta(counter: Counter, keys: Sequence[str]) -> int:
+    values = [int(counter[key]) for key in keys]
+    return max(values) - min(values) if values else 0
+
+
+def validate_split_balance(
+    split: str,
+    placements: Counter,
+    query_targets: Counter,
+    source_usage: Counter,
+    objects_by_category: Dict[str, List[SourceObject]],
+) -> Dict[str, Any]:
+    categories = sorted(objects_by_category)
+    placement_delta = _balance_delta(placements, categories)
+    target_delta = _balance_delta(query_targets, categories)
+    if placement_delta > 1:
+        raise RuntimeError(
+            f"{split} category placement imbalance is {placement_delta}, expected <= 1"
+        )
+    if target_delta > 1:
+        raise RuntimeError(
+            f"{split} query-target imbalance is {target_delta}, expected <= 1"
+        )
+
+    per_category_source_delta = {}
+    for category in categories:
+        source_ids = [
+            source.source_id for source in objects_by_category[category]
+        ]
+        delta = _balance_delta(source_usage, source_ids)
+        per_category_source_delta[CANONICAL_CATEGORY_NAMES[category]] = delta
+        if delta > 1:
+            raise RuntimeError(
+                f"{split}/{category} source reuse imbalance is {delta}, expected <= 1"
+            )
+    return {
+        "category_placement_max_minus_min": placement_delta,
+        "query_target_max_minus_min": target_delta,
+        "source_reuse_max_minus_min_by_category": per_category_source_delta,
+    }
 
 
 def generate_dataset(config: GeneratorConfig) -> Path:
@@ -1310,7 +1639,9 @@ def generate_dataset(config: GeneratorConfig) -> Path:
     objects_by_category: Dict[str, List[SourceObject]] = defaultdict(list)
     for source in source_objects:
         objects_by_category[source.category_key].append(source)
-    missing_categories = sorted(set(CANONICAL_CATEGORY_NAMES) - set(objects_by_category))
+    missing_categories = sorted(
+        set(CANONICAL_CATEGORY_NAMES) - set(objects_by_category)
+    )
     if missing_categories:
         raise ValueError(f"Missing canonical categories: {missing_categories}")
 
@@ -1327,11 +1658,6 @@ def generate_dataset(config: GeneratorConfig) -> Path:
     for split, values in background_splits.items():
         print(f"[backgrounds] {split}: {len(values)}")
 
-    rng = random.Random(config.seed)
-    category_sampler = BalancedCategorySampler(sorted(objects_by_category), rng)
-    transform_sampler = BalancedTransformSampler(
-        objects_by_category, config.scales, config.angle_bins, rng
-    )
     prepared_cache: Dict[str, PreparedObject] = {}
     scene_counts = {
         "train": config.train_scenes,
@@ -1339,35 +1665,76 @@ def generate_dataset(config: GeneratorConfig) -> Path:
         "test": config.test_scenes,
     }
     stats: Dict[str, Any] = {
-        "scenes": Counter(),
-        "objects": Counter(),
-        "queries": Counter(),
-        "query_types": Counter(),
-        "difficulty": Counter(),
-        "category_placements": Counter(),
+        "scenes": {},
+        "objects": {},
+        "queries": {},
+        "query_types": {},
+        "difficulty": {},
+        "category_placements": {},
+        "query_targets": {},
+        "source_usage": {},
+        "template_usage": {},
+        "term_usage": {},
+        "balance": {},
     }
     start_time = time.time()
     preview_written = 0
+    split_seed_offsets = {"train": 0, "val": 1000003, "test": 2000003}
 
     for split in ("train", "val", "test"):
+        rng = random.Random(config.seed + split_seed_offsets[split])
+        queries_per_scene = (
+            config.train_queries_per_scene
+            if split == "train"
+            else config.eval_queries_per_scene
+        )
+        planning_error: Optional[Exception] = None
+        for _ in range(100):
+            scene_plans, planned_source_usage = plan_split_scenes(
+                scene_counts[split], objects_by_category, config, rng
+            )
+            try:
+                query_target_plans, planned_query_quota = plan_query_targets(
+                    scene_plans, queries_per_scene, rng
+                )
+                planning_error = None
+                break
+            except RuntimeError as exc:
+                planning_error = exc
+        if planning_error is not None:
+            raise RuntimeError(
+                f"Could not find a feasible balanced {split} plan after 100 attempts"
+            ) from planning_error
+        transform_sampler = BalancedTransformSampler(
+            config.scales, config.angle_bins, rng
+        )
+        language_scheduler = LanguageScheduler(rng)
+        placements: Counter = Counter()
+        query_targets: Counter = Counter()
+        source_usage: Counter = Counter()
+        query_types: Counter = Counter()
+        difficulty: Counter = Counter()
+
         index_path = out_dir / split / "index.jsonl"
         with index_path.open("w", encoding="utf-8") as index_file:
-            for scene_number in range(scene_counts[split]):
+            for scene_number, planned_sources in enumerate(scene_plans):
                 result = build_scene(
                     split,
                     scene_number,
                     background_splits[split],
-                    objects_by_category,
+                    planned_sources,
+                    query_target_plans[scene_number],
                     prepared_cache,
-                    category_sampler,
                     transform_sampler,
+                    language_scheduler,
                     rng,
                     config,
                 )
                 if result is None:
                     raise RuntimeError(
                         f"Could not build {split} scene {scene_number} after "
-                        f"{config.scene_attempts} attempts. Reduce objects/scales or relation constraints."
+                        f"{config.scene_attempts} attempts. Reduce object scales "
+                        "or increase placement/scene attempts."
                     )
                 image, annotation = result
                 scene_id = annotation["scene_id"]
@@ -1375,7 +1742,8 @@ def generate_dataset(config: GeneratorConfig) -> Path:
                 json_path = out_dir / split / f"{scene_id}.json"
                 save_image(image_path, image, config)
                 json_path.write_text(
-                    json.dumps(annotation, ensure_ascii=False, indent=2), encoding="utf-8"
+                    json.dumps(annotation, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
                 )
                 for query_index, query in enumerate(annotation["queries"]):
                     index_file.write(json.dumps({
@@ -1388,24 +1756,33 @@ def generate_dataset(config: GeneratorConfig) -> Path:
 
                 if preview_written < config.preview_count:
                     preview = draw_preview(image, annotation)
-                    preview_path = out_dir / "_preview" / f"{split}_{scene_id}.jpg"
-                    if not cv2.imwrite(str(preview_path), preview, [cv2.IMWRITE_JPEG_QUALITY, 92]):
+                    preview_path = (
+                        out_dir / "_preview" / f"{split}_{scene_id}.jpg"
+                    )
+                    if not cv2.imwrite(
+                        str(preview_path),
+                        preview,
+                        [cv2.IMWRITE_JPEG_QUALITY, 92],
+                    ):
                         raise IOError(f"Failed to write preview: {preview_path}")
                     query_text = "\n".join(
                         f"[{q['target_idx']}] {q['type']}: {q['text']}"
                         for q in annotation["queries"]
                     )
-                    preview_path.with_suffix(".txt").write_text(query_text, encoding="utf-8")
+                    preview_path.with_suffix(".txt").write_text(
+                        query_text, encoding="utf-8"
+                    )
                     preview_written += 1
 
-                stats["scenes"][split] += 1
-                stats["objects"][split] += len(annotation["objects"])
-                stats["queries"][split] += len(annotation["queries"])
                 for obj in annotation["objects"]:
-                    stats["category_placements"][obj["category"]] += 1
+                    category = category_key_from_object(obj)
+                    placements[category] += 1
+                    source_usage[obj["source_id"]] += 1
                 for query in annotation["queries"]:
-                    stats["query_types"][query["type"]] += 1
-                    stats["difficulty"][str(query["difficulty"])] += 1
+                    target = annotation["objects"][int(query["target_idx"])]
+                    query_targets[category_key_from_object(target)] += 1
+                    query_types[query["type"]] += 1
+                    difficulty[str(query["difficulty"])] += 1
 
                 done = scene_number + 1
                 if done == scene_counts[split] or done % 100 == 0:
@@ -1415,13 +1792,41 @@ def generate_dataset(config: GeneratorConfig) -> Path:
                         f"elapsed {elapsed / 60.0:.1f} min"
                     )
 
-    serializable_stats = {
-        key: dict(value) if isinstance(value, Counter) else value
-        for key, value in stats.items()
-    }
+        if dict(source_usage) != planned_source_usage:
+            raise RuntimeError(f"{split} actual source usage differs from plan")
+        if dict(query_targets) != planned_query_quota:
+            raise RuntimeError(f"{split} actual query targets differ from plan")
+
+        stats["scenes"][split] = len(scene_plans)
+        stats["objects"][split] = sum(len(scene) for scene in scene_plans)
+        stats["queries"][split] = len(scene_plans) * queries_per_scene
+        stats["query_types"][split] = dict(query_types)
+        stats["difficulty"][split] = dict(difficulty)
+        stats["category_placements"][split] = {
+            CANONICAL_CATEGORY_NAMES[key]: placements[key]
+            for key in sorted(objects_by_category)
+        }
+        stats["query_targets"][split] = {
+            CANONICAL_CATEGORY_NAMES[key]: query_targets[key]
+            for key in sorted(objects_by_category)
+        }
+        stats["source_usage"][split] = dict(sorted(source_usage.items()))
+        stats["template_usage"][split] = dict(language_scheduler.template_usage)
+        stats["term_usage"][split] = {
+            CANONICAL_CATEGORY_NAMES[key]: dict(values)
+            for key, values in sorted(language_scheduler.term_usage.items())
+        }
+        stats["balance"][split] = validate_split_balance(
+            split,
+            placements,
+            query_targets,
+            source_usage,
+            objects_by_category,
+        )
+
     metadata = {
         "generator": "tools/dataset_converters/grasp_tools/augment.py",
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "config": asdict(config),
         "canonical_categories": list(CANONICAL_CATEGORY_NAMES.values()),
         "source_category_counts": {
@@ -1433,16 +1838,16 @@ def generate_dataset(config: GeneratorConfig) -> Path:
             split: [str(path) for path in paths]
             for split, paths in background_splits.items()
         },
-        "stats": serializable_stats,
+        "stats": stats,
         "elapsed_seconds": round(time.time() - start_time, 3),
     }
     (out_dir / "metadata.json").write_text(
-        json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(metadata, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     print(f"[done] dataset written to: {out_dir}")
-    print(json.dumps(serializable_stats, ensure_ascii=False, indent=2))
+    print(json.dumps(stats, ensure_ascii=False, indent=2))
     return out_dir
-
 
 def main() -> int:
     try:

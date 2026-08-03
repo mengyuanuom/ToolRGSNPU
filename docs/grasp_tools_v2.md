@@ -339,17 +339,17 @@ datasets/grasp-tools/aug_graspall_v2/
 ## 6. 数据划分与评价边界
 
 42 张背景会按固定随机种子划分给 train、val 和 test，同一背景文件不会跨 split
-使用。默认 6000/500/1000 设置会生成：
+使用。默认 6000/800/1200 设置会生成：
 
 | Split | 场景图片数 | 每图对象数 | 默认每图查询数 |
 | --- | ---: | ---: | ---: |
-| train | 6000 | 2～3 | 4 |
-| val | 500 | 2～3 | 4 |
-| test | 1000 | 2～3 | 4 |
+| train | 6000 | 3～5（平均 4） | 6 |
+| val | 800 | 3～5（平均 4） | 4 |
+| test | 1200 | 3～5（平均 4） | 4 |
 
-难度 1 默认会为逻辑候选保留不同措辞，每张图最多选择 4 条，因此标准设置通常
-生成 7500 张场景图片和 3 万条查询（训练 24000、验证 2000、测试 4000）。
-若修改目标数、查询上下限或难度，最终数量应以生成后的 `metadata.json` 为准。
+默认规划器会在每个 split 内严格平衡 22 类的场景实例、查询目标和同类源实例复用次数。
+标准设置生成 8000 张场景图片和 44000 条查询（训练 36000、验证 3200、测试 4800）。
+若修改场景数或每图查询数，最终数量与均衡审计应以生成后的 metadata.json 为准。
 
 需要明确的是：三个 split 共享同一批 107 个源工具实例，只是背景、组合、位置、
 尺度、角度和语言不同。因此该划分适合衡量**组合泛化和语言泛化**，不能单独作为
@@ -369,7 +369,7 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
   --overwrite
 ```
 
-烟雾测试只生成 4 张训练、2 张验证和 2 张测试场景。检查：
+烟雾测试为 train、val、test 各生成 12 张场景，以稳定覆盖全部 22 类。检查：
 
 ```text
 /tmp/grasp_tools_v2_smoke/_preview
@@ -378,9 +378,9 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
 预览图会绘制物体轮廓、类别编号和部分抓取矩形；同名 `.txt` 文件列出该场景的
 所有查询。
 
-### 7.2 第二步：生成默认难度 1 数据集
+### 7.2 第二步：生成默认严格均衡数据集
 
-默认命令已经包含当前推荐的入门设置：
+默认命令已经包含当前推荐的严格均衡设置：
 
 ```bash
 python -u tools/dataset_converters/grasp_tools/augment.py
@@ -392,19 +392,19 @@ python -u tools/dataset_converters/grasp_tools/augment.py
 python -u tools/dataset_converters/grasp_tools/augment.py \
   --out-dir datasets/grasp-tools/aug_graspall_v2 \
   --train-scenes 6000 \
-  --val-scenes 500 \
-  --test-scenes 1000 \
-  --objects-min 2 \
-  --objects-max 3 \
-  --queries-min 2 \
-  --queries-max 4 \
-  --max-query-difficulty 1 \
-  --language-templates shared \
+  --val-scenes 800 \
+  --test-scenes 1200 \
+  --objects-min 3 \
+  --objects-max 5 \
+  --train-queries-per-scene 6 \
+  --eval-queries-per-scene 4 \
+  --max-query-difficulty 4 \
+  --language-templates heldout \
   --category-vocabulary expanded \
   --scales 0.9,1.0,1.15,1.3 \
   --angle-bins 24 \
-  --same-category-probability 0 \
-  --hard-negative-probability 0 \
+  --same-category-probability 0.35 \
+  --hard-negative-probability 0.30 \
   --brightness-jitter 0.05 \
   --contrast-jitter 0.05 \
   --saturation-jitter 0.05 \
@@ -430,12 +430,12 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
 python -u tools/dataset_converters/grasp_tools/augment.py \
   --out-dir datasets/grasp-tools/aug_graspall_v2_full \
   --train-scenes 3000 \
-  --val-scenes 500 \
-  --test-scenes 1000 \
+  --val-scenes 800 \
+  --test-scenes 1200 \
   --objects-min 3 \
   --objects-max 5 \
-  --queries-min 4 \
-  --queries-max 8 \
+  --train-queries-per-scene 6 \
+  --eval-queries-per-scene 4 \
   --max-query-difficulty 4 \
   --language-templates heldout \
   --category-vocabulary canonical \

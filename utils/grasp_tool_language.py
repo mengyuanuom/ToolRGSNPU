@@ -101,12 +101,15 @@ COMMAND_TEMPLATES = {
         "Can you grasp {description}?",
     ),
     "eval": (
-        "Could you pick up {description}?",
-        "Please retrieve {description}.",
-        "Select {description} for grasping.",
-        "Can you grasp {description}?",
+        "Identify and lift {description}.",
+        "Move your gripper to {description}.",
+        "Secure {description} with the gripper.",
+        "Target {description} and lift it.",
     ),
 }
+
+if set(COMMAND_TEMPLATES["train"]) & set(COMMAND_TEMPLATES["eval"]):
+    raise RuntimeError("Training and evaluation command templates must be disjoint")
 
 if set(CATEGORY_DESCRIPTION_VARIANTS) != set(CANONICAL_CATEGORY_NAMES):
     raise RuntimeError("Every canonical Grasp-Tools category needs prompt variants")
