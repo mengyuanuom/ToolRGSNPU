@@ -9,6 +9,7 @@ from tools.dataset_converters.grasp_tools.augment import (
     balanced_scene_sizes,
     plan_query_targets,
     plan_split_scenes,
+    placement_scale_backoff,
 )
 from utils.grasp_tool_language import CANONICAL_CATEGORY_NAMES
 
@@ -50,6 +51,13 @@ def test_balanced_integer_quotas_and_scene_sizes():
     counts = Counter(sizes)
     assert delta(counts.values()) <= 1
 
+
+def test_placement_scale_backoff_is_bounded_and_monotonic():
+    values = [placement_scale_backoff(attempt) for attempt in range(30)]
+    assert values[0] == 1.0
+    assert all(left >= right for left, right in zip(values, values[1:]))
+    assert values[-1] == 0.55
+    assert placement_scale_backoff(100) == 0.55
 
 def test_split_planner_balances_categories_sources_and_queries():
     sources = fake_sources()

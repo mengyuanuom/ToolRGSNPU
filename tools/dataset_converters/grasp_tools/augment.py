@@ -1470,6 +1470,12 @@ def validate_annotation(annotation: Dict[str, Any], width: int, height: int) -> 
             raise ValueError("Query has empty text")
 
 
+def placement_scale_backoff(scene_attempt: int) -> float:
+    """Shrink difficult scenes progressively without changing their quotas."""
+    if scene_attempt < 0:
+        raise ValueError("scene_attempt must be non-negative")
+    return max(0.55, 0.90 ** scene_attempt)
+
 def build_scene(
     split: str,
     scene_number: int,
@@ -1492,29 +1498,49 @@ def build_scene(
         if canvas is None:
             raise FileNotFoundError(f"Cannot read background: {background_path}")
         occupancy = np.zeros(canvas.shape[:2], dtype=bool)
-        placed_objects: List[Dict[str, Any]] = []
-
         for source in planned_sources:
+            if source.source_id not in prepared_cache:
+                prepared_cache[source.source_id] = prepare_source_object(source)
+        placement_order = sorted(
+            range(len(planned_sources)),
+            key=lambda index: (
+                prepared_cache[planned_sources[index].source_id].rgba.shape[0]
+                * prepared_cache[planned_sources[index].source_id].rgba.shape[1]
+            ),
+            reverse=True,
+        )
+        placed_by_original_index: Dict[int, Dict[str, Any]] = {}
+        scale_backoff = placement_scale_backoff(scene_attempt)
+
+        for original_index in placement_order:
+            source = planned_sources[original_index]
             placed: Optional[Dict[str, Any]] = None
             for _ in range(12):
                 scale, angle = transform_sampler.next(source)
-                if source.source_id not in prepared_cache:
-                    prepared_cache[source.source_id] = prepare_source_object(source)
                 transformed = transform_object(
-                    prepared_cache[source.source_id], scale, angle, rng, config
+                    prepared_cache[source.source_id],
+                    scale * scale_backoff,
+                    angle,
+                    rng,
+                    config,
                 )
                 placed = paste_object(canvas, occupancy, transformed, rng, config)
                 if placed is not None:
-                    placed["object_id"] = len(placed_objects)
-                    placed_objects.append(placed)
+                    placed_by_original_index[original_index] = placed
                     break
             if placed is None:
                 break
 
         # A planned scene is atomic: never keep a partial scene because doing so
         # would silently destroy the category/source balance guarantees.
-        if len(placed_objects) != len(planned_sources):
+        if len(placed_by_original_index) != len(planned_sources):
             continue
+        placed_objects = [
+            placed_by_original_index[index]
+            for index in range(len(planned_sources))
+        ]
+        for object_id, placed in enumerate(placed_objects):
+            placed["object_id"] = object_id
 
         height, width = canvas.shape[:2]
         candidates = logical_candidates(
@@ -1570,6 +1596,7 @@ independent training samples without duplicating the image.
 
 Generation contract:
   - object counts vary from {config.objects_min} to {config.objects_max} per image.
+  - difficult scenes place large cutouts first and use bounded scale backoff.
   - train has {config.train_queries_per_scene} queries per image.
   - val/test have {config.eval_queries_per_scene} queries per image.
   - class placements differ by at most one inside each split.
