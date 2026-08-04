@@ -1,6 +1,7 @@
 from collections import Counter
 from pathlib import Path
 import random
+import sys
 from types import SimpleNamespace
 
 from tools.dataset_converters.grasp_tools.augment import (
@@ -10,6 +11,7 @@ from tools.dataset_converters.grasp_tools.augment import (
     plan_query_targets,
     plan_split_scenes,
     placement_scale_backoff,
+    parse_args,
 )
 from utils.grasp_tool_language import CANONICAL_CATEGORY_NAMES
 
@@ -35,6 +37,19 @@ def fake_sources():
 def delta(values):
     values = list(values)
     return max(values) - min(values)
+
+
+def test_default_cli_is_balanced_difficulty_one(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["augment.py"])
+    args = parse_args()
+    assert (args.train_scenes, args.val_scenes, args.test_scenes) == (6000, 500, 1000)
+    assert (args.objects_min, args.objects_max) == (2, 3)
+    assert args.train_queries_per_scene == 4
+    assert args.eval_queries_per_scene == 4
+    assert args.max_query_difficulty == 1
+    assert args.language_templates == "shared"
+    assert args.same_category_probability == 0.0
+    assert args.hard_negative_probability == 0.0
 
 
 def test_balanced_integer_quotas_and_scene_sizes():

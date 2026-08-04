@@ -339,17 +339,17 @@ datasets/grasp-tools/aug_graspall_v2/
 ## 6. 数据划分与评价边界
 
 42 张背景会按固定随机种子划分给 train、val 和 test，同一背景文件不会跨 split
-使用。默认 6000/800/1200 设置会生成：
+使用。默认 6000/500/1000 设置会生成：
 
 | Split | 场景图片数 | 每图对象数 | 默认每图查询数 |
 | --- | ---: | ---: | ---: |
-| train | 6000 | 3～5（平均 4） | 6 |
-| val | 800 | 3～5（平均 4） | 4 |
-| test | 1200 | 3～5（平均 4） | 4 |
+| train | 6000 | 2～3 | 4 |
+| val | 500 | 2～3 | 4 |
+| test | 1000 | 2～3 | 4 |
 
 默认规划器会在每个 split 内严格平衡 22 类的场景实例、查询目标和同类源实例复用次数。
 放置时优先处理面积较大的裁切；若场景拥挤，重试会逐步缩小到基础 scale 的最低 55%，但不会跳过对象或改变配额。
-标准设置生成 8000 张场景图片和 44000 条查询（训练 36000、验证 3200、测试 4800）。
+标准设置生成 7500 张场景图片和 30000 条查询（训练 24000、验证 2000、测试 4000）。
 若修改场景数或每图查询数，最终数量与均衡审计应以生成后的 metadata.json 为准。
 
 需要明确的是：三个 split 共享同一批 107 个源工具实例，只是背景、组合、位置、
@@ -379,9 +379,9 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
 预览图会绘制物体轮廓、类别编号和部分抓取矩形；同名 `.txt` 文件列出该场景的
 所有查询。
 
-### 7.2 第二步：生成默认严格均衡数据集
+### 7.2 第二步：生成默认均衡入门数据集
 
-默认命令已经包含当前推荐的严格均衡设置：
+默认命令使用难度 1 入门设置，同时保留新版严格类别均衡和稳健放置：
 
 ```bash
 python -u tools/dataset_converters/grasp_tools/augment.py
@@ -393,19 +393,19 @@ python -u tools/dataset_converters/grasp_tools/augment.py
 python -u tools/dataset_converters/grasp_tools/augment.py \
   --out-dir datasets/grasp-tools/aug_graspall_v2 \
   --train-scenes 6000 \
-  --val-scenes 800 \
-  --test-scenes 1200 \
-  --objects-min 3 \
-  --objects-max 5 \
-  --train-queries-per-scene 6 \
+  --val-scenes 500 \
+  --test-scenes 1000 \
+  --objects-min 2 \
+  --objects-max 3 \
+  --train-queries-per-scene 4 \
   --eval-queries-per-scene 4 \
-  --max-query-difficulty 4 \
-  --language-templates heldout \
+  --max-query-difficulty 1 \
+  --language-templates shared \
   --category-vocabulary expanded \
   --scales 0.9,1.0,1.15,1.3 \
   --angle-bins 24 \
-  --same-category-probability 0.35 \
-  --hard-negative-probability 0.30 \
+  --same-category-probability 0 \
+  --hard-negative-probability 0 \
   --brightness-jitter 0.05 \
   --contrast-jitter 0.05 \
   --saturation-jitter 0.05 \
@@ -420,7 +420,7 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
 
 | 实验 | 关键配置 | 目的 |
 | --- | --- | --- |
-| D1 | `max-query-difficulty=1`，关闭同类与困难负样本 | 验证类别、分割和抓取基本能力 |
+| D1（默认） | `max-query-difficulty=1`，关闭同类与困难负样本 | 验证类别、分割和抓取基本能力 |
 | D2 | `max-query-difficulty=2` | 加入全局绝对位置理解 |
 | D3 | `max-query-difficulty=3`，提高 `same-category-probability` | 加入同类区分和单参考物关系 |
 | D4 | `max-query-difficulty=4`，每图 3～5 个对象 | 加入双参考物与复杂组合推理 |
