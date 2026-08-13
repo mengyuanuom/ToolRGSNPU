@@ -33,7 +33,7 @@ TRAIN:
   lr_decay: 0.1
   lr_multi: 0.1
   weight_decay: 0.0
-  max_norm: 0.0
+  max_norm: 1.0
   manual_seed: 0
   print_freq: 100
   exp_name: ggcnnclip_grasp_tools_v2_8npu
