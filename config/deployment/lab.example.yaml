@@ -11,8 +11,9 @@ model:
   postprocessor:
     type: dense_grasp
     min_distance: 2
-    width_factor: 100.0
-    grasp_height: 20.0
+    # New checkpoints inherit factor=300/original from the experiment config.
+    # For old released checkpoints set width_factor: 100 and
+    # size_coordinate: canvas explicitly.
   gate_quality_by_mask: true
   # Convert the predicted width/height back to source-camera pixels.
   scale_grasp_to_source: true

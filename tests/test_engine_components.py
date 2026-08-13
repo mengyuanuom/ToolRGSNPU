@@ -74,7 +74,9 @@ class EvaluationComponentTest(unittest.TestCase):
         sine = np.ones_like(quality)
         cosine = np.zeros_like(quality)
         width = np.full_like(quality, 0.5)
-        processor = DenseGraspPostProcessor(num_grasps=1)
+        processor = DenseGraspPostProcessor(
+            num_grasps=1, size_coordinate="canvas"
+        )
 
         detections = processor(
             quality, sine, cosine, width, spatial_scale=2.0

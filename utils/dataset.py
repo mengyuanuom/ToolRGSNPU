@@ -598,12 +598,22 @@ class GraspTransforms:
             boxes.append(box)
         return boxes
 
-    def generate_masks(self, grasp_rectangles):
+    def generate_masks(self, grasp_rectangles, size_rectangles=None):
+        grasp_rectangles = np.asarray(grasp_rectangles, dtype=np.float32).reshape(-1, 6)
+        if size_rectangles is None:
+            size_rectangles = grasp_rectangles
+        size_rectangles = np.asarray(size_rectangles, dtype=np.float32).reshape(-1, 6)
+        if len(size_rectangles) != len(grasp_rectangles):
+            raise ValueError(
+                "size_rectangles must contain one entry per grasp rectangle: "
+                f"{len(size_rectangles)} vs {len(grasp_rectangles)}"
+            )
         pos_out = np.zeros((self.height, self.width))
         ang_out = np.zeros((self.height, self.width))
         wid_out = np.zeros((self.height, self.width))
-        for rect in grasp_rectangles:
+        for rect, size_rect in zip(grasp_rectangles, size_rectangles):
             center_x, center_y, w_rect, h_rect, theta = rect[:5]
+            target_width = size_rect[2]
             
             # Get 4 corners of rotated rect
             # Convert from our angle represent to opencv's
@@ -622,7 +632,9 @@ class GraspTransforms:
             else:
                 ang_out[cc, rr] = int(theta)
             # Adopt width normalize accoding to class 
-            wid_out[cc, rr] = np.clip(w_rect, 0.0, self.width_factor) / self.width_factor
+            wid_out[cc, rr] = np.clip(
+                target_width, 0.0, self.width_factor
+            ) / self.width_factor
         
         qua_out = (gaussian(pos_out, 3, preserve_range=True) * 255).astype(np.uint8)
         pos_out = (pos_out * 255).astype(np.uint8)
@@ -1109,12 +1121,22 @@ class GraspToolTransforms:
             boxes.append(box)
         return boxes
 
-    def generate_masks(self, grasp_rectangles):
+    def generate_masks(self, grasp_rectangles, size_rectangles=None):
+        grasp_rectangles = np.asarray(grasp_rectangles, dtype=np.float32).reshape(-1, 6)
+        if size_rectangles is None:
+            size_rectangles = grasp_rectangles
+        size_rectangles = np.asarray(size_rectangles, dtype=np.float32).reshape(-1, 6)
+        if len(size_rectangles) != len(grasp_rectangles):
+            raise ValueError(
+                "size_rectangles must contain one entry per grasp rectangle: "
+                f"{len(size_rectangles)} vs {len(grasp_rectangles)}"
+            )
         pos_out = np.zeros((self.height, self.width))
         ang_out = np.zeros((self.height, self.width))
         wid_out = np.zeros((self.height, self.width))
-        for rect in grasp_rectangles:
+        for rect, size_rect in zip(grasp_rectangles, size_rectangles):
             center_x, center_y, w_rect, h_rect, theta = rect[:5]
+            target_width = size_rect[2]
             
             # Get 4 corners of rotated rect
             # Convert from our angle represent to opencv's
@@ -1137,7 +1159,9 @@ class GraspToolTransforms:
             else:
                 ang_out[cc, rr] = int(theta)
             # Adopt width normalize accoding to class 
-            wid_out[cc, rr] = np.clip(w_rect, 0.0, self.width_factor) / self.width_factor
+            wid_out[cc, rr] = np.clip(
+                target_width, 0.0, self.width_factor
+            ) / self.width_factor
         
         qua_out = (gaussian(pos_out, 3, preserve_range=True) * 255).astype(np.uint8)
         pos_out = (pos_out * 255).astype(np.uint8)
@@ -1154,6 +1178,7 @@ class GraspToolDataset(Dataset):
 
     def __init__(self, root_dir, input_size=416, split='train', word_length=17,
                  with_offset=False, offset_radius=20.0, offset_sigma=None,
+                 grasp_size_factor=300.0,
                  dynamic_train_prompts=True, dynamic_prompt_seed=2025):
         self.root_dir = root_dir
         self.split = str(split)
@@ -1163,7 +1188,14 @@ class GraspToolDataset(Dataset):
         self.samples = []
         self.mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).reshape(3, 1, 1)
         self.std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).reshape(3, 1, 1)
-        self.grasp_transform = GraspToolTransforms(width_factor=100, width=input_size, height=input_size)
+        self.grasp_size_factor = float(grasp_size_factor)
+        if self.grasp_size_factor <= 0:
+            raise ValueError("grasp_size_factor must be positive")
+        self.grasp_transform = GraspToolTransforms(
+            width_factor=self.grasp_size_factor,
+            width=input_size,
+            height=input_size,
+        )
         self.with_offset = bool(with_offset)
         self.offset_radius = float(offset_radius)
         self.offset_sigma = offset_sigma
@@ -1301,7 +1333,9 @@ class GraspToolDataset(Dataset):
 
         grasp_rect_format = self.grasp_transform(grasps_trans, target=target_idx)
 
-        grasp_masks_raw = self.grasp_transform.generate_masks(grasp_rect_format)
+        grasp_masks_raw = self.grasp_transform.generate_masks(
+            grasp_rect_format, size_rectangles=grasp_target
+        )
 
         # 处理为标准格式：qua, ang, wid, sin, cos
         qua = grasp_masks_raw["qua"] / 255.

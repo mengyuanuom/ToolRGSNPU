@@ -124,6 +124,27 @@ class ToolRGSInference:
         if not isinstance(state, dict):
             raise ValueError(f"Unsupported checkpoint payload in {checkpoint_path}")
         _load_state(self.model, state)
+        if isinstance(checkpoint, dict):
+            checkpoint_factor = checkpoint.get("grasp_size_factor")
+            checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
+            configured_factor = float(getattr(self.cfg, "grasp_size_factor", 100.0))
+            configured_coordinate = str(
+                getattr(self.cfg, "grasp_size_coordinate", "original")
+            )
+            if checkpoint_factor is not None and not abs(
+                float(checkpoint_factor) - configured_factor
+            ) < 1e-6:
+                raise ValueError(
+                    "Checkpoint/config grasp_size_factor mismatch: "
+                    f"{checkpoint_factor} vs {configured_factor}"
+                )
+            if checkpoint_coordinate is not None and str(
+                checkpoint_coordinate
+            ) != configured_coordinate:
+                raise ValueError(
+                    "Checkpoint/config grasp_size_coordinate mismatch: "
+                    f"{checkpoint_coordinate!r} vs {configured_coordinate!r}"
+                )
         self.model.to(self.device).eval()
         self.input_hw = _input_size(self.cfg.input_size)
         postprocessor_cfg = dict(self.model_cfg.get("postprocessor", {}))
@@ -133,6 +154,16 @@ class ToolRGSInference:
         )
         postprocessor_cfg.setdefault(
             "num_grasps", int(self.model_cfg.get("num_grasps", 1))
+        )
+        postprocessor_cfg.setdefault(
+            "width_factor", float(getattr(self.cfg, "grasp_size_factor", 100.0))
+        )
+        postprocessor_cfg.setdefault(
+            "grasp_height", float(getattr(self.cfg, "grasp_height", 20.0))
+        )
+        postprocessor_cfg.setdefault(
+            "size_coordinate",
+            str(getattr(self.cfg, "grasp_size_coordinate", "original")),
         )
         self.postprocessor = POSTPROCESSORS.build(postprocessor_cfg)
 
@@ -226,9 +257,11 @@ class ToolRGSInference:
             quality = quality * mask.astype(np.float32)
         angle = np.arctan2(sine, cosine) / 2.0
 
-        source_scale = 1.0 / max(scale, 1e-8) if self.model_cfg.get(
-            "scale_grasp_to_source", True
-        ) else 1.0
+        source_scale = (
+            1.0 / max(scale, 1e-8)
+            if self.postprocessor.size_coordinate == "canvas"
+            else 1.0
+        )
         detections = self.postprocessor(
             quality,
             sine,
@@ -259,8 +292,8 @@ class ToolRGSInference:
                 [
                     float(model_x),
                     float(model_y),
-                    grasp_width / source_scale,
-                    grasp_height / source_scale,
+                    grasp_width * scale,
+                    grasp_height * scale,
                     theta,
                 ]
             )

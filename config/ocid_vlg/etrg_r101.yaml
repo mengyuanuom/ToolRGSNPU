@@ -1,4 +1,7 @@
 ﻿DATA:
+  grasp_size_factor: 100
+  grasp_height: 20.0
+  grasp_size_coordinate: original
   dataset: OCID-VLG
   # Recommended server setup: `ln -sfn ../data datasets` in the repo root.
   root_path: ./datasets/OCID-VLG

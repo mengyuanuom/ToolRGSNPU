@@ -57,6 +57,7 @@ def build_dataset(cfg, split, with_offset=False):
         with_offset=with_offset,
         offset_radius=getattr(cfg, "offset_r", 20.0),
         offset_sigma=getattr(cfg, "offset_sigma", None),
+        grasp_size_factor=float(getattr(cfg, "grasp_size_factor", 100.0)),
         dynamic_train_prompts=getattr(cfg, "dynamic_train_prompts", True),
         dynamic_prompt_seed=getattr(cfg, "dynamic_prompt_seed", 2025),
         split_root=getattr(cfg, "split_root", None),

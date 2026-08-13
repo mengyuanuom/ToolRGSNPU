@@ -230,8 +230,6 @@ def main():
                 "postprocessor": {
                     "type": "dense_grasp",
                     "min_distance": 2,
-                    "width_factor": 100.0,
-                    "grasp_height": 20.0,
                 },
                 "overrides": {},
             },

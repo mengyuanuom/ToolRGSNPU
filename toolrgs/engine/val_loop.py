@@ -87,6 +87,13 @@ class GraspValLoop(BaseLoop):
                 ),
                 "min_distance": int(getattr(cfg, "grasp_min_distance", 2)),
                 "minimum_width": self.evaluation_protocol.minimum_grasp_width,
+                "width_factor": float(
+                    getattr(cfg, "grasp_size_factor", 100.0)
+                ),
+                "grasp_height": float(getattr(cfg, "grasp_height", 20.0)),
+                "size_coordinate": str(
+                    getattr(cfg, "grasp_size_coordinate", "original")
+                ),
             }
         )
 
@@ -261,12 +268,24 @@ class GraspValLoop(BaseLoop):
                     grasp_targets = grasp_targets.detach().cpu().numpy()
                 target_six = targets_to_six(grasp_targets)
 
+                size_scale = 1.0
+                if self.postprocessor.size_coordinate == "canvas":
+                    linear = np.asarray(inverse_matrix, dtype=np.float32)[:, :2]
+                    size_scale = float(
+                        0.5
+                        * (
+                            np.linalg.norm(linear[:, 0])
+                            + np.linalg.norm(linear[:, 1])
+                        )
+                    )
+
                 detections = self.postprocessor(
                     quality_original,
                     sine_original,
                     cosine_original,
                     width_original,
                     num_grasps=self.max_topk,
+                    spatial_scale=size_scale,
                 )
                 rectangles = [detection.as_rectangle() for detection in detections]
                 if offset_maps is not None and rectangles:
@@ -284,7 +303,9 @@ class GraspValLoop(BaseLoop):
                             sine_original,
                             cosine_original,
                             width_original,
-                            width_factor=self.postprocessor.width_factor,
+                            width_factor=(
+                                self.postprocessor.width_factor * size_scale
+                            ),
                         )
                 else:
                     rectangles = rectangles_to_five(rectangles)
@@ -305,6 +326,8 @@ class GraspValLoop(BaseLoop):
                             iou_threshold=self.evaluation_protocol.grasp_iou_threshold,
                             shape=self.evaluation_protocol.grasp_canvas,
                             angle_threshold=self.evaluation_protocol.grasp_angle_threshold,
+                            max_width=self.postprocessor.width_factor,
+                            grasp_height=self.postprocessor.grasp_height,
                         )
                         self.grasp_metric.update(topk, success)
 

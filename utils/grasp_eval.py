@@ -372,12 +372,19 @@ def calculate_jacquard_index(
     iou_threshold=0.25,
     shape=(720, 1280),
     angle_threshold=30,
+    max_width=100.0,
+    grasp_height=20.0,
 ):
     grasp_preds = np.asarray(grasp_preds)
     grasp_targets = np.asarray(grasp_targets)
 
-    grasp_targets[:, 3] = 20
-    grasp_targets[:, 2] = np.clip(grasp_targets[:, 2], 0, 100)
+    if grasp_targets.size == 0 or grasp_preds.size == 0:
+        return 0
+    grasp_targets = grasp_targets.copy()
+    grasp_targets[:, 3] = float(grasp_height)
+    grasp_targets[:, 2] = np.clip(
+        grasp_targets[:, 2], 0, float(max_width)
+    )
 
     for rect_gt in grasp_targets:
         for rect_p in grasp_preds:

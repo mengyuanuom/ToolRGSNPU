@@ -34,6 +34,7 @@ class DenseGraspPostProcessor:
         width_factor: float = 100.0,
         grasp_height: float = 20.0,
         minimum_width: float = 1.0,
+        size_coordinate: str = "original",
     ):
         self.quality_threshold = float(quality_threshold)
         self.min_distance = int(min_distance)
@@ -41,6 +42,12 @@ class DenseGraspPostProcessor:
         self.width_factor = float(width_factor)
         self.grasp_height = float(grasp_height)
         self.minimum_width = float(minimum_width)
+        self.size_coordinate = str(size_coordinate).strip().lower()
+        if self.size_coordinate not in {"original", "canvas"}:
+            raise ValueError(
+                "size_coordinate must be 'original' or 'canvas', got "
+                f"{size_coordinate!r}"
+            )
 
     def __call__(
         self,
@@ -67,7 +74,11 @@ class DenseGraspPostProcessor:
             num_peaks=count,
         )
         angle = np.arctan2(sine, cosine) / 2.0
-        scale = float(spatial_scale)
+        scale = (
+            float(spatial_scale)
+            if self.size_coordinate == "canvas"
+            else 1.0
+        )
         return [
             GraspDetection(
                 x=float(column),

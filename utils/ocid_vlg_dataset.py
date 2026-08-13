@@ -55,6 +55,7 @@ class OCIDVLGDataset(Dataset):
         with_offset=False,
         offset_radius=20.0,
         offset_sigma=None,
+        grasp_size_factor=100.0,
     ):
         self.root_dir = Path(root_dir).expanduser()
         self.input_size = (int(input_size), int(input_size))
@@ -64,10 +65,15 @@ class OCIDVLGDataset(Dataset):
         self.with_offset = bool(with_offset)
         self.offset_radius = float(offset_radius)
         self.offset_sigma = offset_sigma
+        self.grasp_size_factor = float(grasp_size_factor)
+        if self.grasp_size_factor <= 0:
+            raise ValueError("grasp_size_factor must be positive")
         self.mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).reshape(3, 1, 1)
         self.std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).reshape(3, 1, 1)
         self.grasp_transform = GraspTransforms(
-            width_factor=100, width=self.input_size[1], height=self.input_size[0]
+            width_factor=self.grasp_size_factor,
+            width=self.input_size[1],
+            height=self.input_size[0],
         )
 
         if not self.root_dir.is_dir():
@@ -197,7 +203,9 @@ class OCIDVLGDataset(Dataset):
         matrix, inverse = self._transform_matrix((ori_h, ori_w), self.input_size)
         input_grasps = self._apply_affine(grasps, matrix)
         input_targets = self.grasp_transform(input_grasps, target=target_idx)
-        raw_masks = self.grasp_transform.generate_masks(input_targets)
+        raw_masks = self.grasp_transform.generate_masks(
+            input_targets, size_rectangles=original_targets
+        )
         angle = raw_masks["ang"].astype(np.float32) * np.pi / 180.0
         grasp_masks = {
             "qua": torch.from_numpy(raw_masks["qua"].astype(np.float32) / 255.0),

@@ -1,4 +1,7 @@
-﻿DATA:
+DATA:
+  grasp_size_factor: 300.0
+  grasp_height: 20.0
+  grasp_size_coordinate: original
   dataset: GraspTool
   root_path: ./datasets/grasp-tools/aug_graspall_v2
   train_split: train
@@ -69,6 +72,9 @@ TRAIN:
   weight:  # path to initial weight (default: none)
   resume: # path to latest checkpoint (default: none)
   evaluate: True
+  # Skip validation during warm-up; evaluate every epoch from epoch 11.
+  val_start_epoch: 11
+  val_freq: 1
   use_grasp_masks: True
 Distributed:
   dist_url: env://

@@ -9,7 +9,6 @@ EXPECTED_MODELS = {
     "crog",
     "crogoff",
     "drog",
-    "drogoff",
     "drogoff_v2",
     "ggcnnclip",
     "graspmamba",
@@ -34,6 +33,9 @@ class GraspToolResourceProfileTest(unittest.TestCase):
             self.assertEqual(
                 data["root_path"], "./datasets/grasp-tools/aug_graspall_v2", path
             )
+            self.assertEqual(data["grasp_size_factor"], 300.0, path)
+            self.assertEqual(data["grasp_height"], 20.0, path)
+            self.assertEqual(data["grasp_size_coordinate"], "original", path)
             self.assertEqual(train["word_len"], 32, path)
             self.assertFalse(train["amp"], path)
             self.assertFalse(train["sync_bn"], path)

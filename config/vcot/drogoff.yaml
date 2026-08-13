@@ -1,4 +1,7 @@
 ﻿DATA:
+  grasp_size_factor: 300
+  grasp_height: 20.0
+  grasp_size_coordinate: original
   dataset: vcot
   root_path: ./datasets/graspanything-vcot
   split_root: ./datasets/graspanything-vcot/split/vcot

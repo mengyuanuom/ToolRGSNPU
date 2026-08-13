@@ -1,4 +1,7 @@
 ﻿DATA:
+  grasp_size_factor: 100
+  grasp_height: 20.0
+  grasp_size_coordinate: original
   dataset: OCID-VLG
   root_path: ./datasets/OCID-VLG
   version: multiple

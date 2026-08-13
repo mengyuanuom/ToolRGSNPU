@@ -1,4 +1,7 @@
 ﻿DATA:
+  grasp_size_factor: 300
+  grasp_height: 20.0
+  grasp_size_coordinate: original
   dataset: GraspTool
   root_path: ./datasets/grasp-tools/aug_graspall_v2
   train_split: train

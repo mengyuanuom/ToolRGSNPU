@@ -279,6 +279,27 @@ class NPUGraspRunner:
 
         if getattr(cfg, "resume", None):
             checkpoint = torch.load(cfg.resume, map_location="cpu")
+            checkpoint_factor = checkpoint.get("grasp_size_factor")
+            checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
+            configured_factor = float(getattr(cfg, "grasp_size_factor", 100.0))
+            configured_coordinate = str(
+                getattr(cfg, "grasp_size_coordinate", "original")
+            )
+            if checkpoint_factor is not None and not abs(
+                float(checkpoint_factor) - configured_factor
+            ) < 1e-6:
+                raise ValueError(
+                    "Resume checkpoint grasp_size_factor does not match the "
+                    f"config: {checkpoint_factor} vs {configured_factor}"
+                )
+            if checkpoint_coordinate is not None and str(
+                checkpoint_coordinate
+            ) != configured_coordinate:
+                raise ValueError(
+                    "Resume checkpoint grasp_size_coordinate does not match "
+                    f"the config: {checkpoint_coordinate!r} vs "
+                    f"{configured_coordinate!r}"
+                )
             self._load_model_state(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.scheduler.load_state_dict(checkpoint["scheduler"])
@@ -366,6 +387,13 @@ class NPUGraspRunner:
             "best_j_index": self.best_j1,
             "best_j1_index": self.best_j1,
             "best_j5_index": self.best_j5,
+            "grasp_size_factor": float(
+                getattr(cfg, "grasp_size_factor", 100.0)
+            ),
+            "grasp_height": float(getattr(cfg, "grasp_height", 20.0)),
+            "grasp_size_coordinate": str(
+                getattr(cfg, "grasp_size_coordinate", "original")
+            ),
             "state_dict": self.model.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "scheduler": self.scheduler.state_dict(),
@@ -413,14 +441,25 @@ class NPUGraspRunner:
                     self.train_loader.dataset.set_epoch(epoch)
                 self.hooks.call("before_epoch", self, self.state)
                 train_logs = self.train_loop.run_epoch(epoch)
-                iou, precision, j_index = self.val_loop.run_epoch(epoch)
-                self.state.logs = {
-                    "train": train_logs,
-                    "validation": {
+                val_start = int(getattr(cfg, "val_start_epoch", 1))
+                val_freq = max(1, int(getattr(cfg, "val_freq", 1)))
+                should_validate = (
+                    bool(getattr(cfg, "evaluate", True))
+                    and epoch >= val_start
+                    and (epoch - val_start) % val_freq == 0
+                )
+                if should_validate:
+                    iou, precision, j_index = self.val_loop.run_epoch(epoch)
+                    validation_logs = {
                         "iou": iou,
                         "precision": precision,
                         "j_index": j_index,
-                    },
+                    }
+                else:
+                    validation_logs = {}
+                self.state.logs = {
+                    "train": train_logs,
+                    "validation": validation_logs,
                 }
                 self.scheduler.step()
                 self.hooks.call("after_epoch", self, self.state)

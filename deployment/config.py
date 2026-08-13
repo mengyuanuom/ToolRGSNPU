@@ -19,10 +19,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "postprocessor": {
             "type": "dense_grasp",
             "min_distance": 2,
-            "width_factor": 100.0,
-            "grasp_height": 20.0,
         },
         "gate_quality_by_mask": True,
+        # New checkpoints inherit the size protocol from the experiment YAML.
+        # Legacy checkpoints may override width_factor/size_coordinate here.
         "scale_grasp_to_source": True,
         "overrides": {},
     },
