@@ -23,6 +23,10 @@ def parse_args():
     parser.add_argument("--config", required=True)
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--npu", type=int, default=0)
+    parser.add_argument(
+        "--split",
+        help="Evaluation split override (for VCoT use 'seen' or 'unseen').",
+    )
     parser.add_argument("--opts", nargs=argparse.REMAINDER)
     cli = parser.parse_args()
     cfg = config.load_cfg_from_cfg_file(cli.config)
@@ -30,6 +34,11 @@ def parse_args():
         cfg = config.merge_cfg_from_list(cfg, cli.opts)
     cfg.npu = cli.npu
     cfg.resume = cli.checkpoint
+    cfg.eval_split = cli.split or getattr(
+        cfg, "test_split", getattr(cfg, "val_split", None)
+    )
+    if cfg.eval_split is None:
+        raise ValueError("TEST.test_split or DATA.val_split must be configured")
     return cfg
 
 
@@ -75,15 +84,12 @@ def main():
     load_state(model, checkpoint.get("state_dict", checkpoint))
 
     needs_offset = args.architecture.lower() in {"crogoff", "drogoff"}
-    evaluation_split = getattr(
-        args, "test_split", getattr(args, "val_split", "val")
-    )
     logger.info(
         "Evaluation split={} protocol={}",
-        evaluation_split,
+        args.eval_split,
         getattr(args, "evaluation_protocol", "toolrgs"),
     )
-    dataset = build_dataset(args, evaluation_split, with_offset=needs_offset)
+    dataset = build_dataset(args, args.eval_split, with_offset=needs_offset)
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size_val,

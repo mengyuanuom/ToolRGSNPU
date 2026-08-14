@@ -35,7 +35,8 @@ class VCoTOfficialEvaluationTest(unittest.TestCase):
     def test_iou_matches_continuous_rotated_rectangle_geometry(self):
         first = [50.0, 50.0, 40.0, 20.0, 15.0]
         second = [50.0, 50.0, 40.0, 20.0, 15.0]
-        self.assertAlmostEqual(vcot_rotated_iou(first, second), 1.0, places=6)
+        # OpenCV builds differ by roughly 1e-6 in polygon intersection area.
+        self.assertAlmostEqual(vcot_rotated_iou(first, second), 1.0, places=5)
 
         # Two 40x20 horizontal rectangles offset by 24 pixels have IoU 0.25.
         boundary = [74.0, 50.0, 40.0, 20.0, 0.0]
@@ -85,6 +86,15 @@ class VCoTOfficialEvaluationTest(unittest.TestCase):
                 path,
             )
             self.assertEqual(cfg["TEST"]["grasp_topk"], [1], path)
+            self.assertEqual(cfg["TEST"]["grasp_iou_threshold"], 0.25, path)
+            self.assertEqual(cfg["TEST"]["grasp_angle_threshold"], 30.0, path)
+            self.assertFalse(cfg["TEST"]["filter_grasps_by_segmentation"], path)
+            self.assertEqual(cfg["DATA"]["train_split"], "train_official", path)
+            self.assertEqual(cfg["DATA"]["val_split"], "val_official", path)
+            self.assertEqual(cfg["DATA"]["grasp_size_factor"], 416, path)
+            self.assertEqual(cfg["DATA"]["grasp_size_coordinate"], "original", path)
+            self.assertEqual(cfg["DATA"]["grasp_target_policy"], "first", path)
+            self.assertEqual(cfg["DATA"]["vcot_official_val_size"], 5000, path)
 
 
 if __name__ == "__main__":

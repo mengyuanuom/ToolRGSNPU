@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class GraspSizeProtocolTest(unittest.TestCase):
     def test_dataset_profiles_use_explicit_original_pixel_protocol(self):
-        factors = {"grasp_tools": 300.0, "ocid_vlg": 100.0, "vcot": 300.0}
+        factors = {"grasp_tools": 300.0, "ocid_vlg": 100.0, "vcot": 416.0}
         for dataset, factor in factors.items():
             for path in (ROOT / "config" / dataset).glob("*.yaml"):
                 config = yaml.safe_load(path.read_text(encoding="utf-8-sig"))

@@ -1,13 +1,15 @@
 ﻿DATA:
-  grasp_size_factor: 300
+  grasp_size_factor: 416
   grasp_height: 20.0
   grasp_size_coordinate: original
   dataset: vcot
   root_path: ./datasets/graspanything-vcot
   split_root: ./datasets/graspanything-vcot/split/vcot
   prompt_template: "Grasp the {object_name}"
-  train_split: train
-  val_split: unseen
+  train_split: train_official
+  val_split: val_official
+  grasp_target_policy: first
+  vcot_official_val_size: 5000
   offset_r: 20
   offset_sigma:
 MODEL:
@@ -68,4 +70,7 @@ TEST:
   test_split: unseen
   evaluation_protocol: vcot_official
   grasp_topk: [1]
+  grasp_iou_threshold: 0.25
+  grasp_angle_threshold: 30.0
+  filter_grasps_by_segmentation: False
   visualize: False

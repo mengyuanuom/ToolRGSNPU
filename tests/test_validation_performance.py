@@ -38,8 +38,9 @@ class ValidationPerformanceContractTest(unittest.TestCase):
 
     def test_standalone_evaluation_uses_test_split(self):
         source = (ROOT / "evaluate.py").read_text(encoding="utf-8-sig")
-        self.assertIn('args, "test_split"', source)
-        self.assertIn('getattr(args, "val_split", "val")', source)
+        self.assertIn('cfg, "test_split"', source)
+        self.assertIn('getattr(cfg, "val_split", None)', source)
+        self.assertIn("build_dataset(args, args.eval_split", source)
 
 
 if __name__ == "__main__":

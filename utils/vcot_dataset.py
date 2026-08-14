@@ -18,11 +18,15 @@ from utils.dataset import GraspTransforms, make_dense_offset_with_radius_np, tok
 
 _SPLIT_FILES = {
     "train": "train.csv",
+    "train_official": "train.csv",
+    "val_official": "train.csv",
     "seen": "test_seen.csv",
     "test_seen": "test_seen.csv",
     "unseen": "test_unseen.csv",
     "test_unseen": "test_unseen.csv",
 }
+
+VCOT_OFFICIAL_VAL_SIZE = 5000
 
 
 def resolve_vcot_split(split):
@@ -117,6 +121,8 @@ class VCoTDataset(Dataset):
         offset_radius=20.0,
         offset_sigma=None,
         grasp_size_factor=300.0,
+        grasp_target_policy="all",
+        vcot_official_val_size=VCOT_OFFICIAL_VAL_SIZE,
     ):
         self.root_dir = Path(root_dir).expanduser()
         self.input_size = (int(input_size), int(input_size))
@@ -128,6 +134,15 @@ class VCoTDataset(Dataset):
         self.grasp_size_factor = float(grasp_size_factor)
         if self.grasp_size_factor <= 0:
             raise ValueError("grasp_size_factor must be positive")
+        self.grasp_target_policy = str(grasp_target_policy).strip().lower()
+        if self.grasp_target_policy not in {"all", "first"}:
+            raise ValueError(
+                "grasp_target_policy must be 'all' or 'first', got "
+                f"{grasp_target_policy!r}"
+            )
+        self.vcot_official_val_size = int(vcot_official_val_size)
+        if self.vcot_official_val_size <= 0:
+            raise ValueError("vcot_official_val_size must be positive")
         self.mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).reshape(3, 1, 1)
         self.std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).reshape(3, 1, 1)
         self.grasp_transform = GraspTransforms(
@@ -139,7 +154,8 @@ class VCoTDataset(Dataset):
         if split_root is None:
             split_root = Path(__file__).resolve().parents[1] / "split" / "vcot"
         self.split_root = Path(split_root).expanduser()
-        self.csv_path = self.split_root / resolve_vcot_split(split)
+        self.split = str(split).strip().lower().replace("-", "_")
+        self.csv_path = self.split_root / resolve_vcot_split(self.split)
         if not self.csv_path.is_file():
             raise FileNotFoundError(
                 f"VCoT split CSV not found: {self.csv_path}. "
@@ -170,6 +186,19 @@ class VCoTDataset(Dataset):
                 self.samples.append((grasp_id, object_name, description, row_number))
         if not self.samples:
             raise ValueError(f"VCoT split contains no samples: {self.csv_path}")
+        if self.split in {"train_official", "val_official"}:
+            if len(self.samples) <= self.vcot_official_val_size:
+                raise ValueError(
+                    "VCoT train.csv must contain more rows than the official "
+                    f"validation size ({self.vcot_official_val_size}), got "
+                    f"{len(self.samples)}"
+                )
+            boundary = len(self.samples) - self.vcot_official_val_size
+            self.samples = (
+                self.samples[:boundary]
+                if self.split == "train_official"
+                else self.samples[boundary:]
+            )
 
     def __len__(self):
         return len(self.samples)
@@ -264,8 +293,15 @@ class VCoTDataset(Dataset):
         transformed_quads = self._apply_affine(quads, matrix)
         original_targets = self.grasp_transform(quads, target=0)
         input_targets = self.grasp_transform(transformed_quads, target=0)
+        if self.grasp_target_policy == "first":
+            training_input_targets = input_targets[:1]
+            training_original_targets = original_targets[:1]
+        else:
+            training_input_targets = input_targets
+            training_original_targets = original_targets
         raw_masks = self.grasp_transform.generate_masks(
-            input_targets, size_rectangles=original_targets
+            training_input_targets,
+            size_rectangles=training_original_targets,
         )
         angle = raw_masks["ang"].astype(np.float32) * np.pi / 180.0
         grasp_masks = {
@@ -276,7 +312,7 @@ class VCoTDataset(Dataset):
         }
         if self.with_offset:
             offsets, offset_weights = make_dense_offset_with_radius_np(
-                centers_xy=input_targets[:, :2],
+                centers_xy=training_input_targets[:, :2],
                 img_size_hw=self.input_size,
                 r_pix=self.offset_radius,
                 use_gaussian=True,
