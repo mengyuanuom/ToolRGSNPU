@@ -18,6 +18,7 @@ TAIL_FLUSH_SECONDS="${TAIL_FLUSH_SECONDS:-1}"
 LOG_DIR="${LOG_DIR:-${REPO_ROOT}/logs/grasp_tools_8npu}"
 RUN_ID="${RUN_ID:-$(date '+%Y%m%d_%H%M%S')}"
 LIVE_OUTPUT="${LIVE_OUTPUT:-1}"
+GLOBAL_BATCH_SIZE="${GLOBAL_BATCH_SIZE:-256}"
 
 MODEL_NAMES=(crog drogoff drog)
 MODEL_CONFIGS=(
@@ -110,6 +111,7 @@ run_model() {
       --master_port="${master_port}" \
       train.py --config "${config_path}" --opts \
       TRAIN.exp_name "${exp_name}" \
+      TRAIN.batch_size "${GLOBAL_BATCH_SIZE}" \
       >>"${log_file}" 2>&1 </dev/null &
 
   ACTIVE_SESSION_PID=$!
