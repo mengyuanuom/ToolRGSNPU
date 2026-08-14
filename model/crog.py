@@ -8,7 +8,7 @@ from .crog_layers import FPN, Projector, TransformerDecoder, MultiTaskProjector
 
 
 class CROG(nn.Module):
-    grasp_size_loss_activation = "clamp"
+    grasp_size_loss_activation = "sigmoid"
 
     def __init__(self, cfg):
         super().__init__()
@@ -97,7 +97,9 @@ class CROG(nn.Module):
                 grasp_qua_loss = F.smooth_l1_loss(grasp_qua_pred, grasp_qua_mask)
                 grasp_sin_loss = F.smooth_l1_loss(grasp_sin_pred, grasp_sin_mask)
                 grasp_cos_loss = F.smooth_l1_loss(grasp_cos_pred, grasp_cos_mask)
-                grasp_wid_loss = F.smooth_l1_loss(grasp_wid_pred, grasp_wid_mask)
+                grasp_wid_loss = F.smooth_l1_loss(
+                    torch.sigmoid(grasp_wid_pred), grasp_wid_mask
+                )
 
                 # @TODO adjust coef of different loss items
                 total_loss = loss + grasp_qua_loss + grasp_sin_loss + grasp_cos_loss + grasp_wid_loss

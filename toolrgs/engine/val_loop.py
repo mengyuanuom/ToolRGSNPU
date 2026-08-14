@@ -9,7 +9,10 @@ from tqdm import tqdm
 
 from toolrgs.engine.hooks import LoopState
 from toolrgs.engine.loops import BaseLoop
-from toolrgs.models.base import model_requires_depth
+from toolrgs.models.base import (
+    model_predicts_grasp_short_side,
+    model_requires_depth,
+)
 from toolrgs.evaluation import (
     BinarySegmentationMetric,
     DenseGraspPostProcessor,
@@ -201,6 +204,18 @@ class GraspValLoop(BaseLoop):
             target_sine = move_to_device(data["grasp_masks"]["sin"], device).unsqueeze(1)
             target_cosine = move_to_device(data["grasp_masks"]["cos"], device).unsqueeze(1)
             target_width = move_to_device(data["grasp_masks"]["wid"], device).unsqueeze(1)
+            model_kwargs = {}
+            target_short_side = None
+            if model_predicts_grasp_short_side(self.model):
+                short_side_mask = data["grasp_masks"].get("short")
+                if short_side_mask is None:
+                    raise KeyError(
+                        "A short-side model requires batch['grasp_masks']['short']"
+                    )
+                target_short_side = move_to_device(
+                    short_side_mask, device
+                ).unsqueeze(1)
+                model_kwargs["grasp_short_mask"] = target_short_side
 
             inputs = (
                 image,
@@ -219,7 +234,9 @@ class GraspValLoop(BaseLoop):
                         "validation dataset did not provide it."
                     )
                 inputs = (image, move_to_device(depth, device), *inputs[1:])
-            result = GraspModelResult.from_legacy(evaluation_model(*inputs))
+            result = GraspModelResult.from_legacy(
+                evaluation_model(*inputs, **model_kwargs)
+            )
             predictions = result.predictions
             input_hw = image.shape[-2:]
             segmentation = _resize_prediction(
@@ -232,6 +249,11 @@ class GraspValLoop(BaseLoop):
                 self._decode_size(predictions.width), input_hw
             )
             offset = None
+            short_side = None
+            if predictions.short_side is not None:
+                short_side = _resize_prediction(
+                    self._decode_size(predictions.short_side), input_hw
+                )
             if predictions.offset is not None:
                 offset = _resize_prediction(predictions.offset, input_hw, mode="bilinear")
 
@@ -243,6 +265,8 @@ class GraspValLoop(BaseLoop):
                 cosine,
                 width,
             ]
+            if short_side is not None:
+                dense_tensors.append(short_side)
             if offset is not None:
                 dense_tensors.append(offset)
             dense_maps = (
@@ -252,7 +276,14 @@ class GraspValLoop(BaseLoop):
                 .cpu()
                 .numpy()
             )
-            offset_maps = dense_maps[:, 6:8] if offset is not None else None
+            next_channel = 6
+            short_side_maps = None
+            if short_side is not None:
+                short_side_maps = dense_maps[:, next_channel]
+                next_channel += 1
+            offset_maps = (
+                dense_maps[:, next_channel:next_channel + 2] if offset is not None else None
+            )
 
             for index in range(image.shape[0]):
                 inverse_matrix = data["inverse"][index]
@@ -310,9 +341,18 @@ class GraspValLoop(BaseLoop):
                     original_hw,
                     interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
+                short_side_original = None
+                if short_side_maps is not None:
+                    short_side_original = inverse_warp(
+                        short_side_maps[index],
+                        inverse_matrix,
+                        original_hw,
+                        interpolation=self.evaluation_protocol.inverse_interpolation,
+                    )
                 grasp_targets = data["grasps"][index]
                 if hasattr(grasp_targets, "detach"):
                     grasp_targets = grasp_targets.detach().cpu().numpy()
+
                 target_six = targets_to_six(grasp_targets)
 
                 size_scale = 1.0
@@ -332,6 +372,7 @@ class GraspValLoop(BaseLoop):
                     cosine_original,
                     width_original,
                     num_grasps=self.max_topk,
+                    short_side=short_side_original,
                     spatial_scale=size_scale,
                 )
                 rectangles = [detection.as_rectangle() for detection in detections]
@@ -353,6 +394,7 @@ class GraspValLoop(BaseLoop):
                             width_factor=(
                                 self.postprocessor.width_factor * size_scale
                             ),
+                            short_side=short_side_original,
                         )
                 else:
                     rectangles = rectangles_to_five(rectangles)

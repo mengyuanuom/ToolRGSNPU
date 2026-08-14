@@ -8,7 +8,10 @@ import torch
 import torch.distributed as dist
 
 from toolrgs.engine.hooks import HookList, LoopState
-from toolrgs.models.base import model_requires_depth
+from toolrgs.models.base import (
+    model_predicts_grasp_short_side,
+    model_requires_depth,
+)
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import autocast, current_device, move_to_device
 from toolrgs.structures import GraspModelResult
@@ -67,6 +70,7 @@ class GraspTrainLoop(BaseLoop):
             "cosine": AverageMeter("Loss_cos", ":2.4f"),
             "width": AverageMeter("Loss_wid", ":2.4f"),
             "offset": AverageMeter("Loss_off", ":2.4f"),
+            "short_side": AverageMeter("Loss_short", ":2.4f"),
             "iou": AverageMeter("IoU", ":2.2f"),
             "precision": AverageMeter("Prec@50", ":2.2f"),
         }
@@ -81,6 +85,7 @@ class GraspTrainLoop(BaseLoop):
         masks = data["grasp_masks"]
         offset = masks.get("off")
         offset_weight = masks.get("off_w")
+        short_side = masks.get("short")
         common = (
             move_to_device(data["img"], self.device),
             move_to_device(data["word_vec"], self.device),
@@ -94,6 +99,14 @@ class GraspTrainLoop(BaseLoop):
             if offset_weight is not None
             else None,
         )
+        if model_predicts_grasp_short_side(self.model):
+            if short_side is None:
+                raise KeyError(
+                    "A short-side model requires batch['grasp_masks']['short']"
+                )
+            common = (*common, move_to_device(
+                short_side, self.device
+            ).unsqueeze(1))
         if not model_requires_depth(self.model):
             return common
         depth = data.get("depth")
@@ -119,8 +132,13 @@ class GraspTrainLoop(BaseLoop):
             inputs = self._to_device(data)
             image = inputs[0]
 
+            model_kwargs = {}
+            if model_predicts_grasp_short_side(self.model):
+                model_kwargs["grasp_short_mask"] = inputs[-1]
+                inputs = inputs[:-1]
+
             with autocast(enabled=bool(getattr(self.cfg, "amp", False))):
-                result = GraspModelResult.from_legacy(self.model(*inputs))
+                result = GraspModelResult.from_legacy(self.model(*inputs, **model_kwargs))
             if result.loss is None:
                 raise RuntimeError("GraspTrainLoop requires a model result with a training loss")
             if result.targets is None:
@@ -166,6 +184,9 @@ class GraspTrainLoop(BaseLoop):
             meters["offset"].update(_scalar(losses.get("m_off", 0.0)), batch_size)
             meters["iou"].update(iou.item(), batch_size)
             meters["precision"].update(precision.item(), batch_size)
+            meters["short_side"].update(
+                _scalar(losses.get("m_short", 0.0)), batch_size
+            )
             meters["lr"].update(self.scheduler.get_last_lr()[-1])
             meters["batch"].update(time.time() - end)
             end = time.time()

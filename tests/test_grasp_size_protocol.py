@@ -46,6 +46,12 @@ class GraspSizeProtocolTest(unittest.TestCase):
         self.assertIn('grasp_size_loss_activation = "sigmoid"', source)
         self.assertIn("torch.sigmoid(width), grasp_wid_mask", source)
 
+    def test_crog_uses_sigmoid_consistently_for_size_training(self):
+        source = (ROOT / "model" / "crog.py").read_text(encoding="utf-8")
+        self.assertIn('grasp_size_loss_activation = "sigmoid"', source)
+        self.assertIn(
+            "torch.sigmoid(grasp_wid_pred), grasp_wid_mask", source
+        )
     def test_validation_reports_both_grasp_iou_thresholds(self):
         source = (ROOT / "toolrgs" / "engine" / "val_loop.py").read_text(
             encoding="utf-8"

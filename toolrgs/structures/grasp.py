@@ -23,6 +23,7 @@ class GraspOutput:
     cosine: Any
     width: Any
     offset: Optional[Any] = None
+    short_side: Optional[Any] = None
 
     def __post_init__(self):
         required = (self.segmentation, self.quality, self.sine, self.cosine, self.width)
@@ -33,20 +34,35 @@ class GraspOutput:
     def has_offset(self) -> bool:
         return self.offset is not None
 
+    @property
+    def has_short_side(self) -> bool:
+        return self.short_side is not None
+
     def as_tuple(self) -> Tuple[Any, ...]:
         values = (self.segmentation, self.quality, self.sine, self.cosine, self.width)
+        if self.short_side is not None:
+            return values + (self.offset, self.short_side)
         return values + ((self.offset,) if self.offset is not None else ())
 
     def detach(self):
-        return type(self)(*(_detach(value) for value in self.as_tuple()))
+        return type(self)(
+            segmentation=_detach(self.segmentation),
+            quality=_detach(self.quality),
+            sine=_detach(self.sine),
+            cosine=_detach(self.cosine),
+            width=_detach(self.width),
+            offset=_detach(self.offset),
+            short_side=_detach(self.short_side),
+        )
 
     @classmethod
     def from_legacy(cls, value: Any):
         if isinstance(value, cls):
             return value
-        if not _is_sequence(value) or len(value) not in (5, 6):
+        if not _is_sequence(value) or len(value) not in (5, 6, 7):
             raise ValueError(
-                "Expected the legacy five-map contract with an optional sixth offset map"
+                "Expected five dense maps, an optional offset map, and an "
+                "optional seventh short-side map"
             )
         return cls(*value)
 
@@ -61,17 +77,23 @@ class GraspTargets:
     cosine: Any
     width: Any
     offset: Optional[Any] = None
+    short_side: Optional[Any] = None
 
     def as_tuple(self) -> Tuple[Any, ...]:
         values = (self.segmentation, self.quality, self.sine, self.cosine, self.width)
+        if self.short_side is not None:
+            return values + (self.offset, self.short_side)
         return values + ((self.offset,) if self.offset is not None else ())
 
     @classmethod
     def from_legacy(cls, value: Any):
         if value is None or isinstance(value, cls):
             return value
-        if not _is_sequence(value) or len(value) not in (5, 6):
-            raise ValueError("Expected five target maps with an optional offset target")
+        if not _is_sequence(value) or len(value) not in (5, 6, 7):
+            raise ValueError(
+                "Expected five target maps, an optional offset target, and an "
+                "optional seventh short-side target"
+            )
         if all(item is None for item in value):
             return None
         return cls(*value)

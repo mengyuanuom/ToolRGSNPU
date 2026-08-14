@@ -114,7 +114,19 @@ class NPUGraspRunner:
         if not isinstance(state, dict):
             raise ValueError(f"Unsupported initial weight payload: {filename}")
         target = getattr(self.model, "module", self.model)
-        incompatible = target.load_state_dict(_clean_state_dict(state), strict=False)
+        cleaned = _clean_state_dict(state)
+        load_target = target
+        is_legacy_base_weight = (
+            bool(getattr(target, "predicts_grasp_short_side", False))
+            and not any(
+                key.startswith(("base_model.", "short_side_head."))
+                for key in cleaned
+            )
+        )
+        if is_legacy_base_weight:
+            load_target = target.base_model
+            logger.info("Loading legacy initial weight into the wrapped base model")
+        incompatible = load_target.load_state_dict(cleaned, strict=False)
         logger.info("Loaded initial model weight: {}", filename)
         if incompatible.missing_keys:
             logger.warning(
@@ -293,9 +305,13 @@ class NPUGraspRunner:
             checkpoint_factor = checkpoint.get("grasp_size_factor")
             checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
             checkpoint_activation = checkpoint.get("grasp_size_activation")
+            checkpoint_short_side = checkpoint.get("predict_grasp_short_side")
             configured_factor = float(getattr(cfg, "grasp_size_factor", 100.0))
             configured_coordinate = str(
                 getattr(cfg, "grasp_size_coordinate", "original")
+            )
+            configured_short_side = bool(
+                getattr(cfg, "predict_grasp_short_side", False)
             )
             if checkpoint_factor is not None and not abs(
                 float(checkpoint_factor) - configured_factor
@@ -319,6 +335,14 @@ class NPUGraspRunner:
                     "Resume checkpoint grasp_size_activation does not match "
                     f"the model/config: {checkpoint_activation!r} vs "
                     f"{self.grasp_size_activation!r}"
+                )
+            if checkpoint_short_side is not None and bool(
+                checkpoint_short_side
+            ) != configured_short_side:
+                raise ValueError(
+                    "Resume checkpoint short-side protocol does not match the "
+                    f"config: {checkpoint_short_side!r} vs "
+                    f"{configured_short_side!r}"
                 )
             self._load_model_state(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -416,6 +440,9 @@ class NPUGraspRunner:
             ),
             "grasp_size_activation": self.grasp_size_activation,
             "state_dict": self.model.state_dict(),
+            "predict_grasp_short_side": bool(
+                getattr(cfg, "predict_grasp_short_side", False)
+            ),
             "optimizer": self.optimizer.state_dict(),
             "scheduler": self.scheduler.state_dict(),
             "precision": precision,

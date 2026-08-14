@@ -22,3 +22,9 @@ def model_requires_depth(model) -> bool:
     """Read the input contract through DataParallel/DDP wrappers."""
     module = getattr(model, "module", model)
     return bool(getattr(module, "requires_depth", False))
+
+
+def model_predicts_grasp_short_side(model) -> bool:
+    """Read the optional short-side output contract through DDP wrappers."""
+    module = getattr(model, "module", model)
+    return bool(getattr(module, "predicts_grasp_short_side", False))

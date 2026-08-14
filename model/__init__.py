@@ -3,6 +3,7 @@
 from loguru import logger
 
 from toolrgs.registry import MODELS
+from toolrgs.models import ShortSideRegressionAdapter
 
 from .crog import CROG
 from .crogoff import CROGOFF
@@ -41,13 +42,14 @@ def _build_parameter_groups(model, cfg):
     """Keep optimizer grouping separate from component construction."""
     backbone, head, frozen = [], [], []
     for param_name, parameter in model.named_parameters():
+        grouped_name = param_name.removeprefix("base_model.")
         if not parameter.requires_grad:
             frozen.append(parameter)
         elif (
-            param_name.startswith("backbone")
-            or param_name.startswith("bridger")
-            or param_name.startswith("txt_backbone")
-            or param_name.startswith("dinov2")
+            grouped_name.startswith("backbone")
+            or grouped_name.startswith("bridger")
+            or grouped_name.startswith("txt_backbone")
+            or grouped_name.startswith("dinov2")
         ):
             backbone.append(parameter)
         else:
@@ -77,6 +79,8 @@ def build_model(cfg):
         raise ValueError(f"Unknown model {name!r}; available: {available}") from exc
 
     model = model_cls(cfg)
+    if bool(getattr(cfg, "predict_grasp_short_side", False)):
+        model = ShortSideRegressionAdapter(model, cfg)
     parameter_groups, backbone, head, frozen = _build_parameter_groups(model, cfg)
     logger.info(
         "Build {}: backbone={}, head={}, frozen={}",

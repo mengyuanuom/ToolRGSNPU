@@ -149,6 +149,7 @@ class VCoTDataset(Dataset):
             width_factor=self.grasp_size_factor,
             width=self.input_size[1],
             height=self.input_size[0],
+            predict_short_side=True,
         )
 
         if split_root is None:
@@ -309,6 +310,9 @@ class VCoTDataset(Dataset):
             "sin": torch.from_numpy(np.sin(2.0 * angle)).float(),
             "cos": torch.from_numpy(np.cos(2.0 * angle)).float(),
             "wid": torch.from_numpy(raw_masks["wid"].astype(np.float32) / 255.0),
+            "short": torch.from_numpy(
+                raw_masks["short"].astype(np.float32) / 255.0
+            ),
         }
         if self.with_offset:
             offsets, offset_weights = make_dense_offset_with_radius_np(
@@ -361,7 +365,7 @@ class VCoTDataset(Dataset):
     def collate_fn(batch):
         grasp_masks = {
             key: torch.stack([sample["grasp_masks"][key] for sample in batch])
-            for key in ("qua", "sin", "cos", "wid")
+            for key in ("qua", "sin", "cos", "wid", "short")
         }
         for key in ("off", "off_w"):
             if all(key in sample["grasp_masks"] for sample in batch):

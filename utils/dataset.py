@@ -565,10 +565,11 @@ class RefDataset(Dataset):
 class GraspTransforms:
     # Class for converting cv2-like rectangle formats and generate grasp-quality-angle-width masks
 
-    def __init__(self, width_factor=400, width=416, height=416):
+    def __init__(self, width_factor=400, width=416, height=416, predict_short_side=False):
         self.width_factor = width_factor
         self.width = width 
         self.height = height
+        self.predict_short_side = bool(predict_short_side)
 
     def __call__(self, grasp_rectangles, target):
         # grasp_rectangles: (M, 4, 2)
@@ -611,9 +612,14 @@ class GraspTransforms:
         pos_out = np.zeros((self.height, self.width))
         ang_out = np.zeros((self.height, self.width))
         wid_out = np.zeros((self.height, self.width))
+        short_out = (
+            np.zeros((self.height, self.width))
+            if self.predict_short_side else None
+        )
         for rect, size_rect in zip(grasp_rectangles, size_rectangles):
             center_x, center_y, w_rect, h_rect, theta = rect[:5]
             target_width = size_rect[2]
+            target_short = size_rect[3]
             
             # Get 4 corners of rotated rect
             # Convert from our angle represent to opencv's
@@ -635,17 +641,28 @@ class GraspTransforms:
             wid_out[cc, rr] = np.clip(
                 target_width, 0.0, self.width_factor
             ) / self.width_factor
+            if short_out is not None:
+                short_out[cc, rr] = np.clip(
+                    target_short, 0.0, self.width_factor
+                ) / self.width_factor
         
         qua_out = (gaussian(pos_out, 3, preserve_range=True) * 255).astype(np.uint8)
         pos_out = (pos_out * 255).astype(np.uint8)
         ang_out = ang_out.astype(np.uint8)
         wid_out = (gaussian(wid_out, 3, preserve_range=True) * 255).astype(np.uint8)
+        if short_out is not None:
+            short_out = (
+                gaussian(short_out, 3, preserve_range=True) * 255
+            ).astype(np.uint8)
         
         
-        return {'pos': pos_out, 
-                'qua': qua_out, 
-                'ang': ang_out, 
-                'wid': wid_out}
+        masks = {'pos': pos_out,
+                 'qua': qua_out,
+                 'ang': ang_out,
+                 'wid': wid_out}
+        if short_out is not None:
+            masks['short'] = short_out
+        return masks
 
 
 class OCIDVLGDataset(Dataset):

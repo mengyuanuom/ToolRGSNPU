@@ -67,6 +67,8 @@ TRAIN:
   print_freq: 100
   # Resume & Save
   exp_name: drog_vcot
+  predict_grasp_short_side: True
+  short_side_loss_weight: 1.0
   output_folder: exp/vcot
   save_freq: 1
   weight:  # path to initial weight (default: none)

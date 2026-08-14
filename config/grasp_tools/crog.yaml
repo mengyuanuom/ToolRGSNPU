@@ -37,8 +37,8 @@ TRAIN:
   # Training Setting
   workers: 4  # per process; 32 workers total with eight NPUs
   workers_val: 2
-  epochs: 50
-  milestones: [35]
+  epochs: 30
+  milestones: [24]
   start_epoch: 0
   batch_size: 64  # global batch size
   batch_size_val: 64  # global validation batch size

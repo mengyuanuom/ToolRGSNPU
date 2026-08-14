@@ -57,13 +57,20 @@ class DenseGraspPostProcessor:
         width,
         num_grasps: Optional[int] = None,
         spatial_scale: float = 1.0,
+        short_side=None,
     ):
         quality = np.asarray(quality, dtype=np.float32)
         sine = np.asarray(sine, dtype=np.float32)
         cosine = np.asarray(cosine, dtype=np.float32)
         width = np.asarray(width, dtype=np.float32)
-        if not (quality.shape == sine.shape == cosine.shape == width.shape):
-            raise ValueError("quality/sine/cosine/width maps must share one shape")
+        short_side = (
+            None if short_side is None else np.asarray(short_side, dtype=np.float32)
+        )
+        geometry_maps = [quality, sine, cosine, width]
+        if short_side is not None:
+            geometry_maps.append(short_side)
+        if any(value.shape != quality.shape for value in geometry_maps[1:]):
+            raise ValueError("dense grasp geometry maps must share one shape")
         if quality.ndim != 2:
             raise ValueError(f"Dense grasp maps must be 2-D, got {quality.shape}")
         count = self.num_grasps if num_grasps is None else int(num_grasps)
@@ -87,10 +94,14 @@ class DenseGraspPostProcessor:
                     self.minimum_width,
                     float(width[row, column]) * self.width_factor * scale,
                 ),
-                # The CROG/Grasp-Tools short side is defined in final source
-                # coordinates. Resizing the 448 model canvas must not turn the
-                # fixed 20 px jaw depth into 35-60 px on the camera image.
-                height=self.grasp_height,
+                height=(
+                    max(
+                        self.minimum_width,
+                        float(short_side[row, column]) * self.width_factor * scale,
+                    )
+                    if short_side is not None
+                    else self.grasp_height
+                ),
                 angle_degrees=float(angle[row, column] / np.pi * 180.0),
                 score=float(quality[row, column]),
                 row=int(row),

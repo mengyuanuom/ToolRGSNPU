@@ -55,6 +55,8 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   exp_name: maplegrasp_vcot
+  predict_grasp_short_side: True
+  short_side_loss_weight: 1.0
   output_folder: exp/vcot
   save_freq: 5
   weight:
