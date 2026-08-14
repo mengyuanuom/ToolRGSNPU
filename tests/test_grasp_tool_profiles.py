@@ -46,6 +46,10 @@ class GraspToolResourceProfileTest(unittest.TestCase):
             self.assertEqual(distributed["dist_url"], "env://", path)
             self.assertEqual(distributed["dist_backend"], "hccl", path)
             self.assertEqual(test["test_split"], "test", path)
+            self.assertEqual(test["grasp_size_activation"], "auto", path)
+            self.assertEqual(test["grasp_iou_threshold"], 0.50, path)
+            self.assertEqual(test["grasp_iou_thresholds"], [0.25, 0.50], path)
+            self.assertEqual(test["grasp_angle_threshold"], 30.0, path)
             self.assertFalse(test["visualize"], path)
 
 

@@ -10,6 +10,7 @@ from .crog_layers import FPN, ProjectorOff, TransformerDecoder, MultiTaskProject
 
 class CROGOFF(nn.Module):
     supports_offset = True
+    grasp_size_loss_activation = "clamp"
 
     def __init__(self, cfg):
         super().__init__()

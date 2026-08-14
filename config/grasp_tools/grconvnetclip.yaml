@@ -53,6 +53,10 @@ Distributed:
   world_size: 1
   rank: 0
 TEST:
+  grasp_size_activation: auto
+  grasp_iou_threshold: 0.50
+  grasp_iou_thresholds: [0.25, 0.50]
+  grasp_angle_threshold: 30.0
   test_split: test
   visualize: False
 

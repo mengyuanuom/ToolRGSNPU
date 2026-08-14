@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 
 from model import build_model
-from utils.config import load_cfg_from_cfg_file
+from utils.config import load_cfg_from_cfg_file, resolve_grasp_size_activation
 from utils.dataset import CLIP_MEAN, CLIP_STD, tokenize
 from toolrgs.structures import GraspModelResult
 from toolrgs.evaluation import DenseGraspPostProcessor  # registers evaluation components
@@ -117,6 +117,14 @@ class ToolRGSInference:
         self.cfg.rank = 0
         self.model, _ = build_model(self.cfg)
         checkpoint = torch.load(str(checkpoint_path), map_location="cpu")
+        self.grasp_size_activation = resolve_grasp_size_activation(
+            self.model_cfg.get(
+                "grasp_size_activation",
+                getattr(self.cfg, "grasp_size_activation", "auto"),
+            ),
+            checkpoint=checkpoint,
+            model=self.model,
+        )
         if isinstance(checkpoint, dict):
             state = checkpoint.get("state_dict", checkpoint.get("model", checkpoint))
         else:
@@ -218,8 +226,14 @@ class ToolRGSInference:
                 mode=mode,
                 align_corners=False,
             )
-            if index in (0, 1, 4):
+            if index in (0, 1):
                 resized = torch.sigmoid(resized)
+            elif index == 4:
+                resized = (
+                    torch.sigmoid(resized)
+                    if self.grasp_size_activation == "sigmoid"
+                    else resized.clamp(0.0, 1.0)
+                )
             array = resized[0].detach().float().cpu().numpy()
             if array.shape[0] == 1:
                 array = array[0]

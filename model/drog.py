@@ -9,6 +9,8 @@ from .dinov2.models.vision_transformer import vit_base,vit_large
 from .projector_builder import build_projector
 
 class DROG(nn.Module):
+    grasp_size_loss_activation = "clamp"
+
     def __init__(self, cfg):
         super().__init__()
         # Text Encoder

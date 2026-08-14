@@ -87,7 +87,10 @@ class DenseGraspPostProcessor:
                     self.minimum_width,
                     float(width[row, column]) * self.width_factor * scale,
                 ),
-                height=self.grasp_height * scale,
+                # The CROG/Grasp-Tools short side is defined in final source
+                # coordinates. Resizing the 448 model canvas must not turn the
+                # fixed 20 px jaw depth into 35-60 px on the camera image.
+                height=self.grasp_height,
                 angle_degrees=float(angle[row, column] / np.pi * 180.0),
                 score=float(quality[row, column]),
                 row=int(row),

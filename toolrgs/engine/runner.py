@@ -33,6 +33,7 @@ from toolrgs.runtime import (
     require_npu,
     set_device,
 )
+from utils.config import resolve_grasp_size_activation
 from utils.misc import init_random_seed, set_random_seed, setup_logger, worker_init_fn
 
 
@@ -221,6 +222,16 @@ class NPUGraspRunner:
         except Exception:
             logger.exception("Failed to build architecture {!r}", cfg.architecture)
             raise
+        self.grasp_size_activation = resolve_grasp_size_activation(
+            getattr(cfg, "grasp_size_activation", "auto"), model=self.model
+        )
+        logger.info(
+            "Grasp-size protocol: coordinate={}, factor={}, height={}, activation={}",
+            getattr(cfg, "grasp_size_coordinate", "original"),
+            float(getattr(cfg, "grasp_size_factor", 100.0)),
+            float(getattr(cfg, "grasp_height", 20.0)),
+            self.grasp_size_activation,
+        )
         if model_requires_depth(self.model) and not bool(
             getattr(cfg, "with_depth", False)
         ):
@@ -281,6 +292,7 @@ class NPUGraspRunner:
             checkpoint = torch.load(cfg.resume, map_location="cpu")
             checkpoint_factor = checkpoint.get("grasp_size_factor")
             checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
+            checkpoint_activation = checkpoint.get("grasp_size_activation")
             configured_factor = float(getattr(cfg, "grasp_size_factor", 100.0))
             configured_coordinate = str(
                 getattr(cfg, "grasp_size_coordinate", "original")
@@ -299,6 +311,14 @@ class NPUGraspRunner:
                     "Resume checkpoint grasp_size_coordinate does not match "
                     f"the config: {checkpoint_coordinate!r} vs "
                     f"{configured_coordinate!r}"
+                )
+            if checkpoint_activation is not None and str(
+                checkpoint_activation
+            ) != self.grasp_size_activation:
+                raise ValueError(
+                    "Resume checkpoint grasp_size_activation does not match "
+                    f"the model/config: {checkpoint_activation!r} vs "
+                    f"{self.grasp_size_activation!r}"
                 )
             self._load_model_state(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -394,6 +414,7 @@ class NPUGraspRunner:
             "grasp_size_coordinate": str(
                 getattr(cfg, "grasp_size_coordinate", "original")
             ),
+            "grasp_size_activation": self.grasp_size_activation,
             "state_dict": self.model.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "scheduler": self.scheduler.state_dict(),

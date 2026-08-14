@@ -17,6 +17,14 @@ class GraspSizeProtocolTest(unittest.TestCase):
                 self.assertEqual(data["grasp_size_factor"], factor, path)
                 self.assertEqual(data["grasp_height"], 20.0, path)
                 self.assertEqual(data["grasp_size_coordinate"], "original", path)
+                if dataset == "grasp_tools":
+                    test = config["TEST"]
+                    self.assertEqual(test["grasp_size_activation"], "auto", path)
+                    self.assertEqual(test["grasp_iou_threshold"], 0.50, path)
+                    self.assertEqual(
+                        test["grasp_iou_thresholds"], [0.25, 0.50], path
+                    )
+                    self.assertEqual(test["grasp_angle_threshold"], 30.0, path)
 
     def test_source_contains_separate_raster_and_size_rectangles(self):
         source = (ROOT / "utils" / "dataset.py").read_text(encoding="utf-8")
@@ -30,7 +38,20 @@ class GraspSizeProtocolTest(unittest.TestCase):
         )
         self.assertIn('checkpoint.get("grasp_size_factor")', source)
         self.assertIn('"grasp_size_coordinate": str(', source)
+        self.assertIn('"grasp_size_activation": self.grasp_size_activation', source)
         self.assertIn('getattr(cfg, "val_start_epoch", 1)', source)
+
+    def test_drogoff_uses_sigmoid_consistently_for_size_training(self):
+        source = (ROOT / "model" / "drogoff.py").read_text(encoding="utf-8")
+        self.assertIn('grasp_size_loss_activation = "sigmoid"', source)
+        self.assertIn("torch.sigmoid(width), grasp_wid_mask", source)
+
+    def test_validation_reports_both_grasp_iou_thresholds(self):
+        source = (ROOT / "toolrgs" / "engine" / "val_loop.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("grasp_metrics_by_iou", source)
+        self.assertIn('f"J@{topk}(IoU={threshold})', source)
 
 
 if __name__ == "__main__":

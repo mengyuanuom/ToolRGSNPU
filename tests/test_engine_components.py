@@ -86,7 +86,9 @@ class EvaluationComponentTest(unittest.TestCase):
         self.assertEqual((detection.x, detection.y), (4.0, 3.0))
         self.assertAlmostEqual(detection.angle_degrees, 45.0, places=5)
         self.assertAlmostEqual(detection.width, 100.0)
-        self.assertAlmostEqual(detection.height, 40.0)
+        # The fixed short side is defined in final source-image pixels and is
+        # not enlarged by the legacy canvas-to-source long-side scale.
+        self.assertAlmostEqual(detection.height, 20.0)
 
     def test_crog_source_protocol_reproduces_public_evaluator_contract(self):
         protocol = resolve_evaluation_protocol("crog_source")

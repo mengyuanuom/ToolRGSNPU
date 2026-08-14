@@ -11,6 +11,7 @@ class DROGOFF(DROG):
     """Combine DROG's DINOv2/CLIP fusion with CROG-OFF-style offsets."""
 
     supports_offset = True
+    grasp_size_loss_activation = "sigmoid"
 
     def __init__(self, cfg):
         super().__init__(cfg)
@@ -78,7 +79,11 @@ class DROGOFF(DROG):
         qua_loss = F.smooth_l1_loss(qua, grasp_qua_mask)
         sin_loss = F.smooth_l1_loss(sin, grasp_sin_mask)
         cos_loss = F.smooth_l1_loss(cos, grasp_cos_mask)
-        width_loss = F.smooth_l1_loss(width, grasp_wid_mask)
+        # Keep training and inference in the same normalized [0, 1] size
+        # space. For Grasp-Tools this target is original_width / 300.
+        width_loss = F.smooth_l1_loss(
+            torch.sigmoid(width), grasp_wid_mask
+        )
 
         offset_error = F.smooth_l1_loss(
             offset, grasp_off_mask, reduction="none"

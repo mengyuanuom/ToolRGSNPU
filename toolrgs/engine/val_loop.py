@@ -25,6 +25,7 @@ from toolrgs.evaluation import (
 from toolrgs.registry import LOOPS, METRICS, POSTPROCESSORS
 from toolrgs.runtime import current_device, move_to_device
 from toolrgs.structures import GraspModelResult
+from utils.config import resolve_grasp_size_activation
 from utils.grasp_eval import calculate_jacquard_index
 
 
@@ -40,6 +41,25 @@ def _resize_prediction(tensor, output_hw, mode="bicubic"):
         # input coordinates; the five dense maps use bicubic/True.
         align_corners=False if mode == "bilinear" else True,
     )
+
+
+def _resolve_grasp_iou_thresholds(cfg, default):
+    """Return the primary threshold and every threshold reported per pass."""
+    primary = float(getattr(cfg, "grasp_iou_threshold", default))
+    configured = getattr(cfg, "grasp_iou_thresholds", (primary,))
+    if isinstance(configured, (int, float)):
+        configured = (configured,)
+    thresholds = []
+    for value in (*configured, primary):
+        threshold = float(value)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError(
+                "grasp IoU thresholds must be between 0 and 1; "
+                f"got {threshold}"
+            )
+        if threshold not in thresholds:
+            thresholds.append(threshold)
+    return primary, tuple(sorted(thresholds))
 
 
 @LOOPS.register_module(name="grasp_val", aliases=("validate_with_grasp",))
@@ -74,10 +94,22 @@ class GraspValLoop(BaseLoop):
                 "mask_threshold": float(getattr(cfg, "mask_threshold", 0.35)),
             }
         )
-        self.grasp_metric = METRICS.build(
-            getattr(cfg, "grasp_metric", None)
-            or {"type": "grasp_success", "topk": self.topk}
+        self.primary_grasp_iou, self.grasp_iou_thresholds = (
+            _resolve_grasp_iou_thresholds(
+                cfg, self.evaluation_protocol.grasp_iou_threshold
+            )
         )
+        grasp_metric_cfg = getattr(cfg, "grasp_metric", None) or {
+            "type": "grasp_success",
+            "topk": self.topk,
+        }
+        self.grasp_metrics_by_iou = {
+            threshold: METRICS.build(grasp_metric_cfg)
+            for threshold in self.grasp_iou_thresholds
+        }
+        # Checkpoint selection continues to use j_index from the configured
+        # primary threshold (0.50 for the Grasp-Tools NPU profiles).
+        self.grasp_metric = self.grasp_metrics_by_iou[self.primary_grasp_iou]
         self.postprocessor = POSTPROCESSORS.build(
             getattr(cfg, "grasp_postprocessor", None)
             or {
@@ -96,6 +128,14 @@ class GraspValLoop(BaseLoop):
                 ),
             }
         )
+        self.grasp_size_activation = resolve_grasp_size_activation(
+            getattr(cfg, "grasp_size_activation", "auto"), model=model
+        )
+
+    def _decode_size(self, prediction):
+        if self.grasp_size_activation == "sigmoid":
+            return torch.sigmoid(prediction)
+        return prediction.clamp(0.0, 1.0)
 
     def _offset_radius(self, input_hw):
         configured = getattr(self.cfg, "offset_r", None)
@@ -107,10 +147,10 @@ class GraspValLoop(BaseLoop):
         ious = np.asarray(self.segmentation_metric.ious, dtype=np.float64)
         values = [float(ious.sum()), float(ious.size)]
         values.extend(float((ious > threshold).sum()) for threshold in self.segmentation_metric.iou_thresholds)
-        for topk in self.topk:
-            values.extend(
-                [self.grasp_metric.correct[topk], self.grasp_metric.total[topk]]
-            )
+        for threshold in self.grasp_iou_thresholds:
+            metric = self.grasp_metrics_by_iou[threshold]
+            for topk in self.topk:
+                values.extend([metric.correct[topk], metric.total[topk]])
         statistics = torch.tensor(values, dtype=torch.float32, device=device)
         if dist.is_available() and dist.is_initialized():
             dist.all_reduce(statistics, op=dist.ReduceOp.SUM)
@@ -122,19 +162,24 @@ class GraspValLoop(BaseLoop):
             for index, threshold in enumerate(self.segmentation_metric.iou_thresholds)
         }
         cursor = 2 + len(self.segmentation_metric.iou_thresholds)
-        j_index = []
-        for _topk in self.topk:
-            correct, total = statistics[cursor], statistics[cursor + 1]
-            j_index.append(correct / max(1.0, total))
-            cursor += 2
-        return float(iou), precision, j_index
+        j_index_by_iou = {}
+        for threshold in self.grasp_iou_thresholds:
+            values_for_threshold = []
+            for _topk in self.topk:
+                correct, total = statistics[cursor], statistics[cursor + 1]
+                values_for_threshold.append(correct / max(1.0, total))
+                cursor += 2
+            j_index_by_iou[f"{threshold:.2f}"] = values_for_threshold
+        j_index = j_index_by_iou[f"{self.primary_grasp_iou:.2f}"]
+        return float(iou), precision, j_index, j_index_by_iou
 
     @torch.no_grad()
     def run_epoch(self, epoch: int):
         self.state = LoopState(epoch=epoch)
         self.hooks.call("before_epoch", self, self.state)
         self.segmentation_metric.reset()
-        self.grasp_metric.reset()
+        for metric in self.grasp_metrics_by_iou.values():
+            metric.reset()
         self.model.eval()
         # Evaluation needs no gradient synchronization. Calling the wrapped
         # module directly lets exact non-padding rank shards have unequal
@@ -183,7 +228,9 @@ class GraspValLoop(BaseLoop):
             quality = _resize_prediction(torch.sigmoid(predictions.quality), input_hw)
             sine = _resize_prediction(predictions.sine, input_hw)
             cosine = _resize_prediction(predictions.cosine, input_hw)
-            width = _resize_prediction(torch.sigmoid(predictions.width), input_hw)
+            width = _resize_prediction(
+                self._decode_size(predictions.width), input_hw
+            )
             offset = None
             if predictions.offset is not None:
                 offset = _resize_prediction(predictions.offset, input_hw, mode="bilinear")
@@ -310,35 +357,49 @@ class GraspValLoop(BaseLoop):
                 else:
                     rectangles = rectangles_to_five(rectangles)
 
-                if self.evaluation_protocol.grasp_evaluator == "vcot_official":
-                    success = calculate_vcot_grasp_success(
-                        rectangles[0] if rectangles else None,
-                        target_six,
-                        iou_threshold=self.evaluation_protocol.grasp_iou_threshold,
-                        angle_threshold=self.evaluation_protocol.grasp_angle_threshold,
-                    )
-                    self.grasp_metric.update(1, success)
-                else:
-                    for topk in self.topk:
-                        success = calculate_jacquard_index(
-                            rectangles[:topk],
+                for threshold, metric in self.grasp_metrics_by_iou.items():
+                    if self.evaluation_protocol.grasp_evaluator == "vcot_official":
+                        success = calculate_vcot_grasp_success(
+                            rectangles[0] if rectangles else None,
                             target_six,
-                            iou_threshold=self.evaluation_protocol.grasp_iou_threshold,
-                            shape=self.evaluation_protocol.grasp_canvas,
-                            angle_threshold=self.evaluation_protocol.grasp_angle_threshold,
-                            max_width=self.postprocessor.width_factor,
-                            grasp_height=self.postprocessor.grasp_height,
+                            iou_threshold=threshold,
+                            angle_threshold=float(
+                                getattr(
+                                    self.cfg,
+                                    "grasp_angle_threshold",
+                                    self.evaluation_protocol.grasp_angle_threshold,
+                                )
+                            ),
                         )
-                        self.grasp_metric.update(topk, success)
+                        metric.update(1, success)
+                    else:
+                        for topk in self.topk:
+                            success = calculate_jacquard_index(
+                                rectangles[:topk],
+                                target_six,
+                                iou_threshold=threshold,
+                                shape=self.evaluation_protocol.grasp_canvas,
+                                angle_threshold=float(
+                                    getattr(
+                                        self.cfg,
+                                        "grasp_angle_threshold",
+                                        self.evaluation_protocol.grasp_angle_threshold,
+                                    )
+                                ),
+                                max_width=self.postprocessor.width_factor,
+                                grasp_height=self.postprocessor.grasp_height,
+                            )
+                            metric.update(topk, success)
 
             self.state.result = result
             self.hooks.call("after_iter", self, self.state)
 
-        iou, precision, j_index = self._global_results(device)
+        iou, precision, j_index, j_index_by_iou = self._global_results(device)
         self.state.logs = {
             "iou": iou,
             "precision": precision,
             "j_index": j_index,
+            "j_index_by_iou": j_index_by_iou,
         }
         self.hooks.call("after_epoch", self, self.state)
         if rank == 0:
@@ -346,14 +407,16 @@ class GraspValLoop(BaseLoop):
                 f"{name}: {100.0 * value:.2f}" for name, value in precision.items()
             )
             if self.evaluation_protocol.grasp_evaluator == "vcot_official":
-                grasp_text = (
-                    f"{self.evaluation_protocol.grasp_metric_label}: "
-                    f"{100.0 * j_index[0]:.2f}"
+                grasp_text = "  ".join(
+                    f"{self.evaluation_protocol.grasp_metric_label}"
+                    f"(IoU={threshold}): {100.0 * values[0]:.2f}"
+                    for threshold, values in j_index_by_iou.items()
                 )
             else:
                 grasp_text = "  ".join(
-                    f"J_index@{topk}: {100.0 * value:.2f}"
-                    for topk, value in zip(self.topk, j_index)
+                    f"J@{topk}(IoU={threshold}): {100.0 * value:.2f}"
+                    for threshold, values in j_index_by_iou.items()
+                    for topk, value in zip(self.topk, values)
                 )
             logger.info(
                 "Evaluation: Epoch=[{}/{}]  IoU={:.2f}  {}  {}",

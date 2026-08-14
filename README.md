@@ -516,6 +516,15 @@ quality-peak center and then bilinearly re-reads angle and width at that refined
 center. Set it to `false` to reproduce the legacy center-only decoder in an
 ablation; this switch changes only decoding and does not require retraining.
 
+The Grasp-Tools profiles use one explicit source-image size contract on NPU:
+the dense target is `original_grasp_width / 300`, inference decodes it with
+`predicted_width * 300`, and the short side stays fixed at 20 source-image
+pixels. No canvas-to-source size multiplier is applied. Validation reports both
+IoU 0.25 and IoU 0.50 grasp success in the same pass, while best-J checkpoints
+are selected using the primary strict IoU 0.50 result. `grasp_size_activation:
+auto` keeps size loss and decoding aligned with model metadata; DROG-OFF uses
+sigmoid-normalized size supervision.
+
 `LGD` is a ToolRGS dense-map port of Language-driven Grasp Detection. It keeps
 the public cosine diffusion schedule, x0 quality-map denoising, language/image
 conditioning, and contrastive alignment while exposing the shared segmentation,

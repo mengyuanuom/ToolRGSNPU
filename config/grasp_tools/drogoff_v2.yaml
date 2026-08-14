@@ -84,6 +84,11 @@ Distributed:
   rank: 0
 
 TEST:
+  # Train/evaluate original-image grasp widths: normalized target=width/300.
+  grasp_size_activation: auto
+  grasp_iou_threshold: 0.50
+  grasp_iou_thresholds: [0.25, 0.50]
+  grasp_angle_threshold: 30.0
   test_split: test
   # Re-read angle/width maps at the center refined by the offset head.
   offset_resample_geometry: True

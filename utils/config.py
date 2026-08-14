@@ -260,3 +260,38 @@ def _check_and_coerce_cfg_value_type(replacement, original, key, full_key):
         "Type mismatch ({} vs. {}) with values ({} vs. {}) for config "
         "key: {}".format(original_type, replacement_type, original,
                          replacement, full_key))
+
+
+def resolve_grasp_size_activation(requested="auto", checkpoint=None, model=None):
+    """Resolve grasp-size decoding without silently changing geometry."""
+    value = str(requested or "auto").strip().lower()
+    aliases = {
+        "auto": "auto",
+        "sigmoid": "sigmoid",
+        "clamp": "clamp",
+        "raw_clamp": "clamp",
+    }
+    if value not in aliases:
+        raise ValueError(
+            "grasp_size_activation must be auto, sigmoid, clamp, or raw_clamp"
+        )
+    value = aliases[value]
+    if value != "auto":
+        return value
+
+    metadata = (
+        checkpoint.get("grasp_size_activation")
+        if isinstance(checkpoint, dict)
+        else None
+    )
+    if metadata is None and model is not None:
+        unwrapped = getattr(model, "module", model)
+        metadata = getattr(unwrapped, "grasp_size_loss_activation", None)
+    if metadata is None:
+        return "clamp"
+    resolved = aliases.get(str(metadata).strip().lower())
+    if resolved not in {"sigmoid", "clamp"}:
+        raise ValueError(
+            f"Unsupported grasp_size_activation metadata: {metadata!r}"
+        )
+    return resolved
