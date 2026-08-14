@@ -19,11 +19,11 @@ LOG_DIR="${LOG_DIR:-${REPO_ROOT}/logs/grasp_tools_8npu}"
 RUN_ID="${RUN_ID:-$(date '+%Y%m%d_%H%M%S')}"
 LIVE_OUTPUT="${LIVE_OUTPUT:-1}"
 
-MODEL_NAMES=(crog drogoff lgd)
+MODEL_NAMES=(crog drogoff drog)
 MODEL_CONFIGS=(
   config/grasp_tools/crog.yaml
   config/grasp_tools/drogoff_v2.yaml
-  config/grasp_tools/lgd.yaml
+  config/grasp_tools/drog.yaml
 )
 
 ACTIVE_SESSION_PID=""
