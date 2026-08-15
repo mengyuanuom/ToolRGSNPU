@@ -21,7 +21,6 @@ MODEL_NAMES=(
   grconvnetclip
   maplegrasp
   lgd
-  graspmamba
 )
 MODEL_CONFIGS=(
   config/vcot/drog.yaml
@@ -32,7 +31,6 @@ MODEL_CONFIGS=(
   config/vcot/grconvnetclip.yaml
   config/vcot/maplegrasp.yaml
   config/vcot/lgd.yaml
-  config/vcot/graspmamba.yaml
 )
 
 command -v python >/dev/null 2>&1 || {
