@@ -65,7 +65,9 @@ class ShortSideRegressionAdapter(nn.Module):
         return prediction
 
     def forward(self, *args, grasp_short_mask=None, **kwargs):
-        result = GraspModelResult.from_legacy(self.base_model(*args, **kwargs))
+        result = GraspModelResult.from_legacy(
+            self.base_model(*args, **kwargs), model=self.base_model
+        )
         prediction = result.predictions
         if not args or not torch.is_tensor(args[0]) or args[0].ndim != 4:
             raise ValueError(

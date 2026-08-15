@@ -1,4 +1,5 @@
 import glob
+import inspect
 import os
 import unittest
 
@@ -7,10 +8,12 @@ import torch
 import yaml
 
 from model import MODEL_REGISTRY
-from model.graspmamba import HierarchicalFeatureFusion
-from model.layers import OffsetMultiTaskProjector
+from model.crog import CROG
+from model.maplegrasp import MapleGrasp
+from model.graspmamba import GraspMapDecoder, HierarchicalFeatureFusion
+from model.layers import MultiTaskProjector, OffsetMultiTaskProjector
 from model.lgd import CosineDiffusion, LGDCore
-from model.maplegrasp import MapleGraspProjector
+from model.maplegrasp import MultiTaskProjectorPP
 from utils.dataset import GraspTransforms, make_dense_offset_with_radius_np
 from toolrgs.datasets import DATASET_REGISTRY
 from utils.ocid_vlg_dataset import parse_ocid_image_filename, resolve_ocid_vlg_split
@@ -85,7 +88,7 @@ class ToolRGSContractsTest(unittest.TestCase):
 
         for directory, dataset_name, expected_configs in (
             ("grasp_tools", "grasptool", (expected - {"drogoff"}) | {"drogoff_v2"}),
-            ("vcot", "vcot", expected),
+            ("vcot", "vcot", expected | {"maplegrasp_stage1", "maplegrasp_stage2"}),
             ("ocid_vlg", "ocid_vlg", expected | {"etrg", "etrg_r101"}),
         ):
             configs = glob.glob(f"config/{directory}/*.yaml")
@@ -100,6 +103,20 @@ class ToolRGSContractsTest(unittest.TestCase):
                 actual = cfg["DATA"]["dataset"].lower().replace("-", "_")
                 self.assertEqual(actual, dataset_name, path)
 
+    def test_native_dynamic_projector_short_side_contract(self):
+        projector = MultiTaskProjector(
+            word_dim=32,
+            in_dim=8,
+            with_short_side=True,
+        )
+        outputs = projector(
+            torch.randn(2, 16, 8, 8),
+            torch.randn(2, 32),
+        )
+        self.assertEqual(len(outputs), 6)
+        for output in outputs:
+            self.assertEqual(tuple(output.shape), (2, 1, 32, 32))
+
     def test_offset_projector_output_contract(self):
         projector = OffsetMultiTaskProjector(word_dim=512, in_dim=256)
         features = torch.randn(2, 512, 8, 8)
@@ -111,11 +128,19 @@ class ToolRGSContractsTest(unittest.TestCase):
         self.assertEqual(tuple(outputs[5].shape), (2, 2, 32, 32))
         self.assertLessEqual(outputs[5].abs().max().item(), 1.0)
 
+        projector_with_short = OffsetMultiTaskProjector(
+            word_dim=512, in_dim=256, with_short_side=True
+        )
+        outputs = projector_with_short(features, text_state)
+        self.assertEqual(len(outputs), 7)
+        self.assertEqual(tuple(outputs[5].shape), (2, 1, 32, 32))
+        self.assertEqual(tuple(outputs[6].shape), (2, 2, 32, 32))
+
     def test_maplegrasp_projector_output_contract(self):
-        projector = MapleGraspProjector(
+        projector = MultiTaskProjectorPP(
             word_dim=32,
             in_dim=8,
-            mask_threshold=0.35,
+            stage2=True,
         )
         outputs = projector(
             torch.randn(2, 16, 8, 8),
@@ -125,6 +150,30 @@ class ToolRGSContractsTest(unittest.TestCase):
         self.assertEqual(len(outputs), 5)
         for output in outputs:
             self.assertEqual(tuple(output.shape), (2, 1, 32, 32))
+
+        projector_with_short = MultiTaskProjectorPP(
+            word_dim=32,
+            in_dim=8,
+            stage2=True,
+            predict_short_side=True,
+        )
+        outputs = projector_with_short(
+            torch.randn(2, 16, 8, 8),
+            torch.randn(2, 32),
+            torch.ones(2, 1, 32, 32),
+        )
+        self.assertEqual(len(outputs), 6)
+        for output in outputs:
+            self.assertEqual(tuple(output.shape), (2, 1, 32, 32))
+
+    def test_npu_forward_target_order_accepts_short_side_keyword(self):
+        for model_class in (CROG, MapleGrasp):
+            parameters = list(inspect.signature(model_class.forward).parameters)
+            self.assertLess(
+                parameters.index("grasp_off_mask"),
+                parameters.index("grasp_short_mask"),
+                model_class.__name__,
+            )
 
     def test_dense_offset_points_toward_grasp_center(self):
         center = np.array([[8.0, 9.0]], dtype=np.float32)
@@ -159,6 +208,29 @@ class ToolRGSContractsTest(unittest.TestCase):
         self.assertEqual(len(outputs), 5)
         for output in outputs:
             self.assertEqual(tuple(output.shape), (2, 1, 64, 64))
+
+        core_with_short = LGDCore(
+            word_dim=32,
+            base_channels=16,
+            time_dim=32,
+            predict_short_side=True,
+        )
+        outputs = core_with_short(
+            torch.randn(2, 3, 64, 64),
+            noisy,
+            torch.tensor([0, 19]),
+            torch.randn(2, 32),
+        )
+        self.assertEqual(len(outputs), 6)
+        for output in outputs:
+            self.assertEqual(tuple(output.shape), (2, 1, 64, 64))
+
+    def test_graspmamba_native_short_side_decoder_contract(self):
+        decoder = GraspMapDecoder(12, predict_short_side=True)
+        outputs = decoder(torch.randn(2, 12, 16, 16), (32, 32))
+        self.assertEqual(len(outputs), 6)
+        for output in outputs:
+            self.assertEqual(tuple(output.shape), (2, 1, 32, 32))
 
     def test_graspmamba_hierarchical_fusion_contract(self):
         fusion = HierarchicalFeatureFusion(

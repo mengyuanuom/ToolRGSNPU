@@ -113,6 +113,7 @@ def _build_depth_backbone(cfg):
 
 
 class ETRG(BaseGraspModel):
+    grasp_size_loss_activation = "sigmoid"
     """Parameter-efficient CLIP adapter with RGB or RGB-D auxiliary fusion."""
 
     requires_depth = True
@@ -127,6 +128,12 @@ class ETRG(BaseGraspModel):
                 f"got {self.input_mode!r}"
             )
         self.requires_depth = self.input_mode == "rgbd"
+        self.predicts_grasp_short_side = bool(
+            getattr(cfg, "predict_grasp_short_side", False)
+        )
+        self.short_side_loss_weight = float(
+            getattr(cfg, "short_side_loss_weight", 1.0)
+        )
         logger.info("Loading ETRG CLIP backbone: {}", cfg.clip_pretrain)
         clip_model = torch.jit.load(cfg.clip_pretrain, map_location="cpu").eval()
         self.backbone = build_clip_model(
@@ -168,7 +175,12 @@ class ETRG(BaseGraspModel):
             dropout=cfg.dropout,
             return_intermediate=cfg.intermediate,
         )
-        self.proj = MultiTaskProjector(cfg.word_dim, cfg.vis_dim // 2, 3)
+        self.proj = MultiTaskProjector(
+            cfg.word_dim,
+            cfg.vis_dim // 2,
+            3,
+            predict_short_side=self.predicts_grasp_short_side,
+        )
         self.loss = BCEDiceLoss()
 
     def _normalize_depth(self, depth):
@@ -206,6 +218,7 @@ class ETRG(BaseGraspModel):
         grasp_wid_mask=None,
         grasp_off_mask=None,
         grasp_off_weight=None,
+        grasp_short_mask=None,
     ):
         if self.input_mode == "rgb":
             # RGB-only calls omit depth, so the legacy positional signature is
@@ -257,7 +270,12 @@ class ETRG(BaseGraspModel):
         outputs = self._resize(
             self.proj(decoded, sentence), image.shape[-2:]
         )
-        prediction = GraspOutput(*outputs)
+        prediction = GraspOutput(
+            *outputs[:5],
+            short_side=(
+                outputs[5] if self.predicts_grasp_short_side else None
+            ),
+        )
 
         target_values = (
             mask,
@@ -266,9 +284,18 @@ class ETRG(BaseGraspModel):
             grasp_cos_mask,
             grasp_wid_mask,
         )
+        if self.predicts_grasp_short_side:
+            target_values = (*target_values, grasp_short_mask)
         targets = None
         if all(value is not None for value in target_values):
-            targets = GraspTargets(*target_values)
+            targets = GraspTargets(
+                *target_values[:5],
+                short_side=(
+                    target_values[5]
+                    if self.predicts_grasp_short_side
+                    else None
+                ),
+            )
 
         if not self.training:
             return GraspModelResult(predictions=prediction, targets=targets)
@@ -279,9 +306,27 @@ class ETRG(BaseGraspModel):
         quality = F.smooth_l1_loss(outputs[1], grasp_qua_mask)
         sine = F.smooth_l1_loss(outputs[2], grasp_sin_mask)
         cosine = F.smooth_l1_loss(outputs[3], grasp_cos_mask)
-        width = F.smooth_l1_loss(outputs[4], grasp_wid_mask)
+        width = F.smooth_l1_loss(
+            torch.sigmoid(outputs[4]), grasp_wid_mask
+        )
+        short_side = (
+            F.smooth_l1_loss(
+                torch.sigmoid(outputs[5]), grasp_short_mask
+            )
+            if self.predicts_grasp_short_side
+            else None
+        )
         total = instance + quality + sine + cosine + width
-        detached = GraspOutput(*(output.detach() for output in outputs))
+        if short_side is not None:
+            total = total + self.short_side_loss_weight * short_side
+        detached = GraspOutput(
+            *(output.detach() for output in outputs[:5]),
+            short_side=(
+                outputs[5].detach()
+                if self.predicts_grasp_short_side
+                else None
+            ),
+        )
         return GraspModelResult(
             predictions=detached,
             targets=targets,
@@ -292,5 +337,10 @@ class ETRG(BaseGraspModel):
                 "m_sin": sine.detach(),
                 "m_cos": cosine.detach(),
                 "m_wid": width.detach(),
+                **(
+                    {"m_short": short_side.detach()}
+                    if short_side is not None
+                    else {}
+                ),
             },
         )

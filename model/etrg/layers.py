@@ -19,91 +19,86 @@ def linear_layer(in_dim, out_dim, bias=False):
                          nn.BatchNorm1d(out_dim), nn.ReLU(True))
 
 class MultiTaskProjector(nn.Module):
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
-        super().__init__()
-        self.in_dim = in_dim
-        self.kernel_size = kernel_size
-        # visual projector
-        self.vis = nn.Sequential(  # os16 -> os4
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            conv_layer(in_dim * 2, in_dim, 3, padding=1),
-            nn.Conv2d(in_dim, in_dim*5, 1))
+    """ETRG dynamic projector with an optional native short-side branch."""
 
-        # textual projector
-        out_dim = 1 * in_dim * kernel_size * kernel_size + 5
-        self.txt = nn.Linear(word_dim, out_dim)
+    def __init__(
+        self,
+        word_dim=1024,
+        in_dim=256,
+        kernel_size=3,
+        predict_short_side=False,
+    ):
+        super().__init__()
+        self.in_dim = int(in_dim)
+        self.kernel_size = int(kernel_size)
+        self.predict_short_side = bool(predict_short_side)
+        self.num_outputs = 6 if self.predict_short_side else 5
+        self.vis = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+            conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+            conv_layer(in_dim * 2, in_dim, 3, padding=1),
+            nn.Conv2d(in_dim, in_dim * self.num_outputs, 1),
+        )
+        self.txt = nn.Linear(
+            word_dim,
+            in_dim * kernel_size * kernel_size + self.num_outputs,
+        )
 
     def forward(self, x, word):
-        '''
-            x: b, 512, 26, 26
-            word: b, 512
-        '''
         x = self.vis(x)
-        # ``chunk`` maps more consistently than ``tensor_split`` on Ascend.
-        x = torch.chunk(x, 5, dim=1)
+        batch_size, _, height, width = x.shape
+        x = x.reshape(
+            batch_size,
+            self.num_outputs,
+            self.in_dim,
+            height,
+            width,
+        )
+        parameters = self.txt(word)
+        weight = parameters[:, :-self.num_outputs].reshape(
+            batch_size,
+            self.in_dim,
+            self.kernel_size,
+            self.kernel_size,
+        )
+        bias = parameters[:, -self.num_outputs:]
 
-        mask_x = x[0]
-        grasp_qua_x = x[1]
-        grasp_wid_x = x[2]
-        grasp_sin_x = x[3]
-        grasp_cos_x = x[4]
+        grouped_input = x.reshape(
+            1,
+            batch_size * self.num_outputs * self.in_dim,
+            height,
+            width,
+        )
+        grouped_weight = (
+            weight[:, None]
+            .expand(-1, self.num_outputs, -1, -1, -1)
+            .reshape(
+                batch_size * self.num_outputs,
+                self.in_dim,
+                self.kernel_size,
+                self.kernel_size,
+            )
+            .contiguous()
+        )
+        grouped_bias = bias.reshape(
+            batch_size * self.num_outputs
+        ).contiguous()
+        output = F.conv2d(
+            grouped_input,
+            grouped_weight,
+            bias=grouped_bias,
+            padding=self.kernel_size // 2,
+            groups=batch_size * self.num_outputs,
+        ).reshape(batch_size, self.num_outputs, height, width)
 
-        B, C, H, W = mask_x.size()
-
-
-        # 1, b*256, 104, 104
-        mask_x = mask_x.reshape(1, B * C, H, W)
-        grasp_qua_x = grasp_qua_x.reshape(1, B * C, H, W)
-        grasp_sin_x = grasp_sin_x.reshape(1, B * C, H, W)
-        grasp_cos_x = grasp_cos_x.reshape(1, B * C, H, W)
-        grasp_wid_x = grasp_wid_x.reshape(1, B * C, H, W)
-
-
-        # txt: b, (256*3*3 + 1) -> b, 256, 3, 3 / b
-        word = self.txt(word)
-        weight, bias = word[:, :-5], word[:, -5:]
-        weight = weight.reshape(B, C, self.kernel_size, self.kernel_size)
-        # Conv2d - 1, b*256, 104, 104 -> 1, b, 104, 104
-        mask_out = F.conv2d(mask_x,
-                       weight,
-                       padding=self.kernel_size // 2,
-                       groups=weight.size(0),
-                       bias=bias[:,0])
-        
-        grasp_qua_out = F.conv2d(grasp_qua_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias[:,1])
-        
-        grasp_sin_out = F.conv2d(grasp_sin_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias[:,2])
-
-        grasp_cos_out = F.conv2d(grasp_cos_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias[:,3])
-        
-        grasp_wid_out = F.conv2d(grasp_wid_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias[:,-1])
-            
-        mask_out = mask_out.transpose(0, 1)
-        grasp_qua_out = grasp_qua_out.transpose(0, 1)
-        grasp_sin_out = grasp_sin_out.transpose(0, 1)
-        grasp_cos_out = grasp_cos_out.transpose(0, 1)
-        grasp_wid_out = grasp_wid_out.transpose(0, 1)
-        # b, 1, 104, 104
-
-        return mask_out, grasp_qua_out, grasp_sin_out, grasp_cos_out, grasp_wid_out
+        # Preserve the official ETRG visual branch order:
+        # instance, quality, width, sine, cosine, [short side].
+        ordered = (output[:, 0:1], output[:, 1:2],
+                   output[:, 3:4], output[:, 4:5], output[:, 2:3])
+        if self.predict_short_side:
+            ordered = (*ordered, output[:, 5:6])
+        return tuple(item.contiguous() for item in ordered)
 
 ################added###########
 def _get_activation_fn(activation):

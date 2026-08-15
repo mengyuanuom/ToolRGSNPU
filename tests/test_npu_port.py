@@ -31,7 +31,7 @@ class NPUConfigurationTest(unittest.TestCase):
             for directory in experiment_roots
             for path in (ROOT / "config" / directory).glob("*.yaml")
         ]
-        self.assertEqual(len(paths), 29)
+        self.assertEqual(len(paths), 31)
         for path in paths:
             config = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             with self.subTest(config=path.name, dataset=path.parent.name):

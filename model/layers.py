@@ -185,7 +185,8 @@ class Projector(nn.Module):
         return out
 
 class FiLMProjector(nn.Module):
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
+    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3,
+                 with_short_side=False):
         super().__init__()
         self.in_dim = in_dim
         self.kernel_size = kernel_size
@@ -209,7 +210,8 @@ class FiLMProjector(nn.Module):
             nn.Linear(hidden_dim, in_dim),
         )
 
-        self.head = nn.Conv2d(in_dim, 5, kernel_size=kernel_size,
+        self.num_outputs = 6 if with_short_side else 5
+        self.head = nn.Conv2d(in_dim, self.num_outputs, kernel_size=kernel_size,
                               padding=kernel_size // 2)
 
     def forward(self, x, word):
@@ -220,10 +222,8 @@ class FiLMProjector(nn.Module):
         beta  = self.beta_mlp(word).view(B, C, 1, 1)
 
         x = gamma * x + beta
-        out = self.head(x)  # [B, 5, H, W]
-
-        mask_out, qua_out, sin_out, cos_out, wid_out = torch.chunk(out, 5, dim=1)
-        return mask_out, qua_out, sin_out, cos_out, wid_out
+        out = self.head(x)
+        return tuple(torch.chunk(out, self.num_outputs, dim=1))
 
 
 class Decoder(nn.Module):
@@ -433,7 +433,8 @@ class MLP(nn.Module):
         return x
 
 class MultiTaskProjector(nn.Module):
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
+    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3,
+                 with_short_side=False):
         super().__init__()
         self.in_dim = in_dim
         self.kernel_size = kernel_size
@@ -443,7 +444,8 @@ class MultiTaskProjector(nn.Module):
             conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
             nn.Upsample(scale_factor=2, mode='bilinear'),
             conv_layer(in_dim * 2, in_dim, 3, padding=1),
-            nn.Conv2d(in_dim, in_dim*5, 1))
+            nn.Conv2d(in_dim, in_dim * (6 if with_short_side else 5), 1))
+        self.num_outputs = 6 if with_short_side else 5
 
         # textual projector
         out_dim = 1 * in_dim * kernel_size * kernel_size + 1
@@ -453,7 +455,7 @@ class MultiTaskProjector(nn.Module):
         """Apply the five text-conditioned heads in one NPU-safe grouped conv."""
         x = self.vis(x)
         batch_size, total_channels, height, width = x.shape
-        branch_count = 5
+        branch_count = self.num_outputs
         if total_channels % branch_count != 0:
             raise RuntimeError(
                 f"Projector channels {total_channels} are not divisible by {branch_count}"
@@ -508,9 +510,18 @@ class MultiTaskProjector(nn.Module):
 class OffsetMultiTaskProjector(nn.Module):
     """DROG multi-task projector with an additional normalized (dx, dy) head."""
 
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
+    def __init__(
+        self,
+        word_dim=1024,
+        in_dim=256,
+        kernel_size=3,
+        with_short_side=False,
+    ):
         super().__init__()
-        self.base = MultiTaskProjector(word_dim, in_dim, kernel_size)
+        self.base = MultiTaskProjector(
+            word_dim, in_dim, kernel_size, with_short_side=with_short_side
+        )
+        self.with_short_side = bool(with_short_side)
         # Offset prediction is geometric rather than class-specific. It consumes
         # the same fused feature map but does not need another dynamic text kernel.
         self.offset = nn.Sequential(

@@ -115,18 +115,14 @@ class NPUGraspRunner:
             raise ValueError(f"Unsupported initial weight payload: {filename}")
         target = getattr(self.model, "module", self.model)
         cleaned = _clean_state_dict(state)
-        load_target = target
-        is_legacy_base_weight = (
-            bool(getattr(target, "predicts_grasp_short_side", False))
-            and not any(
-                key.startswith(("base_model.", "short_side_head."))
-                for key in cleaned
-            )
-        )
-        if is_legacy_base_weight:
-            load_target = target.base_model
-            logger.info("Loading legacy initial weight into the wrapped base model")
-        incompatible = load_target.load_state_dict(cleaned, strict=False)
+        try:
+            incompatible = target.load_state_dict(cleaned, strict=False)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "Initial weight is incompatible with the model's native "
+                "long/short-side heads. Use a matching checkpoint or retrain "
+                "the aligned architecture."
+            ) from exc
         logger.info("Loaded initial model weight: {}", filename)
         if incompatible.missing_keys:
             logger.warning(
@@ -438,7 +434,14 @@ class NPUGraspRunner:
             "grasp_size_coordinate": str(
                 getattr(cfg, "grasp_size_coordinate", "original")
             ),
-            "grasp_size_activation": self.grasp_size_activation,
+            "grasp_size_activation": getattr(
+                self,
+                "grasp_size_activation",
+                resolve_grasp_size_activation(
+                    getattr(cfg, "grasp_size_activation", "auto"),
+                    model=self.model,
+                ),
+            ),
             "state_dict": self.model.state_dict(),
             "predict_grasp_short_side": bool(
                 getattr(cfg, "predict_grasp_short_side", False)

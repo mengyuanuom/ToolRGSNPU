@@ -235,13 +235,56 @@ class GraspValLoop(BaseLoop):
                     )
                 inputs = (image, move_to_device(depth, device), *inputs[1:])
             result = GraspModelResult.from_legacy(
-                evaluation_model(*inputs, **model_kwargs)
+                evaluation_model(*inputs, **model_kwargs),
+                model=evaluation_model,
             )
             predictions = result.predictions
             input_hw = image.shape[-2:]
             segmentation = _resize_prediction(
                 torch.sigmoid(predictions.segmentation), input_hw
             )
+            if predictions.quality is None:
+                dense_maps = (
+                    torch.cat([segmentation, target_segmentation], dim=1)
+                    .detach()
+                    .float()
+                    .cpu()
+                    .numpy()
+                )
+                for index in range(image.shape[0]):
+                    inverse_matrix = data["inverse"][index]
+                    if hasattr(inverse_matrix, "detach"):
+                        inverse_matrix = inverse_matrix.detach().cpu().numpy()
+                    original_hw = (
+                        int(data["ori_size"][index][0]),
+                        int(data["ori_size"][index][1]),
+                    )
+                    predicted_segmentation = inverse_warp(
+                        dense_maps[index, 0],
+                        inverse_matrix,
+                        original_hw,
+                        interpolation=self.evaluation_protocol.inverse_interpolation,
+                    )
+                    target_segmentation_original = inverse_warp(
+                        dense_maps[index, 1],
+                        inverse_matrix,
+                        original_hw,
+                        interpolation=self.evaluation_protocol.inverse_interpolation,
+                    )
+                    target_mask_threshold = (
+                        self.evaluation_protocol.target_mask_threshold
+                    )
+                    if target_mask_threshold is not None:
+                        target_segmentation_original = (
+                            target_segmentation_original > target_mask_threshold
+                        )
+                    self.segmentation_metric.update(
+                        predicted_segmentation,
+                        target_segmentation_original,
+                    )
+                self.state.result = result
+                self.hooks.call("after_iter", self, self.state)
+                continue
             quality = _resize_prediction(torch.sigmoid(predictions.quality), input_hw)
             sine = _resize_prediction(predictions.sine, input_hw)
             cosine = _resize_prediction(predictions.cosine, input_hw)

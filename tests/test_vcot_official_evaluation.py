@@ -67,7 +67,7 @@ class VCoTOfficialEvaluationTest(unittest.TestCase):
 
     def test_every_vcot_npu_profile_selects_official_evaluation(self):
         paths = sorted((ROOT / "config" / "vcot").glob("*.yaml"))
-        self.assertEqual(len(paths), 9)
+        self.assertEqual(len(paths), 11)
         for path in paths:
             cfg = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             self.assertEqual(
@@ -91,9 +91,9 @@ class VCoTOfficialEvaluationTest(unittest.TestCase):
             self.assertFalse(cfg["TEST"]["filter_grasps_by_segmentation"], path)
             self.assertEqual(cfg["DATA"]["train_split"], "train_official", path)
             self.assertEqual(cfg["DATA"]["val_split"], "val_official", path)
-            self.assertEqual(cfg["DATA"]["grasp_size_factor"], 416, path)
-            self.assertEqual(cfg["DATA"]["grasp_size_coordinate"], "original", path)
-            self.assertEqual(cfg["DATA"]["grasp_target_policy"], "first", path)
+            self.assertEqual(cfg["DATA"]["grasp_size_factor"], 300, path)
+            self.assertEqual(cfg["DATA"]["grasp_size_coordinate"], "canvas", path)
+            self.assertEqual(cfg["DATA"]["grasp_target_policy"], "all", path)
             self.assertEqual(cfg["DATA"]["vcot_official_val_size"], 5000, path)
 
 

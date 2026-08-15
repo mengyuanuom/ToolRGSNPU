@@ -6,6 +6,7 @@ DATA:
   root_path: ./datasets/graspanything-vcot
   split_root: ./datasets/graspanything-vcot/split/vcot
   prompt_template: "Grasp the {object_name}"
+  with_depth: False
   train_split: train_official
   val_split: val_official
   grasp_target_policy: all
@@ -34,19 +35,18 @@ TRAIN:
   intermediate: False
   use_contrastive: True
   use_pretrained_clip: True
-  use_grasp_masks: True
-  maple_stage: joint
-  maple_mask_threshold: 0.35
-  maple_hard_mask: True
-  maple_use_gt_masks: False
-  maple_grasp_loss_weight: 1.0
-  workers: 8
-  workers_val: 4
-  epochs: 70
-  milestones: [55, 65]
+  stage1: True
+  stage2: False
+  use_gt_obj_masks: False
+  use_grasp_masks: False
+  predict_grasp_short_side: False
+  workers: 4
+  workers_val: 2
+  epochs: 24
+  milestones: [20]
   start_epoch: 0
-  batch_size: 16  # global batch size
-  batch_size_val: 16  # global validation batch size
+  batch_size: 16
+  batch_size_val: 8
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 0.1
@@ -54,11 +54,12 @@ TRAIN:
   max_norm: 1.0
   manual_seed: 0
   print_freq: 100
-  exp_name: maplegrasp_vcot
-  predict_grasp_short_side: True
-  short_side_loss_weight: 1.0
+  exp_name: maplegrasp_stage1_vcot
   output_folder: exp/vcot
   save_freq: 5
+  val_freq: 1
+  val_start_epoch: 11
+  save_epochs: [5, 10]
   weight:
   resume:
   evaluate: True
@@ -69,8 +70,7 @@ Distributed:
   world_size: 1
   rank: 0
 TEST:
-  grasp_size_activation: auto
-  test_split: unseen
+  test_split: seen
   evaluation_protocol: vcot_official
   grasp_topk: [1]
   grasp_iou_threshold: 0.25

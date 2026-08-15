@@ -16,16 +16,23 @@ def build_projector(cfg, with_offset=False) -> nn.Module:
     proj_type   = proj_cfg.lower()
     if proj_type == "dynamic":
         projector_cls = OffsetMultiTaskProjector if with_offset else MultiTaskProjector
-        projector = projector_cls(
-            word_dim=word_dim,
-            in_dim= vis_dim//2,
-            kernel_size=3
-        )
+        projector_kwargs = {
+            "word_dim": word_dim,
+            "in_dim": vis_dim // 2,
+            "kernel_size": 3,
+            "with_short_side": bool(
+                getattr(cfg, "predict_grasp_short_side", False)
+            ),
+        }
+        projector = projector_cls(**projector_kwargs)
     elif proj_type == "film" and not with_offset:
         projector = FiLMProjector(
             word_dim=word_dim,
             in_dim=vis_dim//2,
-            kernel_size=3
+            kernel_size=3,
+            with_short_side=bool(
+                getattr(cfg, "predict_grasp_short_side", False)
+            ),
         )
     else:
         suffix = " with offset" if with_offset else ""

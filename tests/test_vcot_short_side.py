@@ -2,11 +2,8 @@ import unittest
 from pathlib import Path
 import sys
 import types
-from types import SimpleNamespace
 
 import numpy as np
-import torch
-import torch.nn as nn
 import yaml
 sys.modules.setdefault("lmdb", types.ModuleType("lmdb"))
 sys.modules.setdefault("pyarrow", types.ModuleType("pyarrow"))
@@ -21,40 +18,25 @@ regex_stub.compile = lambda pattern, flags=0: pattern
 regex_stub.findall = lambda pattern, value: []
 sys.modules.setdefault("regex", regex_stub)
 from toolrgs.evaluation.postprocessors import DenseGraspPostProcessor
-from toolrgs.models.short_side import ShortSideRegressionAdapter
-from toolrgs.structures import GraspModelResult, GraspOutput
+from toolrgs.structures import GraspOutput
 from utils.dataset import GraspTransforms
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class _DummyDenseModel(nn.Module):
-    supports_offset = True
-    grasp_size_loss_activation = "sigmoid"
-
-    def __init__(self):
-        super().__init__()
-        self.value = nn.Parameter(torch.tensor(0.0))
-
-    def forward(self, image, *args, **kwargs):
-        batch = image.shape[0]
-        dense = self.value.reshape(1, 1, 1, 1).expand(batch, 1, 8, 8)
-        predictions = (dense, dense, dense, dense, dense, dense.expand(-1, 2, -1, -1))
-        if not self.training:
-            return predictions
-        targets = tuple(torch.zeros_like(value) for value in predictions)
-        return predictions, targets, dense.square().mean(), {"m_wid": dense.detach()}
-
 
 class VCoTShortSideTests(unittest.TestCase):
-    def test_all_vcot_profiles_enable_short_side_regression(self):
+    def test_all_vcot_grasp_profiles_enable_short_side_regression(self):
         paths = sorted((ROOT / "config" / "vcot").glob("*.yaml"))
-        self.assertEqual(len(paths), 9)
+        self.assertEqual(len(paths), 11)
         for path in paths:
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
-            self.assertTrue(data["TRAIN"]["predict_grasp_short_side"], path)
-            self.assertEqual(data["TRAIN"]["short_side_loss_weight"], 1.0, path)
+            if path.name == "maplegrasp_stage1.yaml":
+                self.assertFalse(data["TRAIN"]["predict_grasp_short_side"], path)
+            else:
+                self.assertTrue(data["TRAIN"]["predict_grasp_short_side"], path)
+                self.assertEqual(data["TRAIN"]["short_side_loss_weight"], 1.0, path)
 
     def test_short_side_mask_generation_is_vcot_opt_in(self):
         transform = GraspTransforms(width_factor=100, width=32, height=32)
@@ -76,23 +58,27 @@ class VCoTShortSideTests(unittest.TestCase):
         # Gaussian smoothing scales both maps equally; the 80:30 source ratio remains.
         self.assertAlmostEqual(width_peak / short_peak, 80.0 / 30.0, places=1)
 
-    def test_short_side_adapter_adds_supervised_named_output(self):
-        cfg = SimpleNamespace(
-            short_side_loss_weight=1.0,
-            short_side_head_channels=8,
-            grasp_size_factor=100.0,
-            grasp_height=20.0,
+    def test_all_grasp_models_use_native_short_side_heads(self):
+        builder = (ROOT / "model" / "__init__.py").read_text(encoding="utf-8")
+        self.assertNotIn("ShortSideRegressionAdapter", builder)
+        sources = (
+            ROOT / "model" / "crog.py",
+            ROOT / "model" / "crogoff.py",
+            ROOT / "model" / "drog.py",
+            ROOT / "model" / "drogoff.py",
+            ROOT / "model" / "ggcnnclip.py",
+            ROOT / "model" / "grconvnetclip.py",
+            ROOT / "model" / "graspmamba.py",
+            ROOT / "model" / "lgd.py",
+            ROOT / "model" / "maplegrasp.py",
+            ROOT / "model" / "etrg" / "model.py",
         )
-        adapter = ShortSideRegressionAdapter(_DummyDenseModel(), cfg).train()
-        image = torch.zeros(2, 3, 8, 8)
-        short_target = torch.full((2, 1, 8, 8), 0.3)
-        result = adapter(image, grasp_short_mask=short_target)
-        self.assertIsInstance(result, GraspModelResult)
-        self.assertTrue(result.predictions.has_short_side)
-        self.assertTrue(result.predictions.has_offset)
-        self.assertIn("m_short", result.losses)
-        result.loss.backward()
-        self.assertIsNotNone(adapter.short_side_head[-1].weight.grad)
+        for path in sources:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(model=path.name):
+                self.assertIn("predicts_grasp_short_side", source)
+                self.assertIn("grasp_short_mask", source)
+                self.assertIn('"sigmoid"', source)
 
     def test_postprocessor_uses_predicted_short_side(self):
         quality = np.zeros((9, 9), dtype=np.float32)
@@ -110,7 +96,7 @@ class VCoTShortSideTests(unittest.TestCase):
 
     def test_named_output_keeps_offset_and_short_side_unambiguous(self):
         output = GraspOutput(1, 2, 3, 4, 5, offset=6, short_side=7)
-        self.assertEqual(output.as_tuple(), (1, 2, 3, 4, 5, 6, 7))
+        self.assertEqual(output.as_tuple(), (1, 2, 3, 4, 5, 7, 6))
         restored = GraspOutput.from_legacy(output.as_tuple())
         self.assertEqual(restored.offset, 6)
         self.assertEqual(restored.short_side, 7)

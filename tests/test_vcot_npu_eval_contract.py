@@ -19,7 +19,7 @@ class VCoTNpuEvaluationContractTest(unittest.TestCase):
             encoding="utf-8-sig"
         )
         self.assertIn('getattr(self.model, "module", self.model)', source)
-        self.assertIn("evaluation_model(*inputs)", source)
+        self.assertIn("evaluation_model(*inputs, **model_kwargs)", source)
         self.assertIn("dist.all_reduce(statistics, op=dist.ReduceOp.SUM)", source)
         self.assertIn("calculate_vcot_grasp_success(", source)
 

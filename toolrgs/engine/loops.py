@@ -138,7 +138,10 @@ class GraspTrainLoop(BaseLoop):
                 inputs = inputs[:-1]
 
             with autocast(enabled=bool(getattr(self.cfg, "amp", False))):
-                result = GraspModelResult.from_legacy(self.model(*inputs, **model_kwargs))
+                unwrapped = getattr(self.model, "module", self.model)
+                result = GraspModelResult.from_legacy(
+                    self.model(*inputs, **model_kwargs), model=unwrapped
+                )
             if result.loss is None:
                 raise RuntimeError("GraspTrainLoop requires a model result with a training loss")
             if result.targets is None:

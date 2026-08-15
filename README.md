@@ -507,7 +507,10 @@ python evaluate.py \
 ## Output contract
 
 Grasp-aware models return segmentation, quality, sine, cosine, and width maps.
-Offset variants append a `(dx, dy)` map normalized by `DATA.offset_r`.
+When predict_grasp_short_side is enabled, each architecture's native
+decoder/projector appends a learned short-side map; no generic fallback head is
+attached. Width and short-side logits use sigmoid in both training loss and
+decoding. Offset variants append a (dx, dy) map normalized by DATA.offset_r.
 GGCNN-CLIP and GR-ConvNet-CLIP are grasp-only baselines, so their quality map
 also occupies the segmentation slot required by the shared engine.
 

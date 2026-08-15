@@ -63,8 +63,10 @@ class GenerativeResnetWithText(nn.Module):
         prob: float = 0.0,
         channel_size: int = 32,
         fusion_hidden_dim: int = 128,
+        predict_short_side: bool = False,
     ):
         super().__init__()
+        self.predict_short_side = bool(predict_short_side)
 
         # Encoder
         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=9, stride=1, padding=4)
@@ -102,6 +104,8 @@ class GenerativeResnetWithText(nn.Module):
         self.cos_output = nn.Conv2d(32, 1, kernel_size=2)
         self.sin_output = nn.Conv2d(32, 1, kernel_size=2)
         self.width_output = nn.Conv2d(32, 1, kernel_size=2)
+        if self.predict_short_side:
+            self.short_side_output = nn.Conv2d(32, 1, kernel_size=2)
 
         self.dropout1 = nn.Dropout(p=prob if dropout else 0.0)
 
@@ -136,8 +140,10 @@ class GenerativeResnetWithText(nn.Module):
         cos_output = self.cos_output(self.dropout1(x))
         sin_output = self.sin_output(self.dropout1(x))
         width_output = self.width_output(self.dropout1(x))
-
-        return pos_output, cos_output, sin_output, width_output
+        outputs = (pos_output, cos_output, sin_output, width_output)
+        if self.predict_short_side:
+            outputs = (*outputs, self.short_side_output(self.dropout1(x)))
+        return outputs
 
     def compute_loss(self, xc, yc, e_txt):
         """
@@ -148,7 +154,7 @@ class GenerativeResnetWithText(nn.Module):
         e_txt: (B, text_dim)
         """
         y_pos, y_cos, y_sin, y_width = yc
-        pos_pred, cos_pred, sin_pred, width_pred = self(xc, e_txt)
+        pos_pred, cos_pred, sin_pred, width_pred = self(xc, e_txt)[:4]
 
         p_loss = F.smooth_l1_loss(pos_pred, y_pos)
         cos_loss = F.smooth_l1_loss(cos_pred, y_cos)
@@ -172,7 +178,7 @@ class GenerativeResnetWithText(nn.Module):
         }
 
     def predict(self, xc, e_txt):
-        pos_pred, cos_pred, sin_pred, width_pred = self(xc, e_txt)
+        pos_pred, cos_pred, sin_pred, width_pred = self(xc, e_txt)[:4]
         return {
             "pos": pos_pred,
             "cos": cos_pred,
@@ -182,34 +188,51 @@ class GenerativeResnetWithText(nn.Module):
 
 
 class GenerativeResnet_CLIP(nn.Module):
+    """GR-ConvNet + CLIP with native long- and short-side heads."""
+
+    grasp_size_loss_activation = "sigmoid"
+
     def __init__(self, cfg):
         super().__init__()
-
         self.use_pretrained_clip = cfg.use_pretrained_clip
+        self.predicts_grasp_short_side = bool(
+            getattr(cfg, "predict_grasp_short_side", False)
+        )
+        self.short_side_loss_weight = float(
+            getattr(cfg, "short_side_loss_weight", 1.0)
+        )
 
-        # 1) CLIP backbone
-        clip_model = torch.jit.load(cfg.clip_pretrain,
-                                    map_location="cpu").eval()
-        print(f"[GenerativeResnet_CLIP] Load pretrained CLIP: {self.use_pretrained_clip}")
+        clip_model = torch.jit.load(
+            cfg.clip_pretrain, map_location="cpu"
+        ).eval()
+        print(
+            f"[GenerativeResnet_CLIP] Load pretrained CLIP: "
+            f"{self.use_pretrained_clip}"
+        )
         self.backbone = build_model(
             clip_model.state_dict(),
             cfg.word_len,
-            self.use_pretrained_clip
+            self.use_pretrained_clip,
         ).float()
-
-        in_ch = getattr(cfg, "input_channels", 3)
-        text_dim = cfg.word_dim
-        dropout = getattr(cfg, "dropout", False)
-        prob = getattr(cfg, "dropout_prob", 0.0)
-
         self.grasp_head = GenerativeResnetWithText(
-            input_channels=in_ch,
-            text_dim=text_dim,
-            dropout=dropout,
-            prob=prob,
+            input_channels=getattr(cfg, "input_channels", 3),
+            text_dim=cfg.word_dim,
+            dropout=getattr(cfg, "dropout", False),
+            prob=getattr(cfg, "dropout_prob", 0.0),
             channel_size=32,
-            fusion_hidden_dim=128
+            fusion_hidden_dim=128,
+            predict_short_side=self.predicts_grasp_short_side,
         )
+
+    @staticmethod
+    def _resize_target(target, output_size):
+        if target is None:
+            return None
+        if target.shape[-2:] != output_size:
+            target = F.interpolate(
+                target, output_size, mode="nearest"
+            ).detach()
+        return target
 
     def forward(
         self,
@@ -222,70 +245,81 @@ class GenerativeResnet_CLIP(nn.Module):
         grasp_wid_mask=None,
         grasp_off_mask=None,
         grasp_off_weight=None,
+        grasp_short_mask=None,
     ):
-        # 文本 encode
-        _, state = self.backbone.encode_text(word)   # (B, text_dim)
+        del grasp_off_mask, grasp_off_weight
+        _, state = self.backbone.encode_text(word)
+        head_outputs = self.grasp_head(img, state)
+        pos_pred, cos_pred, sin_pred, wid_pred = head_outputs[:4]
+        short_pred = (
+            head_outputs[4] if self.predicts_grasp_short_side else None
+        )
 
-        # Grasp prediction
-        pos_pred, cos_pred, sin_pred, wid_pred = self.grasp_head(img, state)
-        ins_pred = pos_pred
-        qua_pred = pos_pred
+        predictions = (
+            pos_pred,
+            pos_pred,
+            sin_pred,
+            cos_pred,
+            wid_pred,
+        )
+        if self.predicts_grasp_short_side:
+            predictions = (*predictions, short_pred)
 
-        if self.training:
-            if grasp_qua_mask is not None and grasp_qua_mask.shape[-2:] != pos_pred.shape[-2:]:
-                if ins_mask is not None:
-                    ins_mask = F.interpolate(ins_mask, pos_pred.shape[-2:], mode='nearest').detach()
-                grasp_qua_mask = F.interpolate(grasp_qua_mask, pos_pred.shape[-2:], mode='nearest').detach()
-                grasp_sin_mask = F.interpolate(grasp_sin_mask, pos_pred.shape[-2:], mode='nearest').detach()
-                grasp_cos_mask = F.interpolate(grasp_cos_mask, pos_pred.shape[-2:], mode='nearest').detach()
-                grasp_wid_mask = F.interpolate(grasp_wid_mask, pos_pred.shape[-2:], mode='nearest').detach()
-
-            p_loss   = F.smooth_l1_loss(qua_pred, grasp_qua_mask)
-            cos_loss = F.smooth_l1_loss(cos_pred, grasp_cos_mask)
-            sin_loss = F.smooth_l1_loss(sin_pred, grasp_sin_mask)
-            wid_loss = F.smooth_l1_loss(wid_pred, grasp_wid_mask)
-
-            total_loss = p_loss + cos_loss + sin_loss + wid_loss
-
-            # 注意：保持 tensor，方便 DataParallel 聚合
-            zero_like = p_loss.detach() * 0.0
-            loss_dict = {
-                "m_ins": zero_like,
-                "m_qua": p_loss.detach(),
-                "m_sin": sin_loss.detach(),
-                "m_cos": cos_loss.detach(),
-                "m_wid": wid_loss.detach(),
-            }
-
-            preds = (
-                ins_pred,
-                qua_pred,
-                sin_pred,
-                cos_pred,
-                wid_pred,
-            )
-            targets = (
+        output_size = pos_pred.shape[-2:]
+        targets = tuple(
+            self._resize_target(target, output_size)
+            for target in (
                 ins_mask,
                 grasp_qua_mask,
                 grasp_sin_mask,
                 grasp_cos_mask,
                 grasp_wid_mask,
             )
-            return preds, targets, total_loss, loss_dict
-
-        else:
-            preds = (
-                ins_pred,
-                qua_pred,
-                sin_pred,
-                cos_pred,
-                wid_pred,
-            )
+        )
+        if self.predicts_grasp_short_side:
             targets = (
-                ins_mask,
-                grasp_qua_mask,
-                grasp_sin_mask,
-                grasp_cos_mask,
-                grasp_wid_mask,
+                *targets,
+                self._resize_target(grasp_short_mask, output_size),
             )
-            return preds, targets
+
+        if not self.training:
+            return tuple(item.detach() for item in predictions), targets
+        if any(target is None for target in targets):
+            raise ValueError(
+                "GR-ConvNet-CLIP training requires all enabled dense target maps"
+            )
+
+        quality_loss = F.smooth_l1_loss(pos_pred, targets[1])
+        sine_loss = F.smooth_l1_loss(sin_pred, targets[2])
+        cosine_loss = F.smooth_l1_loss(cos_pred, targets[3])
+        width_loss = F.smooth_l1_loss(
+            torch.sigmoid(wid_pred), targets[4]
+        )
+        short_loss = (
+            F.smooth_l1_loss(torch.sigmoid(short_pred), targets[5])
+            if self.predicts_grasp_short_side
+            else None
+        )
+        total_loss = (
+            quality_loss + sine_loss + cosine_loss + width_loss
+        )
+        if short_loss is not None:
+            total_loss = (
+                total_loss + self.short_side_loss_weight * short_loss
+            )
+        zero = quality_loss.detach() * 0.0
+        losses = {
+            "m_ins": zero,
+            "m_qua": quality_loss.detach(),
+            "m_sin": sine_loss.detach(),
+            "m_cos": cosine_loss.detach(),
+            "m_wid": width_loss.detach(),
+        }
+        if short_loss is not None:
+            losses["m_short"] = short_loss.detach()
+        return (
+            tuple(item.detach() for item in predictions),
+            targets,
+            total_loss,
+            losses,
+        )

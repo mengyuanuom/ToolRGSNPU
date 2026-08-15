@@ -3,7 +3,6 @@
 from loguru import logger
 
 from toolrgs.registry import MODELS
-from toolrgs.models import ShortSideRegressionAdapter
 
 from .crog import CROG
 from .crogoff import CROGOFF
@@ -79,8 +78,13 @@ def build_model(cfg):
         raise ValueError(f"Unknown model {name!r}; available: {available}") from exc
 
     model = model_cls(cfg)
-    if bool(getattr(cfg, "predict_grasp_short_side", False)):
-        model = ShortSideRegressionAdapter(model, cfg)
+    if bool(getattr(cfg, "predict_grasp_short_side", False)) and not bool(
+        getattr(model, "predicts_grasp_short_side", False)
+    ):
+        raise ValueError(
+            f"{name} was configured to predict grasp short side, but its native "
+            "decoder head is disabled or unavailable"
+        )
     parameter_groups, backbone, head, frozen = _build_parameter_groups(model, cfg)
     logger.info(
         "Build {}: backbone={}, head={}, frozen={}",

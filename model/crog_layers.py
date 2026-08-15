@@ -45,27 +45,35 @@ class CoordConv(nn.Module):
 
 
 class MultiTaskProjector(nn.Module):
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
+    def __init__(
+        self,
+        word_dim=1024,
+        in_dim=256,
+        kernel_size=3,
+        predict_short_side=False,
+    ):
         super().__init__()
-        self.in_dim = in_dim
-        self.kernel_size = kernel_size
+        self.in_dim = int(in_dim)
+        self.kernel_size = int(kernel_size)
+        self.predict_short_side = bool(predict_short_side)
+        self.num_outputs = 6 if self.predict_short_side else 5
         # visual projector
         self.vis = nn.Sequential(  # os16 -> os4
             nn.Upsample(scale_factor=2, mode='bilinear'),
             conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
             nn.Upsample(scale_factor=2, mode='bilinear'),
             conv_layer(in_dim * 2, in_dim, 3, padding=1),
-            nn.Conv2d(in_dim, in_dim*5, 1))
+            nn.Conv2d(in_dim, in_dim * self.num_outputs, 1))
 
         # textual projector
         out_dim = 1 * in_dim * kernel_size * kernel_size + 1
         self.txt = nn.Linear(word_dim, out_dim)
 
     def forward(self, x, word):
-        """Apply the five text-conditioned heads in one NPU-safe grouped conv."""
+        """Apply all text-conditioned heads in one NPU-safe grouped conv."""
         x = self.vis(x)
         batch_size, total_channels, height, width = x.shape
-        branch_count = 5
+        branch_count = self.num_outputs
         if total_channels % branch_count != 0:
             raise RuntimeError(
                 f"Projector channels {total_channels} are not divisible by {branch_count}"
@@ -78,7 +86,7 @@ class MultiTaskProjector(nn.Module):
         )
         bias = dynamic_params[:, -1]
 
-        # Arrange groups as (sample 0/head 0..4, sample 1/head 0..4, ...).
+        # Arrange groups by sample and output branch without split views.
         # This is mathematically equivalent to five separate grouped convs but
         # avoids split views with non-zero storage offsets on Ascend.
         grouped_input = x.reshape(
@@ -158,118 +166,33 @@ class Projector(nn.Module):
         return out
 
 class MultiTaskProjectorOff(nn.Module):
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3):
+    """CROG multi-task projector with native short-side and offset heads."""
+
+    def __init__(
+        self,
+        word_dim=1024,
+        in_dim=256,
+        kernel_size=3,
+        predict_short_side=False,
+    ):
         super().__init__()
-        self.in_dim = in_dim
-        self.kernel_size = kernel_size
-        # visual projector
-        self.vis = nn.Sequential(  # os16 -> os4
-            nn.Upsample(scale_factor=2, mode='bilinear'),
+        self.base = MultiTaskProjector(
+            word_dim,
+            in_dim,
+            kernel_size,
+            predict_short_side=predict_short_side,
+        )
+        self.offset = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
             conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
             conv_layer(in_dim * 2, in_dim, 3, padding=1),
-            nn.Conv2d(in_dim, in_dim*6, 1))
-
-        # textual projector
-        out_dim = 1 * in_dim * kernel_size * kernel_size + 1
-        self.txt = nn.Linear(word_dim, out_dim)
-
-        self.txt_off = nn.Linear(word_dim, 2 * (in_dim * kernel_size * kernel_size + 1))
-        self.grasp_off_conv = nn.Conv2d(
-            in_dim, 2,
-            kernel_size=self.kernel_size,
-            padding=self.kernel_size // 2,
-            bias=True
+            nn.Conv2d(in_dim, 2, kernel_size, padding=kernel_size // 2),
+            nn.Tanh(),
         )
 
     def forward(self, x, word):
-        '''
-            x: b, 512, 26, 26
-            word: b, 512
-        '''
-
-        device = x.device
-        dtype  = x.dtype
-        x = self.vis(x)
-        x = [part.clone() for part in torch.tensor_split(x, 6, dim=1)]
-        if any(part.storage_offset() != 0 for part in x):
-            raise RuntimeError("CROG-OFF projector split must have zero storage_offset")
-        # x = torch.chunk(x, 6, dim=1)
-
-        mask_x = x[0]
-        grasp_qua_x = x[1]
-        grasp_sin_x = x[2]
-        grasp_cos_x = x[3]
-        grasp_wid_x = x[4]
-        grasp_off_x = x[5]
-
-        B, C, H, W = mask_x.size()
-
-
-        # 1, b*256, 104, 104
-        mask_x = mask_x.reshape(1, B * C, H, W)
-        grasp_qua_x = grasp_qua_x.reshape(1, B * C, H, W)
-        grasp_sin_x = grasp_sin_x.reshape(1, B * C, H, W)
-        grasp_cos_x = grasp_cos_x.reshape(1, B * C, H, W)
-        grasp_wid_x = grasp_wid_x.reshape(1, B * C, H, W)
-
-
-        # txt: b, (256*3*3 + 1) -> b, 256, 3, 3 / b
-        word = self.txt(word)
-        weight, bias = word[:, :-1], word[:, -1]
-        weight = weight.reshape(B, C, self.kernel_size, self.kernel_size)
-        # Conv2d - 1, b*256, 104, 104 -> 1, b, 104, 104
-        mask_out = F.conv2d(mask_x,
-                       weight,
-                       padding=self.kernel_size // 2,
-                       groups=weight.size(0),
-                       bias=bias)
-        
-        grasp_qua_out = F.conv2d(grasp_qua_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-        
-        grasp_sin_out = F.conv2d(grasp_sin_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-
-        grasp_cos_out = F.conv2d(grasp_cos_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-        
-        grasp_wid_out = F.conv2d(grasp_wid_x,
-                            weight,
-                            padding=self.kernel_size // 2,
-                            groups=weight.size(0),
-                            bias=bias)
-        
-        # grasp_off_out = F.conv2d(grasp_off_x, 
-        #                         weight,
-        #                         padding=self.kernel_size // 2,
-        #                         bias=bias
-        # )
-
-        # if not hasattr(self, "grasp_off_conv") or self.grasp_off_conv.in_channels != C:
-        #     self.grasp_off_conv = nn.Conv2d(C, 2, kernel_size=self.kernel_size,
-        #                               0      padding=self.kernel_size//2, bias=True).to(device, dtype)
-        
-        grasp_off_out = self.grasp_off_conv(grasp_off_x)
-            
-        mask_out = mask_out.transpose(0, 1).contiguous()
-        grasp_qua_out = grasp_qua_out.transpose(0, 1).contiguous()
-        grasp_sin_out = grasp_sin_out.transpose(0, 1).contiguous()
-        grasp_cos_out = grasp_cos_out.transpose(0, 1).contiguous()
-        grasp_wid_out = grasp_wid_out.transpose(0, 1).contiguous()
-        # grasp_off_out = grasp_off_out.transpose(0, 1)
-        # b, 1, 104, 104
-
-        return mask_out, grasp_qua_out, grasp_sin_out, grasp_cos_out, grasp_wid_out, grasp_off_out
+        return (*self.base(x, word), self.offset(x))
 
 
 class ProjectorOff(nn.Module):

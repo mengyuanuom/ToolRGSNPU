@@ -13,4 +13,6 @@ class LegacyOutputAdapter(nn.Module):
         self.module = module
 
     def forward(self, *args, **kwargs) -> GraspModelResult:
-        return GraspModelResult.from_legacy(self.module(*args, **kwargs))
+        return GraspModelResult.from_legacy(
+            self.module(*args, **kwargs), model=self.module
+        )

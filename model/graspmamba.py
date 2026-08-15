@@ -189,8 +189,9 @@ class HierarchicalFeatureFusion(nn.Module):
 
 
 class GraspMapDecoder(nn.Module):
-    def __init__(self, channels):
+    def __init__(self, channels, predict_short_side=False):
         super().__init__()
+        self.predict_short_side = bool(predict_short_side)
         self.refine_half = ConvNormAct(channels, channels)
         self.refine_full = ConvNormAct(channels, channels)
         self.instance_head = nn.Conv2d(channels, 1, kernel_size=1)
@@ -198,6 +199,8 @@ class GraspMapDecoder(nn.Module):
         self.sine_head = nn.Conv2d(channels, 1, kernel_size=1)
         self.cosine_head = nn.Conv2d(channels, 1, kernel_size=1)
         self.width_head = nn.Conv2d(channels, 1, kernel_size=1)
+        if self.predict_short_side:
+            self.short_side_head = nn.Conv2d(channels, 1, kernel_size=1)
 
     def forward(self, feature, output_size):
         half_size = tuple(max(1, size // 2) for size in output_size)
@@ -209,13 +212,16 @@ class GraspMapDecoder(nn.Module):
             feature, size=output_size, mode="bilinear", align_corners=False
         )
         feature = self.refine_full(feature)
-        return (
+        outputs = (
             self.instance_head(feature),
             self.quality_head(feature),
             self.sine_head(feature),
             self.cosine_head(feature),
             self.width_head(feature),
         )
+        if self.predict_short_side:
+            outputs = (*outputs, self.short_side_head(feature))
+        return outputs
 
 
 class GraspMamba(nn.Module):
@@ -252,7 +258,16 @@ class GraspMamba(nn.Module):
             text_dim=cfg.word_dim,
             fusion_dim=fusion_dim,
         )
-        self.decoder = GraspMapDecoder(fusion_dim)
+        self.predicts_grasp_short_side = bool(
+            getattr(cfg, "predict_grasp_short_side", False)
+        )
+        self.short_side_loss_weight = float(
+            getattr(cfg, "short_side_loss_weight", 1.0)
+        )
+        self.decoder = GraspMapDecoder(
+            fusion_dim,
+            predict_short_side=self.predicts_grasp_short_side,
+        )
         self.instance_loss_weight = getattr(
             cfg, "graspmamba_instance_loss_weight", 1.0
         )
@@ -283,6 +298,7 @@ class GraspMamba(nn.Module):
         grasp_wid_mask=None,
         grasp_off_mask=None,
         grasp_off_weight=None,
+        grasp_short_mask=None,
     ):
         del grasp_off_mask, grasp_off_weight
         with torch.no_grad():
@@ -298,6 +314,11 @@ class GraspMamba(nn.Module):
                 grasp_sin_mask,
                 grasp_cos_mask,
                 grasp_wid_mask,
+                *(
+                    (grasp_short_mask,)
+                    if self.predicts_grasp_short_side
+                    else ()
+                ),
             ),
         )
 
@@ -309,13 +330,24 @@ class GraspMamba(nn.Module):
                 "GraspMamba training requires instance, quality, sine, cosine, "
                 "and width supervision"
             )
-        instance, quality, sine, cosine, width = outputs
-        instance_gt, quality_gt, sine_gt, cosine_gt, width_gt = targets
+        instance, quality, sine, cosine, width = outputs[:5]
+        instance_gt, quality_gt, sine_gt, cosine_gt, width_gt = targets[:5]
+        short_side = (
+            outputs[5] if self.predicts_grasp_short_side else None
+        )
+        short_gt = (
+            targets[5] if self.predicts_grasp_short_side else None
+        )
         instance_loss = F.binary_cross_entropy_with_logits(instance, instance_gt)
         quality_loss = F.binary_cross_entropy_with_logits(quality, quality_gt)
         sine_loss = F.smooth_l1_loss(sine, sine_gt)
         cosine_loss = F.smooth_l1_loss(cosine, cosine_gt)
         width_loss = F.smooth_l1_loss(torch.sigmoid(width), width_gt)
+        short_loss = (
+            F.smooth_l1_loss(torch.sigmoid(short_side), short_gt)
+            if self.predicts_grasp_short_side
+            else None
+        )
         total_loss = (
             self.instance_loss_weight * instance_loss
             + quality_loss
@@ -323,6 +355,10 @@ class GraspMamba(nn.Module):
             + cosine_loss
             + width_loss
         )
+        if short_loss is not None:
+            total_loss = (
+                total_loss + self.short_side_loss_weight * short_loss
+            )
         loss_dict = {
             "m_ins": instance_loss.detach(),
             "m_qua": quality_loss.detach(),
@@ -330,6 +366,8 @@ class GraspMamba(nn.Module):
             "m_cos": cosine_loss.detach(),
             "m_wid": width_loss.detach(),
         }
+        if short_loss is not None:
+            loss_dict["m_short"] = short_loss.detach()
         return (
             tuple(output.detach() for output in outputs),
             targets,

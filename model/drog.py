@@ -9,12 +9,18 @@ from .dinov2.models.vision_transformer import vit_base,vit_large
 from .projector_builder import build_projector
 
 class DROG(nn.Module):
-    grasp_size_loss_activation = "clamp"
+    grasp_size_loss_activation = "sigmoid"
 
     def __init__(self, cfg):
         super().__init__()
         # Text Encoder
         self.use_grasp_masks = cfg.use_grasp_masks
+        self.predicts_grasp_short_side = bool(
+            getattr(cfg, "predict_grasp_short_side", False)
+        )
+        self.short_side_loss_weight = float(
+            getattr(cfg, "short_side_loss_weight", 1.0)
+        )
 
         clip_model = torch.jit.load(cfg.clip_pretrain,
                                     map_location="cpu").eval()
@@ -27,7 +33,7 @@ class DROG(nn.Module):
                 param.requires_grad = False       
    
 
-        state_dict = torch.load(cfg.dino_pretrain) 
+        state_dict = torch.load(cfg.dino_pretrain, map_location="cpu")
         if cfg.dino_name=='dino-base':
             self.dinov2 = vit_base(
                 patch_size=14,
@@ -75,7 +81,7 @@ class DROG(nn.Module):
 
     def forward(self, img, word, mask=None, grasp_qua_mask=None, grasp_sin_mask=None,
                 grasp_cos_mask=None, grasp_wid_mask=None, grasp_off_mask=None,
-                grasp_off_weight=None):
+                grasp_off_weight=None, grasp_short_mask=None):
 
         pad_mask = torch.zeros_like(word).masked_fill_(word == 0, 1).bool()
 
@@ -88,13 +94,17 @@ class DROG(nn.Module):
         fq = self.decoder(fq, word, pad_mask)
         fq = fq.reshape(b, c, h, w)
 
-        # b, 1, 104, 104
-        pred = self.proj(fq, state)
-
         if self.use_grasp_masks:
             
             # b, 1, 104, 104
-            pred, grasp_qua_pred, grasp_sin_pred, grasp_cos_pred, grasp_wid_pred = self.proj(fq, state)
+            outputs = self.proj(fq, state)
+            if self.predicts_grasp_short_side:
+                (pred, grasp_qua_pred, grasp_sin_pred, grasp_cos_pred,
+                 grasp_wid_pred, grasp_short_pred) = outputs
+            else:
+                (pred, grasp_qua_pred, grasp_sin_pred, grasp_cos_pred,
+                 grasp_wid_pred) = outputs
+                grasp_short_pred = None
 
             if self.training:
                 # resize mask
@@ -104,6 +114,16 @@ class DROG(nn.Module):
                     grasp_sin_mask = F.interpolate(grasp_sin_mask, grasp_sin_pred.shape[-2:], mode='nearest').detach()
                     grasp_cos_mask = F.interpolate(grasp_cos_mask, grasp_cos_pred.shape[-2:], mode='nearest').detach()
                     grasp_wid_mask = F.interpolate(grasp_wid_mask, grasp_wid_pred.shape[-2:], mode='nearest').detach()
+                if self.predicts_grasp_short_side:
+                    if grasp_short_mask is None:
+                        raise ValueError(
+                            "Short-side DROG training requires grasp short-side maps"
+                        )
+                    grasp_short_mask = F.interpolate(
+                        grasp_short_mask,
+                        grasp_short_pred.shape[-2:],
+                        mode='nearest',
+                    ).detach()
 
                 # Ratio Augmentation
                 total_area = mask.shape[2] * mask.shape[3]
@@ -116,9 +136,26 @@ class DROG(nn.Module):
                 grasp_qua_loss = F.smooth_l1_loss(grasp_qua_pred, grasp_qua_mask)
                 grasp_sin_loss = F.smooth_l1_loss(grasp_sin_pred, grasp_sin_mask)
                 grasp_cos_loss = F.smooth_l1_loss(grasp_cos_pred, grasp_cos_mask)
-                grasp_wid_loss = F.smooth_l1_loss(grasp_wid_pred, grasp_wid_mask)
+                grasp_wid_loss = F.smooth_l1_loss(
+                    torch.sigmoid(grasp_wid_pred), grasp_wid_mask
+                )
+                grasp_short_loss = (
+                    F.smooth_l1_loss(
+                        torch.sigmoid(grasp_short_pred), grasp_short_mask
+                    )
+                    if self.predicts_grasp_short_side
+                    else None
+                )
 
-                total_loss = loss + grasp_qua_loss + grasp_sin_loss + grasp_cos_loss + grasp_wid_loss
+                total_loss = (
+                    loss + grasp_qua_loss + grasp_sin_loss
+                    + grasp_cos_loss + grasp_wid_loss
+                )
+                if grasp_short_loss is not None:
+                    total_loss = (
+                        total_loss
+                        + self.short_side_loss_weight * grasp_short_loss
+                    )
 
                 loss_dict = {}
                 loss_dict["m_ins"] = loss.detach()
@@ -126,10 +163,29 @@ class DROG(nn.Module):
                 loss_dict["m_sin"] = grasp_sin_loss.detach()
                 loss_dict["m_cos"] = grasp_cos_loss.detach()
                 loss_dict["m_wid"] = grasp_wid_loss.detach()
+                if grasp_short_loss is not None:
+                    loss_dict["m_short"] = grasp_short_loss.detach()
 
-                return (pred.detach(), grasp_qua_pred.detach(), grasp_sin_pred.detach(), grasp_cos_pred.detach(), grasp_wid_pred.detach()), (mask, grasp_qua_mask, grasp_sin_mask, grasp_cos_mask, grasp_wid_mask), total_loss, loss_dict
+                targets = (
+                    mask, grasp_qua_mask, grasp_sin_mask,
+                    grasp_cos_mask, grasp_wid_mask,
+                )
+                if self.predicts_grasp_short_side:
+                    targets = (*targets, grasp_short_mask)
+                return (
+                    tuple(output.detach() for output in outputs),
+                    targets,
+                    total_loss,
+                    loss_dict,
+                )
             else:
-                return (pred.detach(), grasp_qua_pred.detach(), grasp_sin_pred.detach(), grasp_cos_pred.detach(), grasp_wid_pred.detach()), (mask, grasp_qua_mask, grasp_sin_mask, grasp_cos_mask, grasp_wid_mask)
+                targets = (
+                    mask, grasp_qua_mask, grasp_sin_mask,
+                    grasp_cos_mask, grasp_wid_mask,
+                )
+                if self.predicts_grasp_short_side:
+                    targets = (*targets, grasp_short_mask)
+                return tuple(output.detach() for output in outputs), targets
 
         else:
             # b, 1, 104, 104

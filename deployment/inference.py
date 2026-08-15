@@ -287,7 +287,9 @@ class ToolRGSInference:
         image, words, matrix, inverse, scale = self._preprocess(frame_bgr, prompt)
         with torch.inference_mode():
             raw = self.model(image, words)
-        predictions = GraspModelResult.from_legacy(raw).predictions
+        predictions = GraspModelResult.from_legacy(
+            raw, model=self.model
+        ).predictions
         maps = self._maps_to_original(predictions, inverse, frame_bgr.shape[:2])
         segmentation = maps["segmentation"]
         quality = maps["quality"]

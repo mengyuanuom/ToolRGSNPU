@@ -10,7 +10,7 @@ from .crog_layers import FPN, ProjectorOff, TransformerDecoder, MultiTaskProject
 
 class CROGOFF(nn.Module):
     supports_offset = True
-    grasp_size_loss_activation = "clamp"
+    grasp_size_loss_activation = "sigmoid"
 
     def __init__(self, cfg):
         super().__init__()
@@ -20,6 +20,12 @@ class CROGOFF(nn.Module):
         self.use_pretrained_clip = cfg.use_pretrained_clip
         self.use_grasp_masks = cfg.use_grasp_masks
         self.offset_loss_weight = float(getattr(cfg, "offset_loss_weight", 1.0))
+        self.predicts_grasp_short_side = bool(
+            getattr(cfg, "predict_grasp_short_side", False)
+        )
+        self.short_side_loss_weight = float(
+            getattr(cfg, "short_side_loss_weight", 1.0)
+        )
         
         # Vision & Text Encoder
         clip_model = torch.jit.load(cfg.clip_pretrain,
@@ -44,14 +50,19 @@ class CROGOFF(nn.Module):
         if self.use_grasp_masks:
             # Projector
             print("Use grasp masks")
-            self.proj = MultiTaskProjectorOff(cfg.word_dim, cfg.vis_dim // 2, 3)
+            self.proj = MultiTaskProjectorOff(
+                cfg.word_dim,
+                cfg.vis_dim // 2,
+                3,
+                predict_short_side=self.predicts_grasp_short_side,
+            )
         else:
             print("Disable grasp masks")
             self.proj = ProjectorOff(cfg.word_dim, cfg.vis_dim // 2, 3)
 
     def forward(self, img, word, mask=None, grasp_qua_mask=None, grasp_sin_mask=None,
                 grasp_cos_mask=None, grasp_wid_mask=None, grasp_off_mask=None,
-                grasp_off_weight=None):
+                grasp_off_weight=None, grasp_short_mask=None):
         '''
             img: b, 3, h, w
             word: b, words
@@ -78,7 +89,14 @@ class CROGOFF(nn.Module):
         if self.use_grasp_masks:
             
             # b, 1, 104, 104
-            pred, grasp_qua_pred, grasp_sin_pred, grasp_cos_pred, grasp_wid_pred, grasp_off_pred = self.proj(fq, state)
+            outputs = self.proj(fq, state)
+            if self.predicts_grasp_short_side:
+                (pred, grasp_qua_pred, grasp_sin_pred, grasp_cos_pred,
+                 grasp_wid_pred, grasp_short_pred, grasp_off_pred) = outputs
+            else:
+                (pred, grasp_qua_pred, grasp_sin_pred, grasp_cos_pred,
+                 grasp_wid_pred, grasp_off_pred) = outputs
+                grasp_short_pred = None
 
             if self.training:
                 target_size = pred.shape[-2:]
@@ -87,6 +105,14 @@ class CROGOFF(nn.Module):
                 grasp_sin_mask = F.interpolate(grasp_sin_mask, target_size, mode='nearest').detach()
                 grasp_cos_mask = F.interpolate(grasp_cos_mask, target_size, mode='nearest').detach()
                 grasp_wid_mask = F.interpolate(grasp_wid_mask, target_size, mode='nearest').detach()
+                if self.predicts_grasp_short_side:
+                    if grasp_short_mask is None:
+                        raise ValueError(
+                            "Short-side CROG-OFF training requires grasp short-side maps"
+                        )
+                    grasp_short_mask = F.interpolate(
+                        grasp_short_mask, target_size, mode='nearest'
+                    ).detach()
                 grasp_off_mask = F.interpolate(
                     grasp_off_mask, target_size, mode='bilinear', align_corners=False
                 ).detach()
@@ -107,7 +133,16 @@ class CROGOFF(nn.Module):
                 grasp_qua_loss = F.smooth_l1_loss(grasp_qua_pred, grasp_qua_mask)
                 grasp_sin_loss = F.smooth_l1_loss(grasp_sin_pred, grasp_sin_mask)
                 grasp_cos_loss = F.smooth_l1_loss(grasp_cos_pred, grasp_cos_mask)
-                grasp_wid_loss = F.smooth_l1_loss(grasp_wid_pred, grasp_wid_mask)
+                grasp_wid_loss = F.smooth_l1_loss(
+                    torch.sigmoid(grasp_wid_pred), grasp_wid_mask
+                )
+                grasp_short_loss = (
+                    F.smooth_l1_loss(
+                        torch.sigmoid(grasp_short_pred), grasp_short_mask
+                    )
+                    if self.predicts_grasp_short_side
+                    else None
+                )
                 off_error = F.smooth_l1_loss(
                     grasp_off_pred, grasp_off_mask, reduction='none'
                 )
@@ -118,6 +153,11 @@ class CROGOFF(nn.Module):
                 total_loss = (loss + grasp_qua_loss + grasp_sin_loss +
                               grasp_cos_loss + grasp_wid_loss +
                               self.offset_loss_weight * grasp_off_loss)
+                if grasp_short_loss is not None:
+                    total_loss = (
+                        total_loss
+                        + self.short_side_loss_weight * grasp_short_loss
+                    )
 
                 loss_dict = {}
                 loss_dict["m_ins"] = loss.item()
@@ -126,13 +166,34 @@ class CROGOFF(nn.Module):
                 loss_dict["m_cos"] = grasp_cos_loss.item()
                 loss_dict["m_wid"] = grasp_wid_loss.item()
                 loss_dict["m_off"] = grasp_off_loss.item()
+                if grasp_short_loss is not None:
+                    loss_dict["m_short"] = grasp_short_loss.item()
 
                 # loss = F.binary_cross_entropy_with_logits(pred, mask, reduction="none").sum(dim=(2,3))
                 # loss = torch.dot(coef.squeeze(), loss.squeeze()) / (mask.shape[0] * mask.shape[2] * mask.shape[3])
 
-                return (pred.detach(), grasp_qua_pred.detach(), grasp_sin_pred.detach(), grasp_cos_pred.detach(), grasp_wid_pred.detach(), grasp_off_pred.detach()), (mask, grasp_qua_mask, grasp_sin_mask, grasp_cos_mask, grasp_wid_mask, grasp_off_mask), total_loss, loss_dict
+                targets = (
+                    mask, grasp_qua_mask, grasp_sin_mask,
+                    grasp_cos_mask, grasp_wid_mask,
+                )
+                if self.predicts_grasp_short_side:
+                    targets = (*targets, grasp_short_mask)
+                targets = (*targets, grasp_off_mask)
+                return (
+                    tuple(output.detach() for output in outputs),
+                    targets,
+                    total_loss,
+                    loss_dict,
+                )
             else:
-                return (pred.detach(), grasp_qua_pred.detach(), grasp_sin_pred.detach(), grasp_cos_pred.detach(), grasp_wid_pred.detach(), grasp_off_pred.detach()), (mask, grasp_qua_mask, grasp_sin_mask, grasp_cos_mask, grasp_wid_mask, grasp_off_mask)
+                targets = (
+                    mask, grasp_qua_mask, grasp_sin_mask,
+                    grasp_cos_mask, grasp_wid_mask,
+                )
+                if self.predicts_grasp_short_side:
+                    targets = (*targets, grasp_short_mask)
+                targets = (*targets, grasp_off_mask)
+                return tuple(output.detach() for output in outputs), targets
 
         else:
             # b, 1, 104, 104

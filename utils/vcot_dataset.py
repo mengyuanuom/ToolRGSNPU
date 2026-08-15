@@ -121,6 +121,7 @@ class VCoTDataset(Dataset):
         offset_radius=20.0,
         offset_sigma=None,
         grasp_size_factor=300.0,
+        grasp_size_coordinate="canvas",
         grasp_target_policy="all",
         vcot_official_val_size=VCOT_OFFICIAL_VAL_SIZE,
     ):
@@ -134,6 +135,12 @@ class VCoTDataset(Dataset):
         self.grasp_size_factor = float(grasp_size_factor)
         if self.grasp_size_factor <= 0:
             raise ValueError("grasp_size_factor must be positive")
+        self.grasp_size_coordinate = str(grasp_size_coordinate).strip().lower()
+        if self.grasp_size_coordinate not in {"canvas", "original"}:
+            raise ValueError(
+                "grasp_size_coordinate must be 'canvas' or 'original', got "
+                f"{grasp_size_coordinate!r}"
+            )
         self.grasp_target_policy = str(grasp_target_policy).strip().lower()
         if self.grasp_target_policy not in {"all", "first"}:
             raise ValueError(
@@ -300,9 +307,14 @@ class VCoTDataset(Dataset):
         else:
             training_input_targets = input_targets
             training_original_targets = original_targets
+        size_targets = (
+            training_original_targets
+            if self.grasp_size_coordinate == "original"
+            else training_input_targets
+        )
         raw_masks = self.grasp_transform.generate_masks(
             training_input_targets,
-            size_rectangles=training_original_targets,
+            size_rectangles=size_targets,
         )
         angle = raw_masks["ang"].astype(np.float32) * np.pi / 180.0
         grasp_masks = {
