@@ -54,8 +54,8 @@ TRAIN:
   # Conservative per-process profile for two accelerators.
   workers: 4
   workers_val: 2
-  epochs: 50
-  milestones: [35]
+  epochs: 36
+  milestones: [30]
   start_epoch: 0
   batch_size: 128  # global batch size
   batch_size_val: 8  # global validation batch size

@@ -26,8 +26,8 @@ class DrogoffResourceProfileTest(unittest.TestCase):
                 path,
             )
             if path.parent.name == "vcot":
-                self.assertEqual(train["epochs"], 50, path)
-                self.assertEqual(train["milestones"], [35], path)
+                self.assertEqual(train["epochs"], 36, path)
+                self.assertEqual(train["milestones"], [30], path)
             self.assertEqual(train["workers"], 4, path)
             self.assertEqual(train["workers_val"], 2, path)
             self.assertEqual(train["print_freq"], 100, path)
