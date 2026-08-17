@@ -250,6 +250,17 @@ matching file under `config/vcot/`, for example:
 ```bash
 python train.py --config config/vcot/drogoff.yaml
 ```
+To train the opt-in Dense Offset V2 profile instead, run:
+
+```bash
+python train.py --config config/vcot/drogoff_v2.yaml
+```
+
+`drogoff_v2.yaml` supervises center offsets over the complete dense quality
+region, resolves overlapping grasp ownership consistently, decodes normalized
+offsets with each predicted grasp's scale, and only translates the center. The
+legacy `drogoff.yaml` protocol remains unchanged for checkpoint compatibility.
+
 
 The checked-in VCoT profiles point to
 `./datasets/graspanything-vcot`; override `DATA.root_path` and

@@ -88,6 +88,7 @@ class CheckpointPolicyTest(unittest.TestCase):
             self.assertEqual(payloads[-1]["best_iou"], 0.50)
             self.assertEqual(payloads[-1]["best_j1_index"], 0.40)
             self.assertEqual(payloads[-1]["best_j5_index"], 0.70)
+            self.assertEqual(payloads[-1]["offset_version"], "v1")
             self.assertEqual(
                 payloads[-1]["validation"],
                 {"iou": 0.44, "j_at_one": 0.34, "j_at_five": 0.65},

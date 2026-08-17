@@ -116,12 +116,20 @@ class DROGOFF(DROG):
 
         if grasp_off_mask is None or grasp_off_weight is None:
             raise ValueError("DROGOFF training requires offset and offset-weight maps")
-        grasp_off_mask = F.interpolate(
-            grasp_off_mask, target_size, mode="bilinear", align_corners=False
-        ).detach()
-        grasp_off_weight = F.interpolate(
-            grasp_off_weight, target_size, mode="nearest"
-        ).detach()
+        if grasp_off_mask.shape[-2:] != tuple(target_size):
+            resized_weight = F.interpolate(
+                grasp_off_weight, target_size, mode="bilinear", align_corners=False
+            )
+            resized_numerator = F.interpolate(
+                grasp_off_mask * grasp_off_weight,
+                target_size,
+                mode="bilinear",
+                align_corners=False,
+            )
+            grasp_off_mask = resized_numerator / resized_weight.clamp_min(1e-6)
+            grasp_off_weight = resized_weight
+        grasp_off_mask = grasp_off_mask.detach()
+        grasp_off_weight = grasp_off_weight.detach()
         targets = (*targets[:-1], grasp_off_mask)
 
         seg_weight = mask * 0.5 + 1.0

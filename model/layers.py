@@ -516,22 +516,38 @@ class OffsetMultiTaskProjector(nn.Module):
         in_dim=256,
         kernel_size=3,
         with_short_side=False,
+        offset_head="legacy",
+        offset_hidden_dim=64,
     ):
         super().__init__()
         self.base = MultiTaskProjector(
             word_dim, in_dim, kernel_size, with_short_side=with_short_side
         )
         self.with_short_side = bool(with_short_side)
-        # Offset prediction is geometric rather than class-specific. It consumes
-        # the same fused feature map but does not need another dynamic text kernel.
-        self.offset = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
-            conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
-            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
-            conv_layer(in_dim * 2, in_dim, 3, padding=1),
-            nn.Conv2d(in_dim, 2, 1),
-            nn.Tanh(),
-        )
+        offset_head = str(offset_head).strip().lower()
+        if offset_head == "lightweight":
+            hidden = max(16, int(offset_hidden_dim))
+            self.offset = nn.Sequential(
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+                conv_layer(in_dim * 2, hidden * 2, 3, padding=1),
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+                conv_layer(hidden * 2, hidden, 3, padding=1),
+                nn.Conv2d(hidden, 2, 1),
+                nn.Tanh(),
+            )
+        elif offset_head == "legacy":
+            self.offset = nn.Sequential(
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+                conv_layer(in_dim * 2, in_dim * 2, 3, padding=1),
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
+                conv_layer(in_dim * 2, in_dim, 3, padding=1),
+                nn.Conv2d(in_dim, 2, 1),
+                nn.Tanh(),
+            )
+        else:
+            raise ValueError(
+                f"Unknown offset_head {offset_head!r}; use 'legacy' or 'lightweight'"
+            )
 
     def forward(self, x, word):
         outputs = self.base(x, word)

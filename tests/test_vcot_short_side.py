@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class VCoTShortSideTests(unittest.TestCase):
     def test_all_vcot_grasp_profiles_enable_short_side_regression(self):
         paths = sorted((ROOT / "config" / "vcot").glob("*.yaml"))
-        self.assertEqual(len(paths), 11)
+        self.assertEqual(len(paths), 12)
         for path in paths:
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
             if path.name == "maplegrasp_stage1.yaml":

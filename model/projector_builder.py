@@ -24,6 +24,13 @@ def build_projector(cfg, with_offset=False) -> nn.Module:
                 getattr(cfg, "predict_grasp_short_side", False)
             ),
         }
+        if with_offset:
+            projector_kwargs.update(
+                offset_head=getattr(cfg, "offset_head", "legacy"),
+                offset_hidden_dim=int(
+                    getattr(cfg, "offset_hidden_dim", 64)
+                ),
+            )
         projector = projector_cls(**projector_kwargs)
     elif proj_type == "film" and not with_offset:
         projector = FiLMProjector(

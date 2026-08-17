@@ -14,7 +14,12 @@ from model.graspmamba import GraspMapDecoder, HierarchicalFeatureFusion
 from model.layers import MultiTaskProjector, OffsetMultiTaskProjector
 from model.lgd import CosineDiffusion, LGDCore
 from model.maplegrasp import MultiTaskProjectorPP
-from utils.dataset import GraspTransforms, make_dense_offset_with_radius_np
+from utils.dataset import (
+    GraspTransforms,
+    grasp_quality_owner_map_np,
+    make_dense_grasp_region_offset_np,
+    make_dense_offset_with_radius_np,
+)
 from toolrgs.datasets import DATASET_REGISTRY
 from utils.ocid_vlg_dataset import parse_ocid_image_filename, resolve_ocid_vlg_split
 from utils.vcot_dataset import grasp_anything_to_quads, resolve_vcot_split
@@ -88,7 +93,7 @@ class ToolRGSContractsTest(unittest.TestCase):
 
         for directory, dataset_name, expected_configs in (
             ("grasp_tools", "grasptool", (expected - {"drogoff"}) | {"drogoff_v2"}),
-            ("vcot", "vcot", expected | {"maplegrasp_stage1", "maplegrasp_stage2"}),
+            ("vcot", "vcot", expected | {"drogoff_v2", "maplegrasp_stage1", "maplegrasp_stage2"}),
             ("ocid_vlg", "ocid_vlg", expected | {"etrg", "etrg_r101"}),
         ):
             configs = glob.glob(f"config/{directory}/*.yaml")
@@ -135,6 +140,28 @@ class ToolRGSContractsTest(unittest.TestCase):
         self.assertEqual(len(outputs), 7)
         self.assertEqual(tuple(outputs[5].shape), (2, 1, 32, 32))
         self.assertEqual(tuple(outputs[6].shape), (2, 2, 32, 32))
+
+    def test_lightweight_offset_projector_reduces_offset_parameters(self):
+        legacy = OffsetMultiTaskProjector(
+            word_dim=32, in_dim=64, offset_head="legacy"
+        )
+        lightweight = OffsetMultiTaskProjector(
+            word_dim=32,
+            in_dim=64,
+            offset_head="lightweight",
+            offset_hidden_dim=16,
+        )
+        legacy_parameters = sum(
+            parameter.numel() for parameter in legacy.offset.parameters()
+        )
+        light_parameters = sum(
+            parameter.numel() for parameter in lightweight.offset.parameters()
+        )
+        self.assertLess(light_parameters, legacy_parameters)
+        output = lightweight(
+            torch.randn(1, 128, 4, 4), torch.randn(1, 32)
+        )[-1]
+        self.assertEqual(tuple(output.shape), (1, 2, 16, 16))
 
     def test_maplegrasp_projector_output_contract(self):
         projector = MultiTaskProjectorPP(
@@ -188,6 +215,35 @@ class ToolRGSContractsTest(unittest.TestCase):
         np.testing.assert_allclose(offset[:, 9, 8], 0.0, atol=1e-6)
         self.assertGreater(offset[0, 9, 6], 0.0)
         self.assertGreater(weight[0, 9, 8], weight[0, 9, 6])
+        self.assertLessEqual(np.abs(offset).max(), 1.0)
+
+    def test_dense_v2_offset_covers_quality_region_and_uses_one_owner(self):
+        rectangles = np.array(
+            [
+                [12.0, 10.0, 16.0, 8.0, 0.0, 0.0],
+                [14.0, 10.0, 16.0, 8.0, 0.0, 0.0],
+            ],
+            dtype=np.float32,
+        )
+        owner, _ = grasp_quality_owner_map_np(rectangles, (24, 24))
+        offset, weight = make_dense_grasp_region_offset_np(
+            rectangles, owner, weight_floor=0.25
+        )
+        self.assertEqual(offset.shape, (2, 24, 24))
+        self.assertEqual(weight.shape, (1, 24, 24))
+        self.assertEqual(owner[10, 12], 0)
+        self.assertEqual(owner[10, 14], 1)
+        self.assertEqual(owner[10, 8], 0)
+        scale = np.hypot(16.0 * 0.25, 8.0 * 0.5)
+        decoded_x = 8.0 + offset[0, 10, 8] * scale
+        decoded_y = 10.0 + offset[1, 10, 8] * scale
+        np.testing.assert_allclose(
+            [decoded_x, decoded_y], [12.0, 10.0], atol=1e-5
+        )
+        np.testing.assert_allclose(offset[:, 10, 12], 0.0, atol=1e-6)
+        self.assertGreaterEqual(weight[0, 10, 8], 0.25)
+        self.assertGreater(weight[0, 10, 12], weight[0, 10, 8])
+        self.assertEqual(weight[0, 0, 0], 0.0)
         self.assertLessEqual(np.abs(offset).max(), 1.0)
 
     def test_lgd_dense_diffusion_contract(self):

@@ -21,6 +21,7 @@ from toolrgs.evaluation import (
     inverse_warp,
     rectangles_to_five,
     refine_with_offset,
+    refine_with_grasp_relative_offset,
     resolve_evaluation_protocol,
     resample_grasp_geometry,
     targets_to_six,
@@ -134,6 +135,14 @@ class GraspValLoop(BaseLoop):
         self.grasp_size_activation = resolve_grasp_size_activation(
             getattr(cfg, "grasp_size_activation", "auto"), model=model
         )
+        self.offset_decode_mode = str(
+            getattr(cfg, "offset_decode_mode", "radius")
+        ).strip().lower()
+        if self.offset_decode_mode not in {"radius", "grasp_relative"}:
+            raise ValueError(
+                "offset_decode_mode must be 'radius' or 'grasp_relative', got "
+                f"{self.offset_decode_mode!r}"
+            )
 
     def _decode_size(self, prediction):
         if self.grasp_size_activation == "sigmoid":
@@ -420,12 +429,19 @@ class GraspValLoop(BaseLoop):
                 )
                 rectangles = [detection.as_rectangle() for detection in detections]
                 if offset_maps is not None and rectangles:
-                    rectangles = refine_with_offset(
-                        rectangles,
-                        offset_maps[index : index + 1],
-                        inverse_matrix,
-                        self._offset_radius(input_hw),
-                    )
+                    if self.offset_decode_mode == "grasp_relative":
+                        rectangles = refine_with_grasp_relative_offset(
+                            rectangles,
+                            offset_maps[index : index + 1],
+                            inverse_matrix,
+                        )
+                    else:
+                        rectangles = refine_with_offset(
+                            rectangles,
+                            offset_maps[index : index + 1],
+                            inverse_matrix,
+                            self._offset_radius(input_hw),
+                        )
                     if bool(
                         getattr(self.cfg, "offset_resample_geometry", False)
                     ):

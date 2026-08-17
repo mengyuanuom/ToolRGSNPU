@@ -106,6 +106,18 @@ class NPUGraspRunner:
 
     def _load_initial_weight(self, filename):
         checkpoint = torch.load(filename, map_location="cpu")
+        if isinstance(checkpoint, dict):
+            checkpoint_offset_version = checkpoint.get("offset_version")
+            configured_offset_version = str(
+                getattr(self.cfg, "offset_version", "v1")
+            ).strip().lower()
+            if checkpoint_offset_version is not None and str(
+                checkpoint_offset_version
+            ).strip().lower() != configured_offset_version:
+                raise ValueError(
+                    "Initial weight offset_version does not match the config: "
+                    f"{checkpoint_offset_version!r} vs {configured_offset_version!r}"
+                )
         state = (
             checkpoint.get("state_dict", checkpoint)
             if isinstance(checkpoint, dict)
@@ -302,6 +314,7 @@ class NPUGraspRunner:
             checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
             checkpoint_activation = checkpoint.get("grasp_size_activation")
             checkpoint_short_side = checkpoint.get("predict_grasp_short_side")
+            checkpoint_offset_version = checkpoint.get("offset_version")
             configured_factor = float(getattr(cfg, "grasp_size_factor", 100.0))
             configured_coordinate = str(
                 getattr(cfg, "grasp_size_coordinate", "original")
@@ -309,6 +322,9 @@ class NPUGraspRunner:
             configured_short_side = bool(
                 getattr(cfg, "predict_grasp_short_side", False)
             )
+            configured_offset_version = str(
+                getattr(cfg, "offset_version", "v1")
+            ).strip().lower()
             if checkpoint_factor is not None and not abs(
                 float(checkpoint_factor) - configured_factor
             ) < 1e-6:
@@ -339,6 +355,13 @@ class NPUGraspRunner:
                     "Resume checkpoint short-side protocol does not match the "
                     f"config: {checkpoint_short_side!r} vs "
                     f"{configured_short_side!r}"
+                )
+            if checkpoint_offset_version is not None and str(
+                checkpoint_offset_version
+            ).strip().lower() != configured_offset_version:
+                raise ValueError(
+                    "Resume checkpoint offset_version does not match the config: "
+                    f"{checkpoint_offset_version!r} vs {configured_offset_version!r}"
                 )
             self._load_model_state(checkpoint["state_dict"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -447,6 +470,9 @@ class NPUGraspRunner:
                 getattr(cfg, "predict_grasp_short_side", False)
             ),
             "optimizer": self.optimizer.state_dict(),
+            "offset_version": str(
+                getattr(cfg, "offset_version", "v1")
+            ).strip().lower(),
             "scheduler": self.scheduler.state_dict(),
             "precision": precision,
             "j_index": j_index,

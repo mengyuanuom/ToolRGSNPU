@@ -67,7 +67,7 @@ class VCoTOfficialEvaluationTest(unittest.TestCase):
 
     def test_every_vcot_npu_profile_selects_official_evaluation(self):
         paths = sorted((ROOT / "config" / "vcot").glob("*.yaml"))
-        self.assertEqual(len(paths), 11)
+        self.assertEqual(len(paths), 12)
         for path in paths:
             cfg = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             self.assertEqual(

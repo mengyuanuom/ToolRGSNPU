@@ -1,0 +1,103 @@
+DATA:
+  grasp_size_factor: 300
+  grasp_height: 20.0
+  grasp_size_coordinate: canvas
+  dataset: vcot
+  root_path: ./datasets/graspanything-vcot
+  split_root: ./datasets/graspanything-vcot/split/vcot
+  prompt_template: "Grasp the {object_name}"
+  train_split: train_official
+  val_split: val_official
+  grasp_target_policy: all
+  vcot_official_val_size: 5000
+  offset_r: 20
+  offset_sigma:
+  offset_version: v2
+  offset_target_stride: 4
+  offset_weight_floor: 0.25
+MODEL:
+  architecture: drogoff
+  offset_head: lightweight
+  offset_hidden_dim: 64
+TRAIN:
+  version: multiple
+  visual_adapter_dim: 128
+  visual_adapter_layer: [1,3,5,7,9,11]
+  txt_adapter_dim: 64
+  txtual_adapter_layer: [1,3,5,7,9,11]
+  # Base Arch
+  clip_pretrain: pretrain/ViT-B-16.pt
+  dino_pretrain: pretrain/dinov2_vitb14_reg4_pretrain.pth
+  dino_layers: 12
+  output_dinov2: [4, 8]
+  dino_name: dino-base
+  model_name: CLIP-b-16
+  input_size: 448
+  word_len: 17
+  word_dim: 512
+  ladder_dim: 128
+  nhead: 8
+  multi_stage: 3
+  stride: [1, 1, 1]
+  vis_dim: 512
+  fpn_in: [768, 768, 768] #dinov2 backbone
+  fpn_out: [256, 512, 1024]
+
+  sync_bn: False
+  amp: False
+  optimizer: adam
+  pin_memory: False
+  projector: dynamic
+  # Decoder
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 512
+  dropout: 0.1
+  intermediate: False
+
+  # Training Setting
+  # Conservative per-process profile for two accelerators.
+  workers: 4
+  workers_val: 2
+  epochs: 36
+  milestones: [30]
+  start_epoch: 0
+  batch_size: 128  # global batch size
+  batch_size_val: 8  # global validation batch size
+  base_lr: 0.0001
+  lr_decay: 0.1
+  lr_multi: 1
+  weight_decay: 0.
+  max_norm: 1.0
+  manual_seed: 0
+  print_freq: 100
+  # Resume & Save
+  exp_name: drogoff_v2_vcot
+  offset_loss_weight: 0.1
+  predict_grasp_short_side: True
+  short_side_loss_weight: 1.0
+  output_folder: exp/vcot
+  save_freq: 5
+  weight:  # path to initial weight (default: none)
+  resume: # path to latest checkpoint (default: none)
+  evaluate: True
+  use_grasp_masks: True # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
+Distributed:
+  dist_url: env://
+  dist_backend: 'hccl'
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+
+TEST:
+  grasp_size_activation: auto
+  test_split: unseen
+  evaluation_protocol: vcot_official
+  grasp_topk: [1]
+  grasp_iou_threshold: 0.25
+  grasp_angle_threshold: 30.0
+  filter_grasps_by_segmentation: False
+  restore_grasp_size_scale: True
+  offset_decode_mode: grasp_relative
+  offset_resample_geometry: False
+  visualize: False

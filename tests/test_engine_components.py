@@ -12,6 +12,7 @@ from toolrgs.evaluation import (
     five_to_corners,
     inverse_warp,
     refine_with_offset,
+    refine_with_grasp_relative_offset,
     resolve_evaluation_protocol,
     resample_grasp_geometry,
     targets_to_six,
@@ -39,6 +40,37 @@ class EvaluationComponentTest(unittest.TestCase):
         )
         np.testing.assert_allclose(refined[0][:2], [20.0, 15.0], atol=1e-4)
         np.testing.assert_allclose(refined[0][2:4], [8.0, 4.0], atol=1e-4)
+
+    def test_offset_sampling_is_bilinear_at_fractional_center(self):
+        identity = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
+        offset = np.zeros((2, 4, 4), dtype=np.float32)
+        offset[0, 1, 2] = 1.0
+        offset[0, 2, 1] = 1.0
+        rectangle = [1.5, 1.5, 4.0, 4.0, 0.0]
+        refined = refine_with_grasp_relative_offset(
+            [rectangle], offset, identity
+        )[0]
+        scale = np.hypot(4.0 * 0.25, 4.0 * 0.5)
+        np.testing.assert_allclose(
+            refined[:2], [1.5 + 0.5 * scale, 1.5], atol=1e-4
+        )
+
+    def test_grasp_relative_offset_only_translates_center(self):
+        identity = np.array([[1, 0, 0], [0, 1, 0]], dtype=np.float32)
+        offset = np.zeros((2, 32, 32), dtype=np.float32)
+        offset[0] = 0.5
+        offset[1] = -0.25
+        rectangle = [10.0, 20.0, 8.0, 4.0, 0.0]
+        refined = refine_with_grasp_relative_offset(
+            [rectangle], offset, identity
+        )[0]
+        scale = np.hypot(8.0 * 0.25, 4.0 * 0.5)
+        np.testing.assert_allclose(
+            refined[:2],
+            [10.0 + 0.5 * scale, 20.0 - 0.25 * scale],
+            atol=1e-4,
+        )
+        np.testing.assert_allclose(refined[2:4], rectangle[2:4], atol=1e-4)
 
     def test_geometry_is_bilinearly_resampled_at_refined_center(self):
         sine = np.zeros((4, 4), dtype=np.float32)

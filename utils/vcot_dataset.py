@@ -13,7 +13,13 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from utils.dataset import GraspTransforms, make_dense_offset_with_radius_np, tokenize
+from utils.dataset import (
+    GraspTransforms,
+    grasp_quality_owner_map_np,
+    make_dense_grasp_region_offset_np,
+    make_dense_offset_with_radius_np,
+    tokenize,
+)
 
 
 _SPLIT_FILES = {
@@ -115,6 +121,9 @@ class VCoTDataset(Dataset):
         input_size=416,
         split="train",
         word_length=17,
+        offset_version="v1",
+        offset_target_stride=4,
+        offset_weight_floor=0.25,
         split_root=None,
         prompt_template="Grasp the {object_name}",
         with_offset=False,
@@ -132,6 +141,17 @@ class VCoTDataset(Dataset):
         self.with_offset = bool(with_offset)
         self.offset_radius = float(offset_radius)
         self.offset_sigma = offset_sigma
+        self.offset_version = str(offset_version).strip().lower()
+        if self.offset_version not in {"v1", "v2"}:
+            raise ValueError(
+                f"offset_version must be 'v1' or 'v2', got {offset_version!r}"
+            )
+        self.offset_target_stride = int(offset_target_stride)
+        if self.offset_target_stride <= 0:
+            raise ValueError("offset_target_stride must be positive")
+        self.offset_weight_floor = float(offset_weight_floor)
+        if not 0.0 <= self.offset_weight_floor <= 1.0:
+            raise ValueError("offset_weight_floor must be between 0 and 1")
         self.grasp_size_factor = float(grasp_size_factor)
         if self.grasp_size_factor <= 0:
             raise ValueError("grasp_size_factor must be positive")
@@ -301,6 +321,7 @@ class VCoTDataset(Dataset):
         transformed_quads = self._apply_affine(quads, matrix)
         original_targets = self.grasp_transform(quads, target=0)
         input_targets = self.grasp_transform(transformed_quads, target=0)
+        consistent_owner = self.with_offset and self.offset_version == "v2"
         if self.grasp_target_policy == "first":
             training_input_targets = input_targets[:1]
             training_original_targets = original_targets[:1]
@@ -315,6 +336,7 @@ class VCoTDataset(Dataset):
         raw_masks = self.grasp_transform.generate_masks(
             training_input_targets,
             size_rectangles=size_targets,
+            consistent_owner=consistent_owner,
         )
         angle = raw_masks["ang"].astype(np.float32) * np.pi / 180.0
         grasp_masks = {
@@ -327,13 +349,32 @@ class VCoTDataset(Dataset):
             ),
         }
         if self.with_offset:
-            offsets, offset_weights = make_dense_offset_with_radius_np(
-                centers_xy=training_input_targets[:, :2],
-                img_size_hw=self.input_size,
-                r_pix=self.offset_radius,
-                use_gaussian=True,
-                sigma=self.offset_sigma,
-            )
+            if self.offset_version == "v2":
+                target_h = max(1, self.input_size[0] // self.offset_target_stride)
+                target_w = max(1, self.input_size[1] // self.offset_target_stride)
+                scale_x = target_w / float(self.input_size[1])
+                scale_y = target_h / float(self.input_size[0])
+                offset_rectangles = training_input_targets.copy()
+                offset_rectangles[:, 0] *= scale_x
+                offset_rectangles[:, 1] *= scale_y
+                offset_rectangles[:, 2] *= scale_x
+                offset_rectangles[:, 3] *= scale_y
+                owner_map, _ = grasp_quality_owner_map_np(
+                    offset_rectangles, (target_h, target_w)
+                )
+                offsets, offset_weights = make_dense_grasp_region_offset_np(
+                    offset_rectangles,
+                    owner_map,
+                    weight_floor=self.offset_weight_floor,
+                )
+            else:
+                offsets, offset_weights = make_dense_offset_with_radius_np(
+                    centers_xy=training_input_targets[:, :2],
+                    img_size_hw=self.input_size,
+                    r_pix=self.offset_radius,
+                    use_gaussian=True,
+                    sigma=self.offset_sigma,
+                )
             grasp_masks["off"] = torch.from_numpy(offsets).float()
             grasp_masks["off_w"] = torch.from_numpy(offset_weights).float()
 

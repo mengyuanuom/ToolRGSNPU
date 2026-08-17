@@ -57,6 +57,11 @@ def build_dataset(cfg, split, with_offset=False):
         with_offset=with_offset,
         offset_radius=getattr(cfg, "offset_r", 20.0),
         offset_sigma=getattr(cfg, "offset_sigma", None),
+        offset_version=getattr(cfg, "offset_version", "v1"),
+        offset_target_stride=int(getattr(cfg, "offset_target_stride", 4)),
+        offset_weight_floor=float(
+            getattr(cfg, "offset_weight_floor", 0.25)
+        ),
         grasp_size_factor=float(getattr(cfg, "grasp_size_factor", 100.0)),
         grasp_size_coordinate=str(
             getattr(cfg, "grasp_size_coordinate", "canvas")

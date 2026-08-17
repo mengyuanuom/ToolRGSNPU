@@ -13,12 +13,26 @@ from model import build_model
 from utils.config import load_cfg_from_cfg_file, resolve_grasp_size_activation
 from utils.dataset import CLIP_MEAN, CLIP_STD, tokenize
 from toolrgs.structures import GraspModelResult
-from toolrgs.evaluation import DenseGraspPostProcessor  # registers evaluation components
+from toolrgs.evaluation import (
+    DenseGraspPostProcessor,
+    grasp_relative_offset_scale,
+)
 from toolrgs.registry import POSTPROCESSORS
 from toolrgs.preflight import validate_required_artifacts
 from toolrgs.runtime import is_npu_available, set_device
-
 from .config import resolve_repo_path
+
+def _sample_bilinear(array, x, y):
+    values = np.asarray(array, dtype=np.float32)
+    height, width = values.shape
+    x = float(np.clip(x, 0.0, width - 1.0))
+    y = float(np.clip(y, 0.0, height - 1.0))
+    x0, y0 = int(np.floor(x)), int(np.floor(y))
+    x1, y1 = min(x0 + 1, width - 1), min(y0 + 1, height - 1)
+    wx, wy = x - x0, y - y0
+    top = (1.0 - wx) * values[y0, x0] + wx * values[y0, x1]
+    bottom = (1.0 - wx) * values[y1, x0] + wx * values[y1, x1]
+    return float((1.0 - wy) * top + wy * bottom)
 
 
 @dataclass
@@ -131,11 +145,11 @@ class ToolRGSInference:
             state = checkpoint
         if not isinstance(state, dict):
             raise ValueError(f"Unsupported checkpoint payload in {checkpoint_path}")
-        _load_state(self.model, state)
         if isinstance(checkpoint, dict):
             checkpoint_factor = checkpoint.get("grasp_size_factor")
             checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
             checkpoint_short_side = checkpoint.get("predict_grasp_short_side")
+            checkpoint_offset_version = checkpoint.get("offset_version")
             configured_factor = float(getattr(self.cfg, "grasp_size_factor", 100.0))
             configured_coordinate = str(
                 getattr(self.cfg, "grasp_size_coordinate", "original")
@@ -143,6 +157,9 @@ class ToolRGSInference:
             configured_short_side = bool(
                 getattr(self.cfg, "predict_grasp_short_side", False)
             )
+            configured_offset_version = str(
+                getattr(self.cfg, "offset_version", "v1")
+            ).strip().lower()
             if checkpoint_factor is not None and not abs(
                 float(checkpoint_factor) - configured_factor
             ) < 1e-6:
@@ -165,6 +182,14 @@ class ToolRGSInference:
                     f"{checkpoint_short_side!r} vs "
                     f"{configured_short_side!r}"
                 )
+            if checkpoint_offset_version is not None and str(
+                checkpoint_offset_version
+            ).strip().lower() != configured_offset_version:
+                raise ValueError(
+                    "Checkpoint/config offset_version mismatch: "
+                    f"{checkpoint_offset_version!r} vs {configured_offset_version!r}"
+                )
+        _load_state(self.model, state)
         self.model.to(self.device).eval()
         self.input_hw = _input_size(self.cfg.input_size)
         postprocessor_cfg = dict(self.model_cfg.get("postprocessor", {}))
@@ -186,6 +211,14 @@ class ToolRGSInference:
             str(getattr(self.cfg, "grasp_size_coordinate", "original")),
         )
         self.postprocessor = POSTPROCESSORS.build(postprocessor_cfg)
+        self.offset_decode_mode = str(
+            getattr(self.cfg, "offset_decode_mode", "radius")
+        ).strip().lower()
+        if self.offset_decode_mode not in {"radius", "grasp_relative"}:
+            raise ValueError(
+                "offset_decode_mode must be 'radius' or 'grasp_relative', got "
+                f"{self.offset_decode_mode!r}"
+            )
 
     def _resolve_pretrained_paths(self) -> None:
         for key in ("clip_pretrain", "dino_pretrain", "mamba_pretrain"):
@@ -322,11 +355,28 @@ class ToolRGSInference:
         radius = float(getattr(self.cfg, "offset_r", 0.0) or 0.0) * source_scale
         ori_h, ori_w = frame_bgr.shape[:2]
         for detection in detections:
-            row, col = detection.row, detection.column
+            row, column = detection.row, detection.column
             x, y = detection.x, detection.y
-            if offset is not None and offset.shape[0] >= 2 and radius > 0:
-                x += float(offset[0, row, col]) * radius
-                y += float(offset[1, row, col]) * radius
+            if offset is not None and offset.shape[0] >= 2:
+                if self.offset_decode_mode == "grasp_relative":
+                    delta_x = _sample_bilinear(offset[0], x, y)
+                    delta_y = _sample_bilinear(offset[1], x, y)
+                    decode_scale = grasp_relative_offset_scale(
+                        [
+                            x,
+                            y,
+                            detection.width,
+                            detection.height,
+                            detection.angle_degrees,
+                        ]
+                    )
+                else:
+                    delta_x = float(offset[0, row, column])
+                    delta_y = float(offset[1, row, column])
+                    decode_scale = radius
+                if decode_scale > 0:
+                    x += delta_x * decode_scale
+                    y += delta_y * decode_scale
             x = float(np.clip(x, 0, ori_w - 1))
             y = float(np.clip(y, 0, ori_h - 1))
             theta = detection.angle_degrees

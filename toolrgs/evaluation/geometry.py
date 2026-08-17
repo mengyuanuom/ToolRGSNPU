@@ -126,6 +126,20 @@ def _sample_offset(offset, x, y):
     return float(values[0, row, column]), float(values[1, row, column])
 
 
+def _sample_offset_bilinear(offset, x, y):
+    values = np.asarray(offset, dtype=np.float32)
+    if values.ndim == 4:
+        if values.shape[0] != 1:
+            raise ValueError(f"Expected one offset sample, got {values.shape}")
+        values = values[0]
+    if values.ndim != 3 or values.shape[0] != 2:
+        raise ValueError(f"Offset map must have shape (2,H,W), got {values.shape}")
+    return (
+        _sample_bilinear(values[0], x, y),
+        _sample_bilinear(values[1], x, y),
+    )
+
+
 def _sample_bilinear(array, x, y):
     """Sample one 2-D map at a floating-point image coordinate."""
     values = np.asarray(array, dtype=np.float32).squeeze()
@@ -165,6 +179,43 @@ def refine_with_offset(rectangles, offset, inverse_matrix, radius):
         corners[:, 1] += translation[1]
         refined.append(corners_to_five(corners))
     return refined
+
+def grasp_relative_offset_scale(rectangle):
+    """Return the half diagonal of the dense quality rectangle."""
+    _x, _y, long_side, short_side, _theta = rect_to_five(rectangle)
+    return max(
+        1.0,
+        float(np.hypot(float(long_side) * 0.25, float(short_side) * 0.5)),
+    )
+
+
+def refine_with_grasp_relative_offset(rectangles, offset, inverse_matrix):
+    """Decode Offset V2 vectors using each predicted grasp's own scale."""
+    if hasattr(offset, "detach"):
+        offset = offset.detach().float().cpu().numpy()
+    inverse = np.asarray(inverse_matrix, dtype=np.float32)
+    forward = cv2.invertAffineTransform(inverse)
+    refined = []
+    for rectangle in rectangles:
+        corners = five_to_corners(rectangle)
+        original_center = corners.mean(axis=0, keepdims=True)
+        input_corners = apply_affine(corners, forward)
+        input_rectangle = corners_to_five(input_corners)
+        input_center = input_corners.mean(axis=0, keepdims=True)
+        delta_x, delta_y = _sample_offset_bilinear(
+            offset, input_center[0, 0], input_center[0, 1]
+        )
+        scale = grasp_relative_offset_scale(input_rectangle)
+        shifted_input = input_center + np.array(
+            [[delta_x * scale, delta_y * scale]], dtype=np.float32
+        )
+        shifted_original = apply_affine(shifted_input, inverse)
+        translation = shifted_original[0] - original_center[0]
+        corners[:, 0] += translation[0]
+        corners[:, 1] += translation[1]
+        refined.append(corners_to_five(corners))
+    return refined
+
 
 
 def resample_grasp_geometry(
