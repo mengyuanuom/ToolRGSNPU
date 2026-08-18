@@ -10,6 +10,7 @@ EXPECTED_MODELS = {
     "crogoff",
     "drog",
     "drogoff",
+    "drogoff_offset_v2",
     "etrg",
     "etrg_r101",
     "ggcnnclip",

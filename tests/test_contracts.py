@@ -19,6 +19,7 @@ from utils.dataset import (
     grasp_quality_owner_map_np,
     make_dense_grasp_region_offset_np,
     make_dense_offset_with_radius_np,
+    make_grasp_offset_targets_np,
 )
 from toolrgs.datasets import DATASET_REGISTRY
 from utils.ocid_vlg_dataset import parse_ocid_image_filename, resolve_ocid_vlg_split
@@ -82,7 +83,7 @@ class ToolRGSContractsTest(unittest.TestCase):
             for directory in ("grasp_tools", "vcot", "ocid_vlg")
             for path in glob.glob(f"config/{directory}/*.yaml")
         ]
-        self.assertGreaterEqual(len(paths), 27)
+        self.assertGreaterEqual(len(paths), 30)
         for path in paths:
             with open(path, encoding="utf-8") as stream:
                 cfg = yaml.safe_load(stream)
@@ -92,9 +93,27 @@ class ToolRGSContractsTest(unittest.TestCase):
             self.assertIn(dataset, DATASET_REGISTRY, path)
 
         for directory, dataset_name, expected_configs in (
-            ("grasp_tools", "grasptool", (expected - {"drogoff"}) | {"drogoff_v2"}),
-            ("vcot", "vcot", expected | {"drogoff_v2", "maplegrasp_stage1", "maplegrasp_stage2"}),
-            ("ocid_vlg", "ocid_vlg", expected | {"etrg", "etrg_r101"}),
+            (
+                "grasp_tools",
+                "grasptool",
+                (expected - {"drogoff"})
+                | {"drogoff_grasp_tools_v2", "drogoff_offset_v2"},
+            ),
+            (
+                "vcot",
+                "vcot",
+                expected
+                | {
+                    "drogoff_offset_v2",
+                    "maplegrasp_stage1",
+                    "maplegrasp_stage2",
+                },
+            ),
+            (
+                "ocid_vlg",
+                "ocid_vlg",
+                expected | {"drogoff_offset_v2", "etrg", "etrg_r101"},
+            ),
         ):
             configs = glob.glob(f"config/{directory}/*.yaml")
             self.assertEqual(
@@ -245,6 +264,23 @@ class ToolRGSContractsTest(unittest.TestCase):
         self.assertGreater(weight[0, 10, 12], weight[0, 10, 8])
         self.assertEqual(weight[0, 0, 0], 0.0)
         self.assertLessEqual(np.abs(offset).max(), 1.0)
+
+    def test_shared_offset_target_builder_preserves_v1_and_v2_shapes(self):
+        rectangles = np.array(
+            [[16.0, 16.0, 16.0, 8.0, 0.0, 0.0]], dtype=np.float32
+        )
+        v1_offset, v1_weight = make_grasp_offset_targets_np(
+            rectangles, (32, 32), offset_version="v1", offset_radius=4.0
+        )
+        v2_offset, v2_weight = make_grasp_offset_targets_np(
+            rectangles, (32, 32), offset_version="v2", target_stride=4
+        )
+        self.assertEqual(v1_offset.shape, (2, 32, 32))
+        self.assertEqual(v1_weight.shape, (1, 32, 32))
+        self.assertEqual(v2_offset.shape, (2, 8, 8))
+        self.assertEqual(v2_weight.shape, (1, 8, 8))
+        np.testing.assert_allclose(v2_offset[:, 4, 4], 0.0, atol=1e-6)
+        self.assertGreater(v2_weight[0, 4, 4], 0.0)
 
     def test_lgd_dense_diffusion_contract(self):
         diffusion = CosineDiffusion(timesteps=20)

@@ -23,6 +23,7 @@ from toolrgs.engine.loops import GraspTrainLoop  # noqa: F401 - registers loop
 from toolrgs.engine.optim import build_optim_wrapper, build_param_scheduler
 from toolrgs.engine.samplers import DistributedEvalSampler
 from toolrgs.engine.val_loop import GraspValLoop  # noqa: F401 - registers loop
+from toolrgs.engine.realvlg_val_loop import RealVLGValLoop  # noqa: F401 - registers loop
 from toolrgs.models.base import model_requires_depth
 from toolrgs.preflight import validate_required_artifacts
 from toolrgs.registry import LOOPS, RUNNERS

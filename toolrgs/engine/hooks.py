@@ -67,7 +67,18 @@ class LoggerHook(Hook):
         train = state.logs.get("train", {})
         validation = state.logs.get("validation", {})
         grasp_values = list(validation.get("j_index", []))
-        if str(getattr(runner.cfg, "evaluation_protocol", "")).lower() == "vcot_official":
+        protocol = str(
+            getattr(runner.cfg, "evaluation_protocol", "")
+        ).lower()
+        if protocol in {"realvlg", "realvlg_source", "realvlg_official"}:
+            logger.info(
+                "Epoch {} summary: loss={:.6f}, F_beta={:.4f}, gAcc={:.4f}",
+                state.epoch,
+                float(train.get("loss", 0.0)),
+                float(validation.get("iou", 0.0)),
+                float(grasp_values[0]) if grasp_values else 0.0,
+            )
+        elif protocol == "vcot_official":
             logger.info(
                 "Epoch {} summary: loss={:.6f}, IoU={:.4f}, GraspSR={:.4f}",
                 state.epoch,

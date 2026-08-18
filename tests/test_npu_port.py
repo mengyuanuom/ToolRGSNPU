@@ -25,13 +25,13 @@ class NPUConfigurationTest(unittest.TestCase):
         self.assertIn("Current working directory", message)
 
     def test_all_experiment_configs_use_hccl_and_expose_npu_runtime_options(self):
-        experiment_roots = ("grasp_tools", "vcot", "ocid_vlg")
+        experiment_roots = ("grasp_tools", "vcot", "ocid_vlg", "realvlg")
         paths = [
             path
             for directory in experiment_roots
             for path in (ROOT / "config" / directory).glob("*.yaml")
         ]
-        self.assertEqual(len(paths), 32)
+        self.assertEqual(len(paths), 36)
         for path in paths:
             config = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             with self.subTest(config=path.name, dataset=path.parent.name):
@@ -59,6 +59,7 @@ class NPUSourceContractTest(unittest.TestCase):
             ROOT / "engine" / "engine.py",
             ROOT / "toolrgs" / "engine" / "loops.py",
             ROOT / "toolrgs" / "engine" / "val_loop.py",
+            ROOT / "toolrgs" / "engine" / "realvlg_val_loop.py",
             ROOT / "toolrgs" / "engine" / "runner.py",
             ROOT / "toolrgs" / "engine" / "optim.py",
             ROOT / "tools" / "train.py",

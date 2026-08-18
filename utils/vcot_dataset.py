@@ -15,9 +15,7 @@ from torch.utils.data import Dataset
 
 from utils.dataset import (
     GraspTransforms,
-    grasp_quality_owner_map_np,
-    make_dense_grasp_region_offset_np,
-    make_dense_offset_with_radius_np,
+    make_grasp_offset_targets_np,
     tokenize,
 )
 
@@ -349,32 +347,15 @@ class VCoTDataset(Dataset):
             ),
         }
         if self.with_offset:
-            if self.offset_version == "v2":
-                target_h = max(1, self.input_size[0] // self.offset_target_stride)
-                target_w = max(1, self.input_size[1] // self.offset_target_stride)
-                scale_x = target_w / float(self.input_size[1])
-                scale_y = target_h / float(self.input_size[0])
-                offset_rectangles = training_input_targets.copy()
-                offset_rectangles[:, 0] *= scale_x
-                offset_rectangles[:, 1] *= scale_y
-                offset_rectangles[:, 2] *= scale_x
-                offset_rectangles[:, 3] *= scale_y
-                owner_map, _ = grasp_quality_owner_map_np(
-                    offset_rectangles, (target_h, target_w)
-                )
-                offsets, offset_weights = make_dense_grasp_region_offset_np(
-                    offset_rectangles,
-                    owner_map,
-                    weight_floor=self.offset_weight_floor,
-                )
-            else:
-                offsets, offset_weights = make_dense_offset_with_radius_np(
-                    centers_xy=training_input_targets[:, :2],
-                    img_size_hw=self.input_size,
-                    r_pix=self.offset_radius,
-                    use_gaussian=True,
-                    sigma=self.offset_sigma,
-                )
+            offsets, offset_weights = make_grasp_offset_targets_np(
+                grasp_rectangles=training_input_targets,
+                img_size_hw=self.input_size,
+                offset_version=self.offset_version,
+                offset_radius=self.offset_radius,
+                offset_sigma=self.offset_sigma,
+                target_stride=self.offset_target_stride,
+                weight_floor=self.offset_weight_floor,
+            )
             grasp_masks["off"] = torch.from_numpy(offsets).float()
             grasp_masks["off_w"] = torch.from_numpy(offset_weights).float()
 

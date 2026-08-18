@@ -6,6 +6,7 @@ __all__ = [
     "BaseLoop",
     "GraspTrainLoop",
     "GraspValLoop",
+    "RealVLGValLoop",
     "Hook",
     "HookList",
     "CheckpointHook",
@@ -26,6 +27,10 @@ def __getattr__(name):
         from .val_loop import GraspValLoop
 
         return GraspValLoop
+    if name == "RealVLGValLoop":
+        from .realvlg_val_loop import RealVLGValLoop
+
+        return RealVLGValLoop
     if name in {"NPUGraspRunner", "build_runner"}:
         from .runner import NPUGraspRunner, build_runner
 

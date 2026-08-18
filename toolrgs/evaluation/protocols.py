@@ -51,6 +51,18 @@ _PROTOCOLS = {
         default_grasp_topk=(1,),
         grasp_metric_label="GraspSR",
     ),
+    # Match the public RealVLG-R1 evaluator: original-image coordinates,
+    # one prediction, continuous polygon IoU, and strict >0.25/<30 thresholds.
+    "realvlg_official": EvaluationProtocol(
+        name="realvlg_official",
+        inverse_interpolation=cv2.INTER_LINEAR,
+        grasp_canvas=(0, 0),
+        target_mask_threshold=0.5,
+        minimum_grasp_width=0.0,
+        grasp_evaluator="realvlg_official",
+        default_grasp_topk=(1,),
+        grasp_metric_label="gAcc",
+    ),
 }
 
 _ALIASES = {
@@ -58,6 +70,8 @@ _ALIASES = {
     "crog_source": "crog_legacy",
     "vcot": "vcot_official",
     "vcot_source": "vcot_official",
+    "realvlg": "realvlg_official",
+    "realvlg_source": "realvlg_official",
     "default": "toolrgs",
 }
 

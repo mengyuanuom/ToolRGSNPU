@@ -1,3 +1,5 @@
+# Grasp-Tools dataset release V2. The model still uses Offset V1;
+# Dense Offset V2 is the separate config/grasp_tools/drogoff_offset_v2.yaml profile.
 DATA:
   grasp_size_factor: 300.0
   grasp_height: 20.0
@@ -8,6 +10,7 @@ DATA:
   val_split: val
   offset_r: 20
   offset_sigma:
+  offset_version: v1
   # Randomize marked category prompts per epoch; val/test remain fixed.
   dynamic_train_prompts: True
   dynamic_prompt_seed: 2025
@@ -65,7 +68,7 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   # Resume & Save
-  exp_name: drogoff_grasp_tools_v2_8npu
+  exp_name: drogoff_grasp_tools_dataset_v2_offset_v1_8npu
   offset_loss_weight: 1.0
   output_folder: exp/grasp_tools
   save_freq: 0  # disabled; only best validation checkpoints are saved

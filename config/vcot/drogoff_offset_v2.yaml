@@ -1,18 +1,26 @@
-﻿DATA:
-  grasp_size_factor: 100
+# Dense Offset V2 model protocol on VCoT. Here "V2" describes the offset
+# target/decoder, not a dataset release.
+DATA:
+  grasp_size_factor: 300
   grasp_height: 20.0
-  grasp_size_coordinate: original
-  dataset: OCID-VLG
-  root_path: ./datasets/OCID-VLG
-  with_depth: False
-  train_split: train
-  val_split: val
+  grasp_size_coordinate: canvas
+  dataset: vcot
+  root_path: ./datasets/graspanything-vcot
+  split_root: ./datasets/graspanything-vcot/split/vcot
+  prompt_template: "Grasp the {object_name}"
+  train_split: train_official
+  val_split: val_official
+  grasp_target_policy: all
+  vcot_official_val_size: 5000
   offset_r: 20
   offset_sigma:
-  # Historical fixed-radius center-offset supervision.
-  offset_version: v1
+  offset_version: v2
+  offset_target_stride: 4
+  offset_weight_floor: 0.25
 MODEL:
   architecture: drogoff
+  offset_head: lightweight
+  offset_hidden_dim: 64
 TRAIN:
   version: multiple
   visual_adapter_dim: 128
@@ -47,17 +55,17 @@ TRAIN:
   num_head: 8
   dim_ffn: 512
   dropout: 0.1
-  intermediate: False 
+  intermediate: False
 
   # Training Setting
   # Conservative per-process profile for two accelerators.
-  workers: 4  # per process; 32 workers total with eight NPUs
+  workers: 4
   workers_val: 2
-  epochs: 50
-  milestones: [35]
+  epochs: 36
+  milestones: [30]
   start_epoch: 0
-  batch_size: 24  # global batch size
-  batch_size_val: 24  # global validation batch size
+  batch_size: 128  # global batch size
+  batch_size_val: 8  # global validation batch size
   base_lr: 0.0001
   lr_decay: 0.1
   lr_multi: 1
@@ -66,13 +74,15 @@ TRAIN:
   manual_seed: 0
   print_freq: 100
   # Resume & Save
-  exp_name: drogoff_ocid_vlg_8npu
-  offset_loss_weight: 1.0
-  output_folder: exp/ocid_vlg
-  save_freq: 0  # disabled; only best validation checkpoints are saved
+  exp_name: drogoff_offset_v2_vcot
+  offset_loss_weight: 0.1
+  predict_grasp_short_side: True
+  short_side_loss_weight: 1.0
+  output_folder: exp/vcot
+  save_freq: 5
   weight:  # path to initial weight (default: none)
   resume: # path to latest checkpoint (default: none)
-  evaluate: True 
+  evaluate: True
   use_grasp_masks: True # evaluate on validation set, extra NPU memory needed and small batch_size_val is recommend
 Distributed:
   dist_url: env://
@@ -82,8 +92,14 @@ Distributed:
   rank: 0
 
 TEST:
-  test_split: test
-  evaluation_protocol: crog_legacy
-  offset_resample_geometry: True
+  grasp_size_activation: auto
+  test_split: unseen
+  evaluation_protocol: vcot_official
+  grasp_topk: [1]
+  grasp_iou_threshold: 0.25
+  grasp_angle_threshold: 30.0
+  filter_grasps_by_segmentation: False
+  restore_grasp_size_scale: True
+  offset_decode_mode: grasp_relative
+  offset_resample_geometry: False
   visualize: False
-

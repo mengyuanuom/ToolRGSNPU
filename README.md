@@ -2,8 +2,9 @@
 
 Tool-oriented Referring Grasp Synthesis with a single configuration-driven
 codebase for CROG, CROG-OFF, DROG, DROG-OFF, ETRG-A, MapleGrasp, GraspMamba,
-LGD, GGCNN-CLIP, GR-ConvNet-CLIP, and DETRIS backbones. Grasp-Tools, VCoT/Grasp-Anything,
-and OCID-VLG data use the same model-facing batch contract. This repository is
+LGD, GGCNN-CLIP, GR-ConvNet-CLIP, and DETRIS backbones. Grasp-Tools,
+VCoT/Grasp-Anything, OCID-VLG, and RealVLG/GraspNet_VLG data use the same
+model-facing batch contract. This repository is
 the Ascend NPU port: training and inference use `torch_npu`; experiments default to FP32, while optional AMP uses NPU AMP,
 and distributed jobs use HCCL.
 
@@ -84,9 +85,10 @@ for OCID-VLG because it requires real aligned depth:
 
 | Dataset config directory | Models |
 | --- | --- |
-| `config/grasp_tools/` | `crog`, `crogoff`, `drog`, `drogoff`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
-| `config/vcot/` | `crog`, `crogoff`, `drog`, `drogoff`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
-| `config/ocid_vlg/` | `crog`, `crogoff`, `drog`, `drogoff`, `etrg`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/grasp_tools/` | `crog`, `crogoff`, `drog`, `drogoff` (Offset V1/V2), `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/vcot/` | `crog`, `crogoff`, `drog`, `drogoff` (Offset V1/V2), `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/ocid_vlg/` | `crog`, `crogoff`, `drog`, `drogoff` (Offset V1/V2), `etrg`, `maplegrasp`, `ggcnnclip`, `grconvnetclip`, `graspmamba`, `lgd` |
+| `config/realvlg/` | `drogoff` Offset V1/V2 reference profiles; the registered adapter is reusable by every RGB model |
 
 For example, `config/vcot/drogoff.yaml` and
 `config/ocid_vlg/lgd.yaml` are directly runnable after setting data and weight
@@ -114,8 +116,12 @@ augmentation. The default split contains 6000 train, 500 validation, and 1000
 test scenes. Train the supplied NPU DROG-OFF experiment with:
 
 ```bash
-python train.py --config config/grasp_tools/drogoff_v2.yaml
+python train.py --config config/grasp_tools/drogoff_grasp_tools_v2.yaml
 ```
+
+Here, `grasp_tools_v2` identifies the dataset release and the model uses
+Offset V1. See the [DROG-OFF naming guide](docs/drogoff_naming.md) for the
+complete dataset/protocol mapping.
 
 To train CROG, DROG-OFF, and LGD sequentially on eight NPUs, closing each
 distributed session before starting the next one, run:
@@ -250,16 +256,37 @@ matching file under `config/vcot/`, for example:
 ```bash
 python train.py --config config/vcot/drogoff.yaml
 ```
-To train the opt-in Dense Offset V2 profile instead, run:
+To train the opt-in **Dense Offset V2 model protocol** instead, run:
 
 ```bash
-python train.py --config config/vcot/drogoff_v2.yaml
+python train.py --config config/vcot/drogoff_offset_v2.yaml
 ```
 
-`drogoff_v2.yaml` supervises center offsets over the complete dense quality
+On an eight-NPU server, the shared launcher selects the matching profile:
+
+```bash
+bash tools/train_drogoff_offset_v2_8npu.sh grasp_tools
+bash tools/train_drogoff_offset_v2_8npu.sh ocid_vlg
+bash tools/train_drogoff_offset_v2_8npu.sh realvlg
+bash tools/train_drogoff_offset_v2_8npu.sh vcot
+```
+
+`drogoff_offset_v2.yaml` supervises center offsets over the complete dense quality
 region, resolves overlapping grasp ownership consistently, decodes normalized
 offsets with each predicted grasp's scale, and only translates the center. The
-legacy `drogoff.yaml` protocol remains unchanged for checkpoint compatibility.
+Offset V1 profiles remain unchanged for checkpoint compatibility.
+Here, “Offset V2” names the model target/decoder protocol; it is unrelated to
+the “Grasp-Tools Dataset V2” release used by `config/grasp_tools/`.
+
+The same Dense Offset V2 contract is available for every registered grasp
+dataset:
+
+```bash
+python train.py --config config/grasp_tools/drogoff_offset_v2.yaml
+python train.py --config config/ocid_vlg/drogoff_offset_v2.yaml
+python train.py --config config/realvlg/drogoff_offset_v2.yaml
+python train.py --config config/vcot/drogoff_offset_v2.yaml
+```
 
 
 The checked-in VCoT profiles point to
@@ -410,6 +437,35 @@ python tools/inspect_ocid_vlg_sample.py \
   --version multiple --split train --index 0
 ```
 
+## RealVLG-R1 / GraspNet_VLG
+
+The RealVLG adapter follows the public benchmark's executable evaluation
+protocol, including its seen/similar/novel scene ranges, first-frame-only test
+sampling, original-image coordinates, fixed 40-pixel gripper depth, strict
+grasp thresholds, and F/S/E segmentation metrics. Download and extract
+`GraspNet_VLG.zip`, then run DROG-OFF on eight NPUs:
+
+```bash
+torchrun --nproc_per_node=8 train.py --config config/realvlg/drogoff.yaml
+```
+
+Use `config/realvlg/drogoff_offset_v2.yaml` to keep the same official RealVLG
+protocol while enabling the lightweight Dense Offset V2 head and
+grasp-relative decoding.
+
+Evaluate all three official subsets:
+
+```bash
+bash tools/evaluate_realvlg_splits.sh \
+  config/realvlg/drogoff.yaml \
+  exp/realvlg/drogoff_realvlg_10p_8npu/best_j1_epoch_010.pth \
+  /path/to/GraspNet_VLG
+```
+
+See [the RealVLG compatibility guide](docs/realvlg.md) for the required
+directory layout, preprocessing details, exact metric formulas, and the one
+public reproducibility limitation around the unpublished 10% training indices.
+
 ## ETRG-A RGB-D on Ascend
 
 The `etrg` registry entry integrates the official ETRG-A model with explicit
@@ -497,21 +553,21 @@ with `OCID_VLG_ROOT=/absolute/path/to/OCID-VLG`.
 Single NPU:
 
 ```bash
-python train.py --config config/grasp_tools/drogoff_v2.yaml
+python train.py --config config/grasp_tools/drogoff_grasp_tools_v2.yaml
 ```
 
 Distributed:
 
 ```bash
 torchrun --nproc_per_node=2 train.py \
-  --config config/grasp_tools/drogoff_v2.yaml
+  --config config/grasp_tools/drogoff_grasp_tools_v2.yaml
 ```
 
 Evaluation:
 
 ```bash
 python evaluate.py \
-  --config config/grasp_tools/drogoff_v2.yaml \
+  --config config/grasp_tools/drogoff_grasp_tools_v2.yaml \
   --checkpoint exp/grasp_tools/drogoff_grasp_tools/best_jindex_model.pth
 ```
 
@@ -521,7 +577,9 @@ Grasp-aware models return segmentation, quality, sine, cosine, and width maps.
 When predict_grasp_short_side is enabled, each architecture's native
 decoder/projector appends a learned short-side map; no generic fallback head is
 attached. Width and short-side logits use sigmoid in both training loss and
-decoding. Offset variants append a (dx, dy) map normalized by DATA.offset_r.
+decoding. Offset V1 predicts a `(dx, dy)` map normalized by `DATA.offset_r`;
+Dense Offset V2 uses the full quality region and decodes offsets relative to
+each predicted grasp scale. `DATA.offset_version` selects the protocol.
 GGCNN-CLIP and GR-ConvNet-CLIP are grasp-only baselines, so their quality map
 also occupies the segmentation slot required by the shared engine.
 

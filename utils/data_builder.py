@@ -7,6 +7,7 @@ from toolrgs.registry import DATASETS, normalise_component_name
 
 from utils.dataset import GraspToolDataset
 from utils.ocid_vlg_dataset import OCIDVLGDataset
+from utils.realvlg_dataset import RealVLGDataset
 from utils.vcot_dataset import VCoTDataset
 
 
@@ -19,6 +20,11 @@ DATASETS.register_module(
     OCIDVLGDataset,
     name="ocid_vlg",
     aliases=("ocidvlg",),
+)
+DATASETS.register_module(
+    RealVLGDataset,
+    name="realvlg",
+    aliases=("realvlg_11b", "graspnet_vlg"),
 )
 DATASETS.register_module(VCoTDataset, name="vcot", aliases=("vcot_grasp",))
 

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 import utils.config as config
 from model import build_model
-from toolrgs.engine import GraspValLoop  # imports and registers the default loop
+from toolrgs.engine import GraspValLoop, RealVLGValLoop  # register validation loops
 from toolrgs.preflight import validate_required_artifacts
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import device_name, require_npu, set_device
@@ -106,7 +106,15 @@ def main():
         hooks=getattr(args, "val_hooks", None),
     )
     iou, precision, j_index = val_loop.run_epoch(getattr(args, "start_epoch", 0))
-    if str(getattr(args, "evaluation_protocol", "")).lower() == "vcot_official":
+    protocol = str(getattr(args, "evaluation_protocol", "")).lower()
+    if protocol in {"realvlg", "realvlg_source", "realvlg_official"}:
+        logger.info(
+            "Final RealVLG F_beta={}, metrics={}, gAcc={}",
+            iou,
+            precision,
+            j_index[0] if j_index else 0.0,
+        )
+    elif protocol == "vcot_official":
         logger.info(
             "Final IoU={}, precision={}, GraspSR={}",
             iou,

@@ -12,6 +12,8 @@ DATA:
   vcot_official_val_size: 5000
   offset_r: 20
   offset_sigma:
+  # Historical fixed-radius center-offset supervision.
+  offset_version: v1
 MODEL:
   architecture: drogoff
 TRAIN:
@@ -95,5 +97,4 @@ TEST:
   restore_grasp_size_scale: True
   offset_resample_geometry: True
   visualize: False
-
 

@@ -418,6 +418,54 @@ def make_dense_grasp_region_offset_np(
     ).astype(np.float32)
     return offset, weight
 
+
+def make_grasp_offset_targets_np(
+    grasp_rectangles: np.ndarray,
+    img_size_hw,
+    offset_version="v1",
+    offset_radius=20.0,
+    offset_sigma=None,
+    target_stride=4,
+    weight_floor=0.25,
+):
+    """Build the selected DROG-OFF target contract for any grasp dataset.
+
+    Offset V1 uses a fixed-radius disk at input resolution. Offset V2 uses the
+    complete dense quality region at ``input / target_stride`` and normalizes
+    displacement by the assigned grasp's quality-region half diagonal.
+    """
+    rectangles = np.asarray(grasp_rectangles, dtype=np.float32).reshape(-1, 6)
+    height, width = (int(value) for value in img_size_hw)
+    version = str(offset_version).strip().lower()
+    if version == "v1":
+        return make_dense_offset_with_radius_np(
+            centers_xy=rectangles[:, :2],
+            img_size_hw=(height, width),
+            r_pix=offset_radius,
+            use_gaussian=True,
+            sigma=offset_sigma,
+        )
+    if version != "v2":
+        raise ValueError(
+            f"offset_version must be 'v1' or 'v2', got {offset_version!r}"
+        )
+    stride = int(target_stride)
+    if stride <= 0:
+        raise ValueError("offset_target_stride must be positive")
+    target_h = max(1, height // stride)
+    target_w = max(1, width // stride)
+    scaled = rectangles.copy()
+    scaled[:, 0] *= target_w / float(width)
+    scaled[:, 1] *= target_h / float(height)
+    scaled[:, 2] *= target_w / float(width)
+    scaled[:, 3] *= target_h / float(height)
+    owner_map, _ = grasp_quality_owner_map_np(scaled, (target_h, target_w))
+    return make_dense_grasp_region_offset_np(
+        scaled,
+        owner_map,
+        weight_floor=weight_floor,
+    )
+
     
 info = {
     'refcoco': {
@@ -1238,7 +1286,12 @@ class GraspToolTransforms:
             boxes.append(box)
         return boxes
 
-    def generate_masks(self, grasp_rectangles, size_rectangles=None):
+    def generate_masks(
+        self,
+        grasp_rectangles,
+        size_rectangles=None,
+        consistent_owner=False,
+    ):
         grasp_rectangles = np.asarray(grasp_rectangles, dtype=np.float32).reshape(-1, 6)
         if size_rectangles is None:
             size_rectangles = grasp_rectangles
@@ -1251,7 +1304,14 @@ class GraspToolTransforms:
         pos_out = np.zeros((self.height, self.width))
         ang_out = np.zeros((self.height, self.width))
         wid_out = np.zeros((self.height, self.width))
-        for rect, size_rect in zip(grasp_rectangles, size_rectangles):
+        owner_map = None
+        if consistent_owner:
+            owner_map, _ = grasp_quality_owner_map_np(
+                grasp_rectangles, (self.height, self.width)
+            )
+        for index, (rect, size_rect) in enumerate(
+            zip(grasp_rectangles, size_rectangles)
+        ):
             center_x, center_y, w_rect, h_rect, theta = rect[:5]
             target_width = size_rect[2]
             
@@ -1263,13 +1323,14 @@ class GraspToolTransforms:
 
             rr, cc = polygon(box[:, 0], box[:,1])
 
-            mask_rr = rr < self.width
-            rr = rr[mask_rr]
-            cc = cc[mask_rr]
-
-            mask_cc = cc < self.height
-            cc = cc[mask_cc]
-            rr = rr[mask_cc]
+            valid = (
+                (rr >= 0) & (rr < self.width) &
+                (cc >= 0) & (cc < self.height)
+            )
+            rr, cc = rr[valid], cc[valid]
+            if owner_map is not None:
+                owned = owner_map[cc, rr] == index
+                rr, cc = rr[owned], cc[owned]
             pos_out[cc, rr] = 1.0
             if theta < 0:
                 ang_out[cc, rr] = int(theta + 180)
@@ -1295,6 +1356,8 @@ class GraspToolDataset(Dataset):
 
     def __init__(self, root_dir, input_size=416, split='train', word_length=17,
                  with_offset=False, offset_radius=20.0, offset_sigma=None,
+                 offset_version="v1", offset_target_stride=4,
+                 offset_weight_floor=0.25,
                  grasp_size_factor=300.0,
                  dynamic_train_prompts=True, dynamic_prompt_seed=2025):
         self.root_dir = root_dir
@@ -1316,6 +1379,17 @@ class GraspToolDataset(Dataset):
         self.with_offset = bool(with_offset)
         self.offset_radius = float(offset_radius)
         self.offset_sigma = offset_sigma
+        self.offset_version = str(offset_version).strip().lower()
+        if self.offset_version not in {"v1", "v2"}:
+            raise ValueError(
+                f"offset_version must be 'v1' or 'v2', got {offset_version!r}"
+            )
+        self.offset_target_stride = int(offset_target_stride)
+        if self.offset_target_stride <= 0:
+            raise ValueError("offset_target_stride must be positive")
+        self.offset_weight_floor = float(offset_weight_floor)
+        if not 0.0 <= self.offset_weight_floor <= 1.0:
+            raise ValueError("offset_weight_floor must be between 0 and 1")
         self.dynamic_train_prompts = bool(dynamic_train_prompts)
         self.dynamic_prompt_seed = int(dynamic_prompt_seed)
 
@@ -1451,7 +1525,9 @@ class GraspToolDataset(Dataset):
         grasp_rect_format = self.grasp_transform(grasps_trans, target=target_idx)
 
         grasp_masks_raw = self.grasp_transform.generate_masks(
-            grasp_rect_format, size_rectangles=grasp_target
+            grasp_rect_format,
+            size_rectangles=grasp_target,
+            consistent_owner=self.with_offset and self.offset_version == "v2",
         )
 
         # 处理为标准格式：qua, ang, wid, sin, cos
@@ -1468,17 +1544,14 @@ class GraspToolDataset(Dataset):
             "wid": torch.from_numpy(wid).float(),
         }
         if self.with_offset:
-            centers = (
-                grasp_rect_format[:, :2]
-                if len(grasp_rect_format)
-                else np.zeros((0, 2), dtype=np.float32)
-            )
-            off, off_w = make_dense_offset_with_radius_np(
-                centers_xy=centers,
+            off, off_w = make_grasp_offset_targets_np(
+                grasp_rectangles=grasp_rect_format,
                 img_size_hw=self.input_size,
-                r_pix=self.offset_radius,
-                use_gaussian=True,
-                sigma=self.offset_sigma,
+                offset_version=self.offset_version,
+                offset_radius=self.offset_radius,
+                offset_sigma=self.offset_sigma,
+                target_stride=self.offset_target_stride,
+                weight_floor=self.offset_weight_floor,
             )
             grasp_masks["off"] = torch.from_numpy(off).float()
             grasp_masks["off_w"] = torch.from_numpy(off_w).float()

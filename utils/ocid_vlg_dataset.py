@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from utils.dataset import GraspTransforms, make_dense_offset_with_radius_np, tokenize
+from utils.dataset import GraspTransforms, make_grasp_offset_targets_np, tokenize
 from utils.OCID_sub_class_dict import subnames
 
 
@@ -55,6 +55,9 @@ class OCIDVLGDataset(Dataset):
         with_offset=False,
         offset_radius=20.0,
         offset_sigma=None,
+        offset_version="v1",
+        offset_target_stride=4,
+        offset_weight_floor=0.25,
         grasp_size_factor=100.0,
     ):
         self.root_dir = Path(root_dir).expanduser()
@@ -65,6 +68,17 @@ class OCIDVLGDataset(Dataset):
         self.with_offset = bool(with_offset)
         self.offset_radius = float(offset_radius)
         self.offset_sigma = offset_sigma
+        self.offset_version = str(offset_version).strip().lower()
+        if self.offset_version not in {"v1", "v2"}:
+            raise ValueError(
+                f"offset_version must be 'v1' or 'v2', got {offset_version!r}"
+            )
+        self.offset_target_stride = int(offset_target_stride)
+        if self.offset_target_stride <= 0:
+            raise ValueError("offset_target_stride must be positive")
+        self.offset_weight_floor = float(offset_weight_floor)
+        if not 0.0 <= self.offset_weight_floor <= 1.0:
+            raise ValueError("offset_weight_floor must be between 0 and 1")
         self.grasp_size_factor = float(grasp_size_factor)
         if self.grasp_size_factor <= 0:
             raise ValueError("grasp_size_factor must be positive")
@@ -204,7 +218,9 @@ class OCIDVLGDataset(Dataset):
         input_grasps = self._apply_affine(grasps, matrix)
         input_targets = self.grasp_transform(input_grasps, target=target_idx)
         raw_masks = self.grasp_transform.generate_masks(
-            input_targets, size_rectangles=original_targets
+            input_targets,
+            size_rectangles=original_targets,
+            consistent_owner=self.with_offset and self.offset_version == "v2",
         )
         angle = raw_masks["ang"].astype(np.float32) * np.pi / 180.0
         grasp_masks = {
@@ -214,12 +230,14 @@ class OCIDVLGDataset(Dataset):
             "wid": torch.from_numpy(raw_masks["wid"].astype(np.float32) / 255.0),
         }
         if self.with_offset:
-            offsets, offset_weights = make_dense_offset_with_radius_np(
-                centers_xy=input_targets[:, :2],
+            offsets, offset_weights = make_grasp_offset_targets_np(
+                grasp_rectangles=input_targets,
                 img_size_hw=self.input_size,
-                r_pix=self.offset_radius,
-                use_gaussian=True,
-                sigma=self.offset_sigma,
+                offset_version=self.offset_version,
+                offset_radius=self.offset_radius,
+                offset_sigma=self.offset_sigma,
+                target_stride=self.offset_target_stride,
+                weight_floor=self.offset_weight_floor,
             )
             grasp_masks["off"] = torch.from_numpy(offsets).float()
             grasp_masks["off_w"] = torch.from_numpy(offset_weights).float()

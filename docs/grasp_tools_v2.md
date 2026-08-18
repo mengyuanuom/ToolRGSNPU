@@ -457,7 +457,20 @@ python -u tools/dataset_converters/grasp_tools/augment.py \
 Grasp-Tools v2 的关系描述更长，因此配置将 CLIP token 上限设为 32：
 
 ```bash
-python train.py --config config/grasp_tools/drogoff_v2.yaml
+python train.py --config config/grasp_tools/drogoff_grasp_tools_v2.yaml
+```
+
+这里文件名中的 `grasp_tools_v2` 只表示数据集版本；该配置显式使用
+`DATA.offset_version: v1`。同一数据集的 Dense Offset V2 配置是
+`config/grasp_tools/drogoff_offset_v2.yaml`，完整对照见
+[DROG-OFF 命名说明](drogoff_naming.md)。
+
+训练轻量 Dense Offset V2：
+
+```bash
+ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+torchrun --nproc_per_node=8 --master_port=29610 \
+  train.py --config config/grasp_tools/drogoff_offset_v2.yaml
 ```
 
 八卡 NPU 训练：
@@ -465,7 +478,7 @@ python train.py --config config/grasp_tools/drogoff_v2.yaml
 ```bash
 ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 torchrun --nproc_per_node=8 --master_port=29610 \
-  train.py --config config/grasp_tools/drogoff_v2.yaml
+  train.py --config config/grasp_tools/drogoff_grasp_tools_v2.yaml
 ```
 
 当前 NPU runner 将 `TRAIN.batch_size` 和 `TRAIN.batch_size_val` 解释为**全局

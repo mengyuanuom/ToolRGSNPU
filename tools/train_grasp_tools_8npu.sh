@@ -23,7 +23,7 @@ GLOBAL_BATCH_SIZE="${GLOBAL_BATCH_SIZE:-256}"
 MODEL_NAMES=(crog drogoff drog)
 MODEL_CONFIGS=(
   config/grasp_tools/crog.yaml
-  config/grasp_tools/drogoff_v2.yaml
+  config/grasp_tools/drogoff_grasp_tools_v2.yaml
   config/grasp_tools/drog.yaml
 )
 
@@ -96,7 +96,11 @@ run_model() {
 
   timestamp="$(date '+%Y%m%d_%H%M%S')"
   log_file="${LOG_DIR}/${RUN_ID}_${timestamp}_${model_name}.log"
-  exp_name="${model_name}_grasp_tools_v2_8npu_${RUN_ID}"
+  if [[ "${model_name}" == "drogoff" ]]; then
+    exp_name="drogoff_grasp_tools_dataset_v2_offset_v1_8npu_${RUN_ID}"
+  else
+    exp_name="${model_name}_grasp_tools_v2_8npu_${RUN_ID}"
+  fi
 
   announce "[sequence] starting ${model_name} with ${NPROC_PER_NODE} NPUs"
   announce "[sequence] config: ${config_path}"
