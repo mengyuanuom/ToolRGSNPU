@@ -342,35 +342,35 @@ Traceback (most recent call last):
 
   File "<REPO>/train.py", line 30, in <module>
     main()
-    └ <function main at 0xffff36c93ec0>
+    鈹?<function main at 0xffff36c93ec0>
 
   File "<REPO>/train.py", line 26, in main
     runner.train()
-    │      └ <function NPUGraspRunner.train at 0xffff36cb04a0>
-    └ <toolrgs.engine.runner.NPUGraspRunner object at 0xffff3af628d0>
+    鈹?     鈹?<function NPUGraspRunner.train at 0xffff36cb04a0>
+    鈹?<toolrgs.engine.runner.NPUGraspRunner object at 0xffff3af628d0>
 
   File "<REPO>/toolrgs/engine/runner.py", line 508, in train
     self.setup()
-    │    └ <function NPUGraspRunner.setup at 0xffff36cb0360>
-    └ <toolrgs.engine.runner.NPUGraspRunner object at 0xffff3af628d0>
+    鈹?   鈹?<function NPUGraspRunner.setup at 0xffff36cb0360>
+    鈹?<toolrgs.engine.runner.NPUGraspRunner object at 0xffff3af628d0>
 
 > File "<REPO>/toolrgs/engine/runner.py", line 242, in setup
     self.model, parameter_groups = build_model(cfg)
-    │    │                         │           └ CfgNode({'dataset': 'realvlg', 'root_path': './datasets/GraspNet_VLG', 'with_depth': False, 'train_split': 'train', 'val_spli...
-    │    │                         └ <function build_model at 0xffff44139260>
-    │    └ None
-    └ <toolrgs.engine.runner.NPUGraspRunner object at 0xffff3af628d0>
+    鈹?   鈹?                        鈹?          鈹?CfgNode({'dataset': 'realvlg', 'root_path': './datasets/GraspNet_VLG', 'with_depth': False, 'train_split': 'train', 'val_spli...
+    鈹?   鈹?                        鈹?<function build_model at 0xffff44139260>
+    鈹?   鈹?None
+    鈹?<toolrgs.engine.runner.NPUGraspRunner object at 0xffff3af628d0>
 
   File "<REPO>/model/__init__.py", line 80, in build_model
     model = model_cls(cfg)
-            │         └ CfgNode({'dataset': 'realvlg', 'root_path': './datasets/GraspNet_VLG', 'with_depth': False, 'train_split': 'train', 'val_spli...
-            └ <class 'model.drogoff.DROGOFF'>
+            鈹?        鈹?CfgNode({'dataset': 'realvlg', 'root_path': './datasets/GraspNet_VLG', 'with_depth': False, 'train_split': 'train', 'val_spli...
+            鈹?<class 'model.drogoff.DROGOFF'>
 
   File "<REPO>/model/drogoff.py", line 44, in __init__
     self._enable_native_variant(cfg)
-    │    │                      └ CfgNode({'dataset': 'realvlg', 'root_path': './datasets/GraspNet_VLG', 'with_depth': False, 'train_split': 'train', 'val_spli...
-    │    └ <function DROGOFF._enable_native_variant at 0xffff44110720>
-    └ DROGOFF(
+    鈹?   鈹?                     鈹?CfgNode({'dataset': 'realvlg', 'root_path': './datasets/GraspNet_VLG', 'with_depth': False, 'train_split': 'train', 'val_spli...
+    鈹?   鈹?<function DROGOFF._enable_native_variant at 0xffff44110720>
+    鈹?DROGOFF(
         (txt_backbone): CLIP(
           (transformer): Transformer(
             (resblocks): Sequential(
@@ -378,8 +378,8 @@ Traceback (most recent call last):
 
   File "<REPO>/model/drogoff.py", line 76, in _enable_native_variant
     self.neck = NativeFeaturePyramid(
-    │           └ <class 'model.native_adapter.NativeFeaturePyramid'>
-    └ DROGOFF(
+    鈹?          鈹?<class 'model.native_adapter.NativeFeaturePyramid'>
+    鈹?DROGOFF(
         (txt_backbone): CLIP(
           (transformer): Transformer(
             (resblocks): Sequential(
