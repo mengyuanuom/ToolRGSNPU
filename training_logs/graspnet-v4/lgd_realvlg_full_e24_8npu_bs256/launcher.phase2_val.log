@@ -1,0 +1,259 @@
+W0823 05:09:07.284000 1018970 <PY_ENV>/lib/python3.11/site-packages/torch/distributed/run.py:803] 
+W0823 05:09:07.284000 1018970 <PY_ENV>/lib/python3.11/site-packages/torch/distributed/run.py:803] *****************************************
+W0823 05:09:07.284000 1018970 <PY_ENV>/lib/python3.11/site-packages/torch/distributed/run.py:803] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0823 05:09:07.284000 1018970 <PY_ENV>/lib/python3.11/site-packages/torch/distributed/run.py:803] *****************************************
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:46: UserWarning: xFormers is disabled (SwiGLU)
+  warnings.warn("xFormers is disabled (SwiGLU)")
+<REPO>/model/dinov2/layers/swiglu_ffn.py:52: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+<REPO>/model/dinov2/layers/attention.py:31: UserWarning: xFormers is disabled (Attention)
+  warnings.warn("xFormers is disabled (Attention)")
+<REPO>/model/dinov2/layers/attention.py:35: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+<REPO>/model/dinov2/layers/block.py:37: UserWarning: xFormers is disabled (Block)
+  warnings.warn("xFormers is disabled (Block)")
+<REPO>/model/dinov2/layers/block.py:42: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+2026-08-23 05:09:17 | INFO     | toolrgs.engine.runner:222 - amp: False
+architecture: lgd
+base_lr: 0.0008
+batch_size: 256
+batch_size_val: 32
+clip_pretrain: pretrain/RN50.pt
+dataset: realvlg
+dataset_args:
+  camera_mode: kinect
+  eval_frame: 0000
+  train_fraction: 1.0
+  train_manifest: None
+  train_seed: 0
+  width_factor: 100.0
+device: npu:0
+dist_backend: hccl
+dist_url: env://
+distributed: True
+epochs: 24
+evaluate: True
+evaluation_protocol: realvlg_official
+exp_name: lgd_realvlg_full_e24_8npu_bs256
+global_batch_size: 256
+global_batch_size_val: 32
+gpu: 0
+grasp_height: 40.0
+grasp_size_activation: sigmoid
+grasp_size_coordinate: original
+grasp_size_factor: 100.0
+grasp_topk: [1]
+input_size: 224
+lgd_base_channels: 32
+lgd_contrastive_temperature: 0.1
+lgd_contrastive_weight: 0.001
+lgd_diffusion_weight: 1.0
+lgd_sampling_steps: 50
+lgd_time_dim: 128
+lgd_timesteps: 1000
+lr_decay: 0.1
+lr_multi: 0.1
+manual_seed: 0
+mask_threshold: 0.35
+max_norm: 1.0
+milestones: [20]
+multiprocessing_distributed: True
+npu: 0
+optimizer: adam
+optimizer_foreach: False
+output_dir: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256
+output_folder: exp/realvlg
+pin_memory: False
+print_freq: 100
+rank: 0
+realvlg_width_factor: 100.0
+resume: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/last.pth
+root_path: ./datasets/GraspNet_VLG
+save_freq: 0
+start_epoch: 0
+sync_bn: False
+test_split: seen
+train_split: train
+use_grasp_masks: True
+use_pretrained_clip: True
+val_freq: 1
+val_loop: realvlg_val
+val_split: seen
+val_start_epoch: 11
+version: multiple
+visualize: False
+weight: None
+weight_decay: 0.0
+with_depth: False
+word_dim: 1024
+word_len: 77
+workers: 4
+workers_val: 2
+world_size: 8
+2026-08-23 05:09:17 | INFO     | toolrgs.engine.runner:223 - Ascend device: npu:0 (Ascend910B3)
+2026-08-23 05:09:17 | INFO     | toolrgs.engine.runner:224 - Batch sizes: train global=256 per-process=32; validation global=32 per-process=4; world_size=8
+2026-08-23 05:09:17 | INFO     | toolrgs.engine.runner:240 - Artifact clip_pretrain: <REPO>/pretrain/RN50.pt
+2026-08-23 05:09:17 | INFO     | toolrgs.engine.runner:240 - Artifact resume: <REPO>/exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 05:09:22 | INFO     | model:89 - Build lgd: backbone=63690241, head=1581733, frozen=40416096
+2026-08-23 05:09:22 | INFO     | toolrgs.engine.runner:249 - Grasp-size protocol: coordinate=original, factor=100.0, height=40.0, activation=sigmoid
+2026-08-23 05:09:25 | INFO     | toolrgs.engine.runner:283 - Precision path: amp=False, scaler=NoOpGradScaler
+2026-08-23 05:09:25 | INFO     | toolrgs.engine.runner:288 - Optimizer learning rates by parameter group: [8e-05, 0.0008]
+2026-08-23 05:10:19 | INFO     | toolrgs.engine.runner:301 - Effective batch: train_per_process=32, world_size=8, train_global=256, val_per_process=4, val_global=32, steps_per_epoch=823
+2026-08-23 05:10:20 | INFO     | toolrgs.engine.runner:378 - Resumed experiment from epoch 10
+........2026-08-23 05:11:26 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [100/823]  Batch=0.28 (0.66)  Data=0.07 (0.10)  Lr=0.000800  Loss=0.0949 (0.0930)  Loss_qua=0.0004 (0.0005)  Loss_sin=0.0360 (0.0346)  Loss_cos=0.0562 (0.0529)  Loss_wid=0.0009 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.48 (71.63)  Prec@50=89.45 (88.10)
+2026-08-23 05:12:02 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [200/823]  Batch=0.27 (0.51)  Data=0.08 (0.09)  Lr=0.000800  Loss=0.0844 (0.0932)  Loss_qua=0.0002 (0.0005)  Loss_sin=0.0311 (0.0346)  Loss_cos=0.0504 (0.0529)  Loss_wid=0.0005 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=73.60 (71.56)  Prec@50=89.45 (88.04)
+2026-08-23 05:12:37 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [300/823]  Batch=0.41 (0.46)  Data=0.02 (0.08)  Lr=0.000800  Loss=0.0803 (0.0933)  Loss_qua=0.0003 (0.0005)  Loss_sin=0.0292 (0.0344)  Loss_cos=0.0694 (0.0524)  Loss_wid=0.0007 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=73.17 (71.68)  Prec@50=89.84 (88.15)
+2026-08-23 05:13:11 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [400/823]  Batch=0.36 (0.43)  Data=0.06 (0.08)  Lr=0.000800  Loss=0.0915 (0.0936)  Loss_qua=0.0005 (0.0005)  Loss_sin=0.0352 (0.0346)  Loss_cos=0.0547 (0.0533)  Loss_wid=0.0005 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.30 (71.60)  Prec@50=91.02 (88.07)
+2026-08-23 05:13:46 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [500/823]  Batch=0.30 (0.41)  Data=0.02 (0.07)  Lr=0.000800  Loss=0.0888 (0.0936)  Loss_qua=0.0004 (0.0005)  Loss_sin=0.0352 (0.0347)  Loss_cos=0.0586 (0.0531)  Loss_wid=0.0004 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=71.49 (71.60)  Prec@50=86.33 (88.09)
+2026-08-23 05:14:21 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [600/823]  Batch=0.27 (0.40)  Data=0.02 (0.07)  Lr=0.000800  Loss=0.0889 (0.0937)  Loss_qua=0.0005 (0.0005)  Loss_sin=0.0398 (0.0347)  Loss_cos=0.0451 (0.0529)  Loss_wid=0.0008 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.97 (71.65)  Prec@50=90.62 (88.19)
+2026-08-23 05:14:55 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [700/823]  Batch=0.30 (0.39)  Data=0.02 (0.07)  Lr=0.000800  Loss=0.0861 (0.0938)  Loss_qua=0.0003 (0.0005)  Loss_sin=0.0357 (0.0347)  Loss_cos=0.0408 (0.0527)  Loss_wid=0.0004 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=73.54 (71.66)  Prec@50=91.80 (88.21)
+2026-08-23 05:15:31 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [800/823]  Batch=0.29 (0.39)  Data=0.02 (0.07)  Lr=0.000800  Loss=0.0924 (0.0939)  Loss_qua=0.0002 (0.0005)  Loss_sin=0.0330 (0.0347)  Loss_cos=0.0477 (0.0527)  Loss_wid=0.0004 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=74.06 (71.66)  Prec@50=92.97 (88.21)
+
+  0%|          | 0/8 [00:00<?, ?it/s]
+ 12%|#2        | 1/8 [00:01<00:08,  1.22s/it]
+ 25%|##5       | 2/8 [00:01<00:05,  1.13it/s]
+ 38%|###7      | 3/8 [00:02<00:03,  1.29it/s]
+ 50%|#####     | 4/8 [00:03<00:02,  1.40it/s]
+ 62%|######2   | 5/8 [00:03<00:02,  1.46it/s]
+ 75%|#######5  | 6/8 [00:04<00:01,  1.48it/s]
+ 88%|########7 | 7/8 [00:05<00:00,  1.49it/s]
+100%|##########| 8/8 [00:05<00:00,  1.52it/s]
+100%|##########| 8/8 [00:05<00:00,  1.36it/s]
+2026-08-23 05:15:45 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.3847 cIoU=0.4175 F_beta=0.6150 S_alpha=0.4204 E=0.9441 SegVR=0.8300 mIoU=0.1835 gAcc=0.3083 GraspVR=1.0000 n=253
+2026-08-23 05:15:46 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 05:15:46 | INFO     | toolrgs.engine.hooks:74 - Epoch 11 summary: loss=0.093945, F_beta=0.6150, gAcc=0.3083
+2026-08-23 05:15:48 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 05:15:48 | INFO     | toolrgs.engine.runner:505 - Saved new best checkpoint: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/best_iou_epoch_011.pth
+2026-08-23 05:15:49 | INFO     | toolrgs.engine.runner:505 - Saved new best checkpoint: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/best_j1_epoch_011.pth
+2026-08-23 05:16:25 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [100/823]  Batch=0.35 (0.37)  Data=0.06 (0.08)  Lr=0.000800  Loss=0.0788 (0.0920)  Loss_qua=0.0002 (0.0005)  Loss_sin=0.0288 (0.0345)  Loss_cos=0.0508 (0.0497)  Loss_wid=0.0003 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=73.57 (71.89)  Prec@50=89.84 (88.35)
+2026-08-23 05:17:01 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [200/823]  Batch=0.27 (0.36)  Data=0.06 (0.07)  Lr=0.000800  Loss=0.0906 (0.0919)  Loss_qua=0.0004 (0.0005)  Loss_sin=0.0320 (0.0345)  Loss_cos=0.0668 (0.0503)  Loss_wid=0.0004 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=74.85 (71.82)  Prec@50=94.14 (88.30)
+2026-08-23 05:17:36 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [300/823]  Batch=0.64 (0.36)  Data=0.06 (0.07)  Lr=0.000800  Loss=0.1057 (0.0923)  Loss_qua=0.0007 (0.0005)  Loss_sin=0.0382 (0.0343)  Loss_cos=0.0537 (0.0500)  Loss_wid=0.0009 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=70.50 (71.75)  Prec@50=87.50 (88.25)
+2026-08-23 05:18:11 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [400/823]  Batch=0.62 (0.36)  Data=0.06 (0.07)  Lr=0.000800  Loss=0.0930 (0.0924)  Loss_qua=0.0004 (0.0005)  Loss_sin=0.0403 (0.0345)  Loss_cos=0.0521 (0.0506)  Loss_wid=0.0006 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=74.02 (71.84)  Prec@50=93.36 (88.39)
+2026-08-23 05:18:46 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [500/823]  Batch=0.30 (0.35)  Data=0.06 (0.07)  Lr=0.000800  Loss=0.0944 (0.0924)  Loss_qua=0.0004 (0.0005)  Loss_sin=0.0367 (0.0344)  Loss_cos=0.0526 (0.0506)  Loss_wid=0.0005 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=71.68 (71.91)  Prec@50=89.06 (88.49)
+2026-08-23 05:19:20 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [600/823]  Batch=0.29 (0.35)  Data=0.06 (0.06)  Lr=0.000800  Loss=0.0955 (0.0924)  Loss_qua=0.0007 (0.0005)  Loss_sin=0.0282 (0.0342)  Loss_cos=0.0430 (0.0506)  Loss_wid=0.0007 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=71.80 (71.97)  Prec@50=87.11 (88.57)
+2026-08-23 05:19:54 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [700/823]  Batch=0.29 (0.35)  Data=0.05 (0.06)  Lr=0.000800  Loss=0.0895 (0.0925)  Loss_qua=0.0005 (0.0005)  Loss_sin=0.0259 (0.0343)  Loss_cos=0.0391 (0.0508)  Loss_wid=0.0004 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.33 (71.97)  Prec@50=87.89 (88.56)
+2026-08-23 05:20:28 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [800/823]  Batch=0.32 (0.35)  Data=0.05 (0.06)  Lr=0.000800  Loss=0.0852 (0.0926)  Loss_qua=0.0004 (0.0005)  Loss_sin=0.0262 (0.0344)  Loss_cos=0.0305 (0.0509)  Loss_wid=0.0005 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.12 (71.99)  Prec@50=89.06 (88.60)
+
+  0%|          | 0/8 [00:00<?, ?it/s]
+ 12%|#2        | 1/8 [00:01<00:08,  1.22s/it]
+ 25%|##5       | 2/8 [00:01<00:05,  1.10it/s]
+ 38%|###7      | 3/8 [00:02<00:03,  1.26it/s]
+ 50%|#####     | 4/8 [00:03<00:03,  1.33it/s]
+ 62%|######2   | 5/8 [00:03<00:02,  1.39it/s]
+ 75%|#######5  | 6/8 [00:04<00:01,  1.42it/s]
+ 88%|########7 | 7/8 [00:05<00:00,  1.45it/s]
+100%|##########| 8/8 [00:05<00:00,  1.49it/s]
+100%|##########| 8/8 [00:06<00:00,  1.32it/s]
+2026-08-23 05:20:44 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.3723 cIoU=0.4031 F_beta=0.6089 S_alpha=0.4114 E=0.9382 SegVR=0.8458 mIoU=0.1942 gAcc=0.3320 GraspVR=1.0000 n=253
+2026-08-23 05:20:44 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 05:20:44 | INFO     | toolrgs.engine.hooks:74 - Epoch 12 summary: loss=0.092499, F_beta=0.6089, gAcc=0.3320
+2026-08-23 05:20:46 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 05:20:47 | INFO     | toolrgs.engine.runner:505 - Saved new best checkpoint: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/best_j1_epoch_012.pth
+2026-08-23 05:21:24 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [100/823]  Batch=0.34 (0.37)  Data=0.06 (0.08)  Lr=0.000800  Loss=0.0941 (0.0903)  Loss_qua=0.0007 (0.0005)  Loss_sin=0.0466 (0.0342)  Loss_cos=0.0526 (0.0522)  Loss_wid=0.0009 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=70.10 (72.15)  Prec@50=86.33 (88.62)
+2026-08-23 05:21:58 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [200/823]  Batch=0.32 (0.36)  Data=0.05 (0.07)  Lr=0.000800  Loss=0.0965 (0.0901)  Loss_qua=0.0009 (0.0005)  Loss_sin=0.0388 (0.0342)  Loss_cos=0.0525 (0.0508)  Loss_wid=0.0009 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.30 (72.28)  Prec@50=89.45 (88.89)
+2026-08-23 05:22:33 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [300/823]  Batch=0.30 (0.36)  Data=0.06 (0.06)  Lr=0.000800  Loss=0.0944 (0.0904)  Loss_qua=0.0007 (0.0005)  Loss_sin=0.0317 (0.0340)  Loss_cos=0.0439 (0.0512)  Loss_wid=0.0007 (0.0006)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=70.55 (72.27)  Prec@50=85.16 (88.84)
+2026-08-23 05:23:08 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [400/823]  Batch=0.46 (0.35)  Data=0.06 (0.06)  Lr=0.000800  Loss=0.0836 (0.0906)  Loss_qua=0.0005 (0.0005)  Loss_sin=0.0351 (0.0340)  Loss_cos=0.0520 (0.0513)  Loss_wid=0.0006 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=71.41 (72.27)  Prec@50=85.16 (88.91)
+2026-08-23 05:23:42 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [500/823]  Batch=0.28 (0.35)  Data=0.06 (0.06)  Lr=0.000800  Loss=0.0948 (0.0907)  Loss_qua=0.0007 (0.0005)  Loss_sin=0.0429 (0.0341)  Loss_cos=0.0463 (0.0511)  Loss_wid=0.0008 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=71.49 (72.26)  Prec@50=87.11 (88.89)
+2026-08-23 05:24:17 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [600/823]  Batch=0.34 (0.35)  Data=0.05 (0.06)  Lr=0.000800  Loss=0.0909 (0.0909)  Loss_qua=0.0003 (0.0005)  Loss_sin=0.0402 (0.0340)  Loss_cos=0.0673 (0.0513)  Loss_wid=0.0005 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=74.18 (72.27)  Prec@50=90.62 (88.90)
+2026-08-23 05:24:51 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [700/823]  Batch=0.57 (0.35)  Data=0.06 (0.06)  Lr=0.000800  Loss=0.0967 (0.0909)  Loss_qua=0.0006 (0.0005)  Loss_sin=0.0362 (0.0340)  Loss_cos=0.0562 (0.0510)  Loss_wid=0.0006 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=71.00 (72.32)  Prec@50=89.84 (88.99)
+2026-08-23 05:25:25 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [800/823]  Batch=0.40 (0.35)  Data=0.05 (0.06)  Lr=0.000800  Loss=0.0860 (0.0910)  Loss_qua=0.0003 (0.0005)  Loss_sin=0.0311 (0.0340)  Loss_cos=0.0429 (0.0510)  Loss_wid=0.0007 (0.0007)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=72.56 (72.34)  Prec@50=89.06 (89.02)
+
+  0%|          | 0/8 [00:00<?, ?it/s]
+ 12%|#2        | 1/8 [00:01<00:08,  1.17s/it]
+ 25%|##5       | 2/8 [00:01<00:05,  1.14it/s]
+ 38%|###7      | 3/8 [00:02<00:03,  1.30it/s]
+ 50%|#####     | 4/8 [00:03<00:02,  1.39it/s]
+ 62%|######2   | 5/8 [00:03<00:02,  1.41it/s]
+ 75%|#######5  | 6/8 [00:04<00:01,  1.43it/s]
+ 88%|########7 | 7/8 [00:05<00:00,  1.46it/s]
+100%|##########| 8/8 [00:05<00:00,  1.50it/s]
+100%|##########| 8/8 [00:05<00:00,  1.34it/s]
+2026-08-23 05:25:39 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.3663 cIoU=0.3934 F_beta=0.6086 S_alpha=0.4172 E=0.9489 SegVR=0.8617 mIoU=0.1802 gAcc=0.3004 GraspVR=1.0000 n=253
+2026-08-23 05:25:39 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 05:25:39 | INFO     | toolrgs.engine.hooks:74 - Epoch 13 summary: loss=0.091098, F_beta=0.6086, gAcc=0.3004
+2026-08-23 05:25:42 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/lgd_realvlg_full_e24_8npu_bs256/last.pth
