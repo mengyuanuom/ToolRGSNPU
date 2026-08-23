@@ -1,16 +1,10 @@
-# Dense Offset V2 on the official RealVLG GraspNet-VLG protocol.
-# The original drogoff.yaml remains the checkpoint-compatible Offset V1 model.
+# D-RoG baseline on the official RealVLG GraspNet-VLG protocol.
 DATA:
   dataset: realvlg
   root_path: ./datasets/GraspNet_VLG
   with_depth: False
   train_split: train
   val_split: seen
-  offset_r: 20
-  offset_sigma:
-  offset_version: v2
-  offset_target_stride: 4
-  offset_weight_floor: 0.25
   dataset_args:
     camera_mode: kinect
     train_fraction: 1.0
@@ -18,10 +12,10 @@ DATA:
     train_manifest:
     eval_frame: "0000"
     width_factor: 100.0
+
 MODEL:
-  architecture: drogoff
-  offset_head: lightweight
-  offset_hidden_dim: 64
+  architecture: drog
+
 TRAIN:
   version: multiple
   visual_adapter_dim: 128
@@ -44,6 +38,7 @@ TRAIN:
   vis_dim: 512
   fpn_in: [768, 768, 768]
   fpn_out: [256, 512, 1024]
+
   sync_bn: False
   amp: False
   optimizer: adam
@@ -54,6 +49,7 @@ TRAIN:
   dim_ffn: 512
   dropout: 0.1
   intermediate: False
+
   workers: 4
   workers_val: 2
   epochs: 24
@@ -68,27 +64,27 @@ TRAIN:
   max_norm: 1.0
   manual_seed: 0
   print_freq: 100
-  exp_name: drogoff_offset_v2_realvlg_full_e24_8npu_bs256
-  offset_loss_weight: 0.1
+  exp_name: drog_realvlg_full_e24_8npu_bs256
   output_folder: exp/realvlg
   save_freq: 0
   weight:
   resume:
   evaluate: True
   use_grasp_masks: True
+
 Distributed:
   dist_url: env://
   dist_backend: hccl
   multiprocessing_distributed: True
   world_size: 1
   rank: 0
+
 TEST:
+  grasp_size_activation: sigmoid
   test_split: seen
   val_loop: realvlg_val
   evaluation_protocol: realvlg_official
   grasp_topk: [1]
   mask_threshold: 0.35
   realvlg_width_factor: 100.0
-  offset_decode_mode: grasp_relative
-  offset_resample_geometry: False
   visualize: False

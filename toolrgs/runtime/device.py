@@ -137,6 +137,9 @@ def build_optimizer(parameters, cfg):
             )
         return fused_adam(parameters, **kwargs)
     if optimizer_name == "adam":
+        optimizer_foreach = getattr(cfg, "optimizer_foreach", None)
+        if optimizer_foreach is not None:
+            kwargs["foreach"] = bool(optimizer_foreach)
         return torch.optim.Adam(parameters, **kwargs)
     raise ValueError("TRAIN.optimizer must be 'adam' or 'npu_fused_adam'")
 

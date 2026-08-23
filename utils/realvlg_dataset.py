@@ -227,6 +227,9 @@ class RealVLGDataset(Dataset):
 
     def _load_samples(self, manifest_keys: Optional[Set[str]]):
         samples = []
+        bbox_fallback_count = 0
+        skipped_unusable_annotations = 0
+        mask_bbox_cache = {}
         for metadata_path in self._metadata_files():
             relative_metadata = metadata_path.relative_to(self.metadata_dir).as_posix()
             with metadata_path.open("r", encoding="utf-8") as stream:
@@ -244,6 +247,22 @@ class RealVLGDataset(Dataset):
                     if manifest_keys is not None:
                         if sample_key not in manifest_keys:
                             continue
+                bbox_fallback = None
+                if self._coerce_bbox(item.get("bbox")) is None:
+                    mask_path = self._resolve_data_path(
+                        self.root_dir, item.get("mask_path"), "mask", sample_key
+                    )
+                    cache_key = os.fspath(mask_path)
+                    if cache_key not in mask_bbox_cache:
+                        mask_image = self._read_image(
+                            mask_path, cv2.IMREAD_GRAYSCALE, "mask"
+                        )
+                        mask_bbox_cache[cache_key] = self._mask_bbox(mask_image)
+                    bbox_fallback = mask_bbox_cache[cache_key]
+                    if bbox_fallback is None:
+                        skipped_unusable_annotations += 1
+                        continue
+                    bbox_fallback_count += 1
                 samples.append(
                     {
                         "metadata_path": metadata_path,
@@ -251,6 +270,7 @@ class RealVLGDataset(Dataset):
                         "object_index": object_index,
                         "sample_key": sample_key,
                         "item": item,
+                        "bbox_fallback": bbox_fallback,
                     }
                 )
         if (
@@ -266,7 +286,36 @@ class RealVLGDataset(Dataset):
                     sample["sample_key"],
                 ),
             )[:selected_count]
+        self.bbox_fallback_count = bbox_fallback_count
+        self.skipped_unusable_annotations = skipped_unusable_annotations
         return samples
+
+    @staticmethod
+    def _coerce_bbox(value):
+        try:
+            bbox = np.asarray(value, dtype=np.float32)
+        except (TypeError, ValueError):
+            return None
+        if bbox.shape != (4,) or not np.isfinite(bbox).all():
+            return None
+        if bbox[2] <= bbox[0] or bbox[3] <= bbox[1]:
+            return None
+        return bbox
+
+    @staticmethod
+    def _mask_bbox(mask):
+        rows, columns = np.nonzero(np.asarray(mask) > 128)
+        if not len(rows):
+            return None
+        return np.asarray(
+            [
+                columns.min(),
+                rows.min(),
+                columns.max() + 1,
+                rows.max() + 1,
+            ],
+            dtype=np.float32,
+        )
 
     @staticmethod
     def _resolve_data_path(root: Path, value, kind: str, sample_key: str) -> Path:
@@ -428,12 +477,15 @@ class RealVLGDataset(Dataset):
             raise ValueError(f"RealVLG description is empty: {sample_key}")
         word_vec = tokenize(sentence, self.word_length, True).squeeze(0).long()
 
-        bbox_original = np.asarray(item.get("bbox", []), dtype=np.float32)
-        if bbox_original.shape != (4,):
-            raise ValueError(
-                f"RealVLG bbox must be [x1,y1,x2,y2], got {bbox_original} "
-                f"for {sample_key}"
+        bbox_original = record["bbox_fallback"]
+        if bbox_original is None:
+            bbox_original = self._coerce_bbox(item.get("bbox"))
+        if bbox_original is None:
+            raise RuntimeError(
+                f"RealVLG sample passed annotation validation without a usable "
+                f"bbox: {sample_key}"
             )
+        bbox_original = np.asarray(bbox_original, dtype=np.float32).copy()
         return {
             "img": input_image,
             "depth": torch.zeros(1, *self.input_size, dtype=torch.float32),

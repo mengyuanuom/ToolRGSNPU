@@ -1,0 +1,24 @@
+_base_: native_v4_drogoff_bs256.yaml
+
+# Balanced Native V3 LoRA ablation for RealVLG/GraspNet.
+# This is a new architecture shape and must train from scratch; do not resume
+# the existing four-layer rank-8 Native V3 checkpoint.
+MODEL:
+  native_variant: v3
+
+TRAIN:
+  native_visual_layers: [1, 3, 5, 7, 9, 11]
+  native_text_layers: [1, 3, 5, 7, 9, 11]
+  native_lora_rank: 16
+  native_lora_alpha: 32.0
+  native_lora_dropout: 0.05
+
+  # Match the Offset V2 optimizer conditions for a cleaner comparison.
+  base_lr: 0.0001
+  lr_multi: 1
+  weight_decay: 0.0
+
+  epochs: 24
+  milestones: [20]
+  batch_size: 256
+  exp_name: drogoff_native_v3_lora_r16_6l_realvlg_full_e24_8npu_bs256

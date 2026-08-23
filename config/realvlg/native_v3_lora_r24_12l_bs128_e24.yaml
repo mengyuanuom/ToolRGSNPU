@@ -1,0 +1,7 @@
+_base_: native_v3_lora_r24_12l_bs256_e24.yaml
+
+# The 12-layer rank-24 LoRA graph OOMs during backward at global batch 256.
+# Keep eight NPUs and use global batch 128 without activation checkpointing.
+TRAIN:
+  batch_size: 128
+  exp_name: drogoff_native_v3_lora_r24_12l_v2cap_realvlg_full_e24_8npu_bs128

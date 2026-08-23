@@ -1,0 +1,11 @@
+_base_: native_v3_lora_r16_6l_bs256_e24.yaml
+
+# Full-depth Native V3 adaptation: inject rank-16 LoRA at every DINOv2/CLIP
+# transformer block while retaining the four-stage native fusion pyramid.
+# This must train from scratch.
+TRAIN:
+  native_visual_layers: [2, 5, 8, 11]
+  native_text_layers: [2, 5, 8, 11]
+  native_visual_lora_layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  native_text_lora_layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  exp_name: drogoff_native_v3_lora_r16_12l_realvlg_full_e24_8npu_bs256
