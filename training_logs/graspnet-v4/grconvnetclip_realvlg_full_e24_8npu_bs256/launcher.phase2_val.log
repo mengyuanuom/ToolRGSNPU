@@ -197,17 +197,7 @@ world_size: 8
 2026-08-23 11:32:42 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [600/823]  Batch=0.69 (0.70)  Data=0.11 (0.11)  Lr=0.000040  Loss=0.0044 (0.0051)  Loss_qua=0.0012 (0.0013)  Loss_sin=0.0010 (0.0012)  Loss_cos=0.0020 (0.0020)  Loss_wid=0.0005 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.84 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 11:33:47 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [700/823]  Batch=0.64 (0.70)  Data=0.10 (0.11)  Lr=0.000040  Loss=0.0049 (0.0051)  Loss_qua=0.0012 (0.0013)  Loss_sin=0.0017 (0.0012)  Loss_cos=0.0019 (0.0020)  Loss_wid=0.0005 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.80 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 11:34:52 | INFO     | utils.misc:108 - Training: Epoch=[11/24] [800/823]  Batch=0.64 (0.69)  Data=0.10 (0.11)  Lr=0.000040  Loss=0.0049 (0.0050)  Loss_qua=0.0013 (0.0013)  Loss_sin=0.0012 (0.0012)  Loss_cos=0.0016 (0.0020)  Loss_wid=0.0005 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.81 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:00<00:06,  1.05it/s]
- 25%|##5       | 2/8 [00:01<00:03,  1.67it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.10it/s]
- 50%|#####     | 4/8 [00:01<00:01,  2.41it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.65it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.82it/s]
- 88%|########7 | 7/8 [00:02<00:00,  2.93it/s]
-100%|##########| 8/8 [00:03<00:00,  3.02it/s]
-100%|##########| 8/8 [00:03<00:00,  2.36it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.05it/s] 25%|##5       | 2/8 [00:01<00:03,  1.67it/s] 38%|###7      | 3/8 [00:01<00:02,  2.10it/s] 50%|#####     | 4/8 [00:01<00:01,  2.41it/s] 62%|######2   | 5/8 [00:02<00:01,  2.65it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.82it/s] 88%|########7 | 7/8 [00:02<00:00,  2.93it/s]100%|##########| 8/8 [00:03<00:00,  3.02it/s]100%|##########| 8/8 [00:03<00:00,  2.36it/s]
 2026-08-23 11:35:11 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.0344 gAcc=0.0040 GraspVR=1.0000 n=253
 2026-08-23 11:35:11 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 11:35:11 | INFO     | toolrgs.engine.hooks:74 - Epoch 11 summary: loss=0.005041, F_beta=0.0245, gAcc=0.0040
@@ -222,17 +212,7 @@ world_size: 8
 2026-08-23 11:41:48 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [600/823]  Batch=0.64 (0.66)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0049 (0.0049)  Loss_qua=0.0013 (0.0012)  Loss_sin=0.0012 (0.0012)  Loss_cos=0.0020 (0.0019)  Loss_wid=0.0005 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.83 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 11:42:53 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [700/823]  Batch=0.62 (0.66)  Data=0.12 (0.12)  Lr=0.000040  Loss=0.0050 (0.0048)  Loss_qua=0.0011 (0.0012)  Loss_sin=0.0009 (0.0012)  Loss_cos=0.0015 (0.0019)  Loss_wid=0.0004 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.91 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 11:43:58 | INFO     | utils.misc:108 - Training: Epoch=[12/24] [800/823]  Batch=0.67 (0.65)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0047 (0.0048)  Loss_qua=0.0011 (0.0012)  Loss_sin=0.0008 (0.0012)  Loss_cos=0.0011 (0.0019)  Loss_wid=0.0005 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.87 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:00<00:06,  1.07it/s]
- 25%|##5       | 2/8 [00:01<00:03,  1.70it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.15it/s]
- 50%|#####     | 4/8 [00:01<00:01,  2.46it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.66it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.82it/s]
- 88%|########7 | 7/8 [00:02<00:00,  2.94it/s]
-100%|##########| 8/8 [00:03<00:00,  3.03it/s]
-100%|##########| 8/8 [00:03<00:00,  2.38it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.07it/s] 25%|##5       | 2/8 [00:01<00:03,  1.70it/s] 38%|###7      | 3/8 [00:01<00:02,  2.15it/s] 50%|#####     | 4/8 [00:01<00:01,  2.46it/s] 62%|######2   | 5/8 [00:02<00:01,  2.66it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.82it/s] 88%|########7 | 7/8 [00:02<00:00,  2.94it/s]100%|##########| 8/8 [00:03<00:00,  3.03it/s]100%|##########| 8/8 [00:03<00:00,  2.38it/s]
 2026-08-23 11:44:18 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.0805 gAcc=0.0632 GraspVR=1.0000 n=253
 2026-08-23 11:44:18 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 11:44:18 | INFO     | toolrgs.engine.hooks:74 - Epoch 12 summary: loss=0.004839, F_beta=0.0245, gAcc=0.0632
@@ -246,17 +226,7 @@ world_size: 8
 2026-08-23 11:51:01 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [600/823]  Batch=0.63 (0.67)  Data=0.12 (0.13)  Lr=0.000040  Loss=0.0043 (0.0047)  Loss_qua=0.0008 (0.0011)  Loss_sin=0.0010 (0.0012)  Loss_cos=0.0021 (0.0019)  Loss_wid=0.0003 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.85 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 11:52:06 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [700/823]  Batch=0.66 (0.66)  Data=0.12 (0.12)  Lr=0.000040  Loss=0.0044 (0.0047)  Loss_qua=0.0010 (0.0011)  Loss_sin=0.0015 (0.0012)  Loss_cos=0.0016 (0.0019)  Loss_wid=0.0005 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.87 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 11:53:10 | INFO     | utils.misc:108 - Training: Epoch=[13/24] [800/823]  Batch=0.65 (0.66)  Data=0.14 (0.12)  Lr=0.000040  Loss=0.0041 (0.0047)  Loss_qua=0.0011 (0.0011)  Loss_sin=0.0011 (0.0012)  Loss_cos=0.0014 (0.0019)  Loss_wid=0.0006 (0.0005)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.81 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:00<00:06,  1.03it/s]
- 25%|##5       | 2/8 [00:01<00:03,  1.66it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.12it/s]
- 50%|#####     | 4/8 [00:01<00:01,  2.44it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.65it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.77it/s]
- 88%|########7 | 7/8 [00:02<00:00,  2.82it/s]
-100%|##########| 8/8 [00:03<00:00,  2.88it/s]
-100%|##########| 8/8 [00:03<00:00,  2.31it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.03it/s] 25%|##5       | 2/8 [00:01<00:03,  1.66it/s] 38%|###7      | 3/8 [00:01<00:02,  2.12it/s] 50%|#####     | 4/8 [00:01<00:01,  2.44it/s] 62%|######2   | 5/8 [00:02<00:01,  2.65it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.77it/s] 88%|########7 | 7/8 [00:02<00:00,  2.82it/s]100%|##########| 8/8 [00:03<00:00,  2.88it/s]100%|##########| 8/8 [00:03<00:00,  2.31it/s]
 2026-08-23 11:53:29 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.1484 gAcc=0.1779 GraspVR=1.0000 n=253
 2026-08-23 11:53:29 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 11:53:29 | INFO     | toolrgs.engine.hooks:74 - Epoch 13 summary: loss=0.004648, F_beta=0.0245, gAcc=0.1779
@@ -270,17 +240,7 @@ world_size: 8
 2026-08-23 12:00:04 | INFO     | utils.misc:108 - Training: Epoch=[14/24] [600/823]  Batch=0.65 (0.65)  Data=0.12 (0.12)  Lr=0.000040  Loss=0.0043 (0.0045)  Loss_qua=0.0012 (0.0010)  Loss_sin=0.0012 (0.0012)  Loss_cos=0.0018 (0.0018)  Loss_wid=0.0005 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.82 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:01:08 | INFO     | utils.misc:108 - Training: Epoch=[14/24] [700/823]  Batch=0.65 (0.65)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0039 (0.0045)  Loss_qua=0.0008 (0.0010)  Loss_sin=0.0009 (0.0012)  Loss_cos=0.0011 (0.0018)  Loss_wid=0.0003 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.81 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:02:13 | INFO     | utils.misc:108 - Training: Epoch=[14/24] [800/823]  Batch=0.64 (0.65)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0041 (0.0045)  Loss_qua=0.0009 (0.0010)  Loss_sin=0.0012 (0.0012)  Loss_cos=0.0016 (0.0018)  Loss_wid=0.0004 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.74 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:01<00:07,  1.02s/it]
- 25%|##5       | 2/8 [00:01<00:03,  1.64it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.06it/s]
- 50%|#####     | 4/8 [00:02<00:01,  2.37it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.58it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.79it/s]
- 88%|########7 | 7/8 [00:02<00:00,  2.90it/s]
-100%|##########| 8/8 [00:03<00:00,  3.05it/s]
-100%|##########| 8/8 [00:03<00:00,  2.33it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:01<00:07,  1.02s/it] 25%|##5       | 2/8 [00:01<00:03,  1.64it/s] 38%|###7      | 3/8 [00:01<00:02,  2.06it/s] 50%|#####     | 4/8 [00:02<00:01,  2.37it/s] 62%|######2   | 5/8 [00:02<00:01,  2.58it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.79it/s] 88%|########7 | 7/8 [00:02<00:00,  2.90it/s]100%|##########| 8/8 [00:03<00:00,  3.05it/s]100%|##########| 8/8 [00:03<00:00,  2.33it/s]
 2026-08-23 12:02:32 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.1900 gAcc=0.2806 GraspVR=1.0000 n=253
 2026-08-23 12:02:32 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 12:02:32 | INFO     | toolrgs.engine.hooks:74 - Epoch 14 summary: loss=0.004469, F_beta=0.0245, gAcc=0.2806
@@ -294,17 +254,7 @@ world_size: 8
 2026-08-23 12:09:08 | INFO     | utils.misc:108 - Training: Epoch=[15/24] [600/823]  Batch=0.66 (0.65)  Data=0.13 (0.13)  Lr=0.000040  Loss=0.0039 (0.0043)  Loss_qua=0.0008 (0.0010)  Loss_sin=0.0011 (0.0012)  Loss_cos=0.0016 (0.0018)  Loss_wid=0.0003 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.81 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:10:13 | INFO     | utils.misc:108 - Training: Epoch=[15/24] [700/823]  Batch=0.63 (0.65)  Data=0.11 (0.13)  Lr=0.000040  Loss=0.0045 (0.0043)  Loss_qua=0.0011 (0.0010)  Loss_sin=0.0011 (0.0012)  Loss_cos=0.0023 (0.0018)  Loss_wid=0.0004 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.93 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:11:18 | INFO     | utils.misc:108 - Training: Epoch=[15/24] [800/823]  Batch=0.65 (0.65)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0040 (0.0043)  Loss_qua=0.0009 (0.0010)  Loss_sin=0.0012 (0.0012)  Loss_cos=0.0016 (0.0018)  Loss_wid=0.0003 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.76 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:00<00:06,  1.01it/s]
- 25%|##5       | 2/8 [00:01<00:03,  1.61it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.03it/s]
- 50%|#####     | 4/8 [00:02<00:01,  2.29it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.50it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.66it/s]
- 88%|########7 | 7/8 [00:03<00:00,  2.79it/s]
-100%|##########| 8/8 [00:03<00:00,  2.88it/s]
-100%|##########| 8/8 [00:03<00:00,  2.26it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.01it/s] 25%|##5       | 2/8 [00:01<00:03,  1.61it/s] 38%|###7      | 3/8 [00:01<00:02,  2.03it/s] 50%|#####     | 4/8 [00:02<00:01,  2.29it/s] 62%|######2   | 5/8 [00:02<00:01,  2.50it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.66it/s] 88%|########7 | 7/8 [00:03<00:00,  2.79it/s]100%|##########| 8/8 [00:03<00:00,  2.88it/s]100%|##########| 8/8 [00:03<00:00,  2.26it/s]
 2026-08-23 12:11:37 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2289 gAcc=0.3597 GraspVR=1.0000 n=253
 2026-08-23 12:11:37 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 12:11:37 | INFO     | toolrgs.engine.hooks:74 - Epoch 15 summary: loss=0.004304, F_beta=0.0245, gAcc=0.3597
@@ -318,17 +268,7 @@ world_size: 8
 2026-08-23 12:18:20 | INFO     | utils.misc:108 - Training: Epoch=[16/24] [600/823]  Batch=0.65 (0.67)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0037 (0.0042)  Loss_qua=0.0008 (0.0010)  Loss_sin=0.0012 (0.0011)  Loss_cos=0.0016 (0.0017)  Loss_wid=0.0002 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.82 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:19:26 | INFO     | utils.misc:108 - Training: Epoch=[16/24] [700/823]  Batch=0.64 (0.66)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0041 (0.0041)  Loss_qua=0.0008 (0.0010)  Loss_sin=0.0009 (0.0011)  Loss_cos=0.0012 (0.0017)  Loss_wid=0.0002 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.85 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:20:31 | INFO     | utils.misc:108 - Training: Epoch=[16/24] [800/823]  Batch=0.63 (0.66)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0042 (0.0041)  Loss_qua=0.0009 (0.0010)  Loss_sin=0.0010 (0.0011)  Loss_cos=0.0018 (0.0017)  Loss_wid=0.0003 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.87 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:00<00:06,  1.00it/s]
- 25%|##5       | 2/8 [00:01<00:03,  1.59it/s]
- 38%|###7      | 3/8 [00:01<00:02,  1.99it/s]
- 50%|#####     | 4/8 [00:02<00:01,  2.27it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.48it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.66it/s]
- 88%|########7 | 7/8 [00:03<00:00,  2.78it/s]
-100%|##########| 8/8 [00:03<00:00,  2.91it/s]
-100%|##########| 8/8 [00:03<00:00,  2.24it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.00it/s] 25%|##5       | 2/8 [00:01<00:03,  1.59it/s] 38%|###7      | 3/8 [00:01<00:02,  1.99it/s] 50%|#####     | 4/8 [00:02<00:01,  2.27it/s] 62%|######2   | 5/8 [00:02<00:01,  2.48it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.66it/s] 88%|########7 | 7/8 [00:03<00:00,  2.78it/s]100%|##########| 8/8 [00:03<00:00,  2.91it/s]100%|##########| 8/8 [00:03<00:00,  2.24it/s]
 2026-08-23 12:20:51 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2471 gAcc=0.3913 GraspVR=1.0000 n=253
 2026-08-23 12:20:51 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 12:20:51 | INFO     | toolrgs.engine.hooks:74 - Epoch 16 summary: loss=0.004137, F_beta=0.0245, gAcc=0.3913
@@ -342,17 +282,7 @@ world_size: 8
 2026-08-23 12:27:34 | INFO     | utils.misc:108 - Training: Epoch=[17/24] [600/823]  Batch=0.64 (0.67)  Data=0.12 (0.12)  Lr=0.000040  Loss=0.0039 (0.0040)  Loss_qua=0.0007 (0.0009)  Loss_sin=0.0009 (0.0011)  Loss_cos=0.0010 (0.0016)  Loss_wid=0.0002 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.85 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:28:40 | INFO     | utils.misc:108 - Training: Epoch=[17/24] [700/823]  Batch=0.64 (0.67)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0043 (0.0040)  Loss_qua=0.0011 (0.0009)  Loss_sin=0.0012 (0.0011)  Loss_cos=0.0023 (0.0017)  Loss_wid=0.0004 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.86 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:29:47 | INFO     | utils.misc:108 - Training: Epoch=[17/24] [800/823]  Batch=0.65 (0.67)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0040 (0.0040)  Loss_qua=0.0009 (0.0009)  Loss_sin=0.0012 (0.0011)  Loss_cos=0.0022 (0.0017)  Loss_wid=0.0004 (0.0004)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.86 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:00<00:06,  1.04it/s]
- 25%|##5       | 2/8 [00:01<00:03,  1.68it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.11it/s]
- 50%|#####     | 4/8 [00:01<00:01,  2.40it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.61it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.76it/s]
- 88%|########7 | 7/8 [00:02<00:00,  2.87it/s]
-100%|##########| 8/8 [00:03<00:00,  2.96it/s]
-100%|##########| 8/8 [00:03<00:00,  2.32it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.04it/s] 25%|##5       | 2/8 [00:01<00:03,  1.68it/s] 38%|###7      | 3/8 [00:01<00:02,  2.11it/s] 50%|#####     | 4/8 [00:01<00:01,  2.40it/s] 62%|######2   | 5/8 [00:02<00:01,  2.61it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.76it/s] 88%|########7 | 7/8 [00:02<00:00,  2.87it/s]100%|##########| 8/8 [00:03<00:00,  2.96it/s]100%|##########| 8/8 [00:03<00:00,  2.32it/s]
 2026-08-23 12:30:07 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2570 gAcc=0.4229 GraspVR=1.0000 n=253
 2026-08-23 12:30:07 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 12:30:07 | INFO     | toolrgs.engine.hooks:74 - Epoch 17 summary: loss=0.003986, F_beta=0.0245, gAcc=0.4229
@@ -366,17 +296,7 @@ world_size: 8
 2026-08-23 12:36:46 | INFO     | utils.misc:108 - Training: Epoch=[18/24] [600/823]  Batch=0.64 (0.66)  Data=0.12 (0.13)  Lr=0.000040  Loss=0.0038 (0.0039)  Loss_qua=0.0010 (0.0009)  Loss_sin=0.0010 (0.0010)  Loss_cos=0.0018 (0.0016)  Loss_wid=0.0003 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.75 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:37:51 | INFO     | utils.misc:108 - Training: Epoch=[18/24] [700/823]  Batch=0.66 (0.66)  Data=0.13 (0.12)  Lr=0.000040  Loss=0.0035 (0.0038)  Loss_qua=0.0008 (0.0009)  Loss_sin=0.0010 (0.0010)  Loss_cos=0.0014 (0.0016)  Loss_wid=0.0002 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.77 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:38:56 | INFO     | utils.misc:108 - Training: Epoch=[18/24] [800/823]  Batch=0.66 (0.66)  Data=0.12 (0.12)  Lr=0.000040  Loss=0.0038 (0.0038)  Loss_qua=0.0010 (0.0009)  Loss_sin=0.0011 (0.0010)  Loss_cos=0.0018 (0.0016)  Loss_wid=0.0005 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.96 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:01<00:07,  1.00s/it]
- 25%|##5       | 2/8 [00:01<00:03,  1.58it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.03it/s]
- 50%|#####     | 4/8 [00:02<00:01,  2.33it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.59it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.78it/s]
- 88%|########7 | 7/8 [00:02<00:00,  2.91it/s]
-100%|##########| 8/8 [00:03<00:00,  3.02it/s]
-100%|##########| 8/8 [00:03<00:00,  2.30it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:01<00:07,  1.00s/it] 25%|##5       | 2/8 [00:01<00:03,  1.58it/s] 38%|###7      | 3/8 [00:01<00:02,  2.03it/s] 50%|#####     | 4/8 [00:02<00:01,  2.33it/s] 62%|######2   | 5/8 [00:02<00:01,  2.59it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.78it/s] 88%|########7 | 7/8 [00:02<00:00,  2.91it/s]100%|##########| 8/8 [00:03<00:00,  3.02it/s]100%|##########| 8/8 [00:03<00:00,  2.30it/s]
 2026-08-23 12:39:16 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2641 gAcc=0.4348 GraspVR=1.0000 n=253
 2026-08-23 12:39:16 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 12:39:16 | INFO     | toolrgs.engine.hooks:74 - Epoch 18 summary: loss=0.003833, F_beta=0.0245, gAcc=0.4348
@@ -390,17 +310,7 @@ world_size: 8
 2026-08-23 12:45:55 | INFO     | utils.misc:108 - Training: Epoch=[19/24] [600/823]  Batch=0.64 (0.66)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0036 (0.0037)  Loss_qua=0.0008 (0.0009)  Loss_sin=0.0008 (0.0010)  Loss_cos=0.0017 (0.0016)  Loss_wid=0.0002 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.89 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:47:02 | INFO     | utils.misc:108 - Training: Epoch=[19/24] [700/823]  Batch=0.66 (0.66)  Data=0.10 (0.12)  Lr=0.000040  Loss=0.0038 (0.0037)  Loss_qua=0.0008 (0.0009)  Loss_sin=0.0010 (0.0010)  Loss_cos=0.0017 (0.0016)  Loss_wid=0.0002 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.86 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:48:07 | INFO     | utils.misc:108 - Training: Epoch=[19/24] [800/823]  Batch=0.65 (0.66)  Data=0.11 (0.12)  Lr=0.000040  Loss=0.0038 (0.0037)  Loss_qua=0.0010 (0.0009)  Loss_sin=0.0011 (0.0010)  Loss_cos=0.0012 (0.0016)  Loss_wid=0.0003 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.93 (0.86)  Prec@50=0.00 (0.00)
-
-  0%|          | 0/8 [00:00<?, ?it/s]
- 12%|#2        | 1/8 [00:01<00:07,  1.01s/it]
- 25%|##5       | 2/8 [00:01<00:03,  1.59it/s]
- 38%|###7      | 3/8 [00:01<00:02,  2.00it/s]
- 50%|#####     | 4/8 [00:02<00:01,  2.29it/s]
- 62%|######2   | 5/8 [00:02<00:01,  2.52it/s]
- 75%|#######5  | 6/8 [00:02<00:00,  2.69it/s]
- 88%|########7 | 7/8 [00:03<00:00,  2.83it/s]
-100%|##########| 8/8 [00:03<00:00,  2.95it/s]
-100%|##########| 8/8 [00:03<00:00,  2.21it/s]
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:01<00:07,  1.01s/it] 25%|##5       | 2/8 [00:01<00:03,  1.59it/s] 38%|###7      | 3/8 [00:01<00:02,  2.00it/s] 50%|#####     | 4/8 [00:02<00:01,  2.29it/s] 62%|######2   | 5/8 [00:02<00:01,  2.52it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.69it/s] 88%|########7 | 7/8 [00:03<00:00,  2.83it/s]100%|##########| 8/8 [00:03<00:00,  2.95it/s]100%|##########| 8/8 [00:03<00:00,  2.21it/s]
 2026-08-23 12:48:27 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2839 gAcc=0.4308 GraspVR=1.0000 n=253
 2026-08-23 12:48:27 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
 2026-08-23 12:48:27 | INFO     | toolrgs.engine.hooks:74 - Epoch 19 summary: loss=0.003704, F_beta=0.0245, gAcc=0.4308
@@ -412,3 +322,50 @@ world_size: 8
 2026-08-23 12:53:59 | INFO     | utils.misc:108 - Training: Epoch=[20/24] [500/823]  Batch=0.65 (0.66)  Data=0.13 (0.13)  Lr=0.000040  Loss=0.0034 (0.0036)  Loss_qua=0.0008 (0.0008)  Loss_sin=0.0008 (0.0010)  Loss_cos=0.0015 (0.0016)  Loss_wid=0.0002 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.75 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:55:05 | INFO     | utils.misc:108 - Training: Epoch=[20/24] [600/823]  Batch=0.66 (0.66)  Data=0.11 (0.13)  Lr=0.000040  Loss=0.0036 (0.0036)  Loss_qua=0.0007 (0.0008)  Loss_sin=0.0009 (0.0010)  Loss_cos=0.0016 (0.0016)  Loss_wid=0.0002 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.88 (0.86)  Prec@50=0.00 (0.00)
 2026-08-23 12:56:11 | INFO     | utils.misc:108 - Training: Epoch=[20/24] [700/823]  Batch=0.65 (0.66)  Data=0.16 (0.13)  Lr=0.000040  Loss=0.0034 (0.0036)  Loss_qua=0.0008 (0.0008)  Loss_sin=0.0010 (0.0010)  Loss_cos=0.0016 (0.0015)  Loss_wid=0.0003 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.83 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 12:57:16 | INFO     | utils.misc:108 - Training: Epoch=[20/24] [800/823]  Batch=0.64 (0.66)  Data=0.11 (0.13)  Lr=0.000040  Loss=0.0036 (0.0036)  Loss_qua=0.0007 (0.0008)  Loss_sin=0.0007 (0.0010)  Loss_cos=0.0010 (0.0015)  Loss_wid=0.0002 (0.0003)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.86 (0.86)  Prec@50=0.00 (0.00)
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.01it/s] 25%|##5       | 2/8 [00:01<00:03,  1.66it/s] 38%|###7      | 3/8 [00:01<00:02,  2.10it/s] 50%|#####     | 4/8 [00:01<00:01,  2.42it/s] 62%|######2   | 5/8 [00:02<00:01,  2.63it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.80it/s] 88%|########7 | 7/8 [00:02<00:00,  2.95it/s]100%|##########| 8/8 [00:03<00:00,  3.02it/s]100%|##########| 8/8 [00:03<00:00,  2.34it/s]
+2026-08-23 12:57:35 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2644 gAcc=0.4269 GraspVR=1.0000 n=253
+2026-08-23 12:57:35 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 12:57:35 | INFO     | toolrgs.engine.hooks:74 - Epoch 20 summary: loss=0.003601, F_beta=0.0245, gAcc=0.4269
+2026-08-23 12:57:37 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 12:58:47 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [100/823]  Batch=0.64 (0.70)  Data=0.12 (0.15)  Lr=0.000004  Loss=0.0034 (0.0035)  Loss_qua=0.0007 (0.0008)  Loss_sin=0.0007 (0.0010)  Loss_cos=0.0008 (0.0016)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.96 (0.87)  Prec@50=0.00 (0.00)
+2026-08-23 12:59:52 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [200/823]  Batch=0.62 (0.67)  Data=0.11 (0.14)  Lr=0.000004  Loss=0.0034 (0.0034)  Loss_qua=0.0009 (0.0008)  Loss_sin=0.0010 (0.0009)  Loss_cos=0.0015 (0.0015)  Loss_wid=0.0004 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.84 (0.87)  Prec@50=0.00 (0.00)
+2026-08-23 13:00:59 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [300/823]  Batch=0.64 (0.67)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0030 (0.0034)  Loss_qua=0.0006 (0.0008)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0016 (0.0015)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.84 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:02:04 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [400/823]  Batch=0.65 (0.67)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0037 (0.0034)  Loss_qua=0.0006 (0.0008)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0010 (0.0015)  Loss_wid=0.0001 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.91 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:03:10 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [500/823]  Batch=0.63 (0.67)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0035 (0.0034)  Loss_qua=0.0008 (0.0008)  Loss_sin=0.0011 (0.0009)  Loss_cos=0.0012 (0.0015)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.89 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:04:16 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [600/823]  Batch=0.65 (0.66)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0032 (0.0034)  Loss_qua=0.0009 (0.0008)  Loss_sin=0.0007 (0.0009)  Loss_cos=0.0012 (0.0015)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.83 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:05:22 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [700/823]  Batch=0.65 (0.66)  Data=0.11 (0.12)  Lr=0.000004  Loss=0.0031 (0.0034)  Loss_qua=0.0009 (0.0008)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0013 (0.0015)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.81 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:06:27 | INFO     | utils.misc:108 - Training: Epoch=[21/24] [800/823]  Batch=0.63 (0.66)  Data=0.11 (0.12)  Lr=0.000004  Loss=0.0033 (0.0034)  Loss_qua=0.0006 (0.0008)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0014 (0.0015)  Loss_wid=0.0001 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.92 (0.86)  Prec@50=0.00 (0.00)
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.07it/s] 25%|##5       | 2/8 [00:01<00:03,  1.73it/s] 38%|###7      | 3/8 [00:01<00:02,  2.16it/s] 50%|#####     | 4/8 [00:01<00:01,  2.47it/s] 62%|######2   | 5/8 [00:02<00:01,  2.69it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.86it/s] 88%|########7 | 7/8 [00:02<00:00,  2.97it/s]100%|##########| 8/8 [00:03<00:00,  3.07it/s]100%|##########| 8/8 [00:03<00:00,  2.39it/s]
+2026-08-23 13:06:46 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2821 gAcc=0.4585 GraspVR=1.0000 n=253
+2026-08-23 13:06:46 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 13:06:46 | INFO     | toolrgs.engine.hooks:74 - Epoch 21 summary: loss=0.003378, F_beta=0.0245, gAcc=0.4585
+2026-08-23 13:06:48 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 13:06:49 | INFO     | toolrgs.engine.runner:505 - Saved new best checkpoint: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/best_j1_epoch_021.pth
+2026-08-23 13:08:00 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [100/823]  Batch=0.66 (0.71)  Data=0.12 (0.15)  Lr=0.000004  Loss=0.0034 (0.0033)  Loss_qua=0.0007 (0.0008)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0016 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.85 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:09:06 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [200/823]  Batch=0.70 (0.68)  Data=0.12 (0.14)  Lr=0.000004  Loss=0.0033 (0.0034)  Loss_qua=0.0006 (0.0007)  Loss_sin=0.0007 (0.0009)  Loss_cos=0.0009 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.95 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:10:12 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [300/823]  Batch=0.67 (0.68)  Data=0.13 (0.13)  Lr=0.000004  Loss=0.0033 (0.0033)  Loss_qua=0.0008 (0.0007)  Loss_sin=0.0008 (0.0009)  Loss_cos=0.0013 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.85 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:11:19 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [400/823]  Batch=0.65 (0.67)  Data=0.12 (0.13)  Lr=0.000004  Loss=0.0033 (0.0033)  Loss_qua=0.0008 (0.0007)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0018 (0.0014)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.79 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:12:25 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [500/823]  Batch=0.68 (0.67)  Data=0.14 (0.13)  Lr=0.000004  Loss=0.0034 (0.0033)  Loss_qua=0.0009 (0.0007)  Loss_sin=0.0014 (0.0009)  Loss_cos=0.0021 (0.0014)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.85 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:13:30 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [600/823]  Batch=0.68 (0.67)  Data=0.12 (0.13)  Lr=0.000004  Loss=0.0036 (0.0033)  Loss_qua=0.0013 (0.0007)  Loss_sin=0.0017 (0.0009)  Loss_cos=0.0015 (0.0014)  Loss_wid=0.0006 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.90 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:14:37 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [700/823]  Batch=0.68 (0.67)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0033 (0.0033)  Loss_qua=0.0006 (0.0007)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0010 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.86 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:15:43 | INFO     | utils.misc:108 - Training: Epoch=[22/24] [800/823]  Batch=0.69 (0.67)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0031 (0.0033)  Loss_qua=0.0005 (0.0007)  Loss_sin=0.0010 (0.0009)  Loss_cos=0.0018 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.79 (0.86)  Prec@50=0.00 (0.00)
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:00<00:06,  1.01it/s] 25%|##5       | 2/8 [00:01<00:03,  1.61it/s] 38%|###7      | 3/8 [00:01<00:02,  2.02it/s] 50%|#####     | 4/8 [00:02<00:01,  2.29it/s] 62%|######2   | 5/8 [00:02<00:01,  2.50it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.65it/s] 88%|########7 | 7/8 [00:03<00:00,  2.81it/s]100%|##########| 8/8 [00:03<00:00,  2.94it/s]100%|##########| 8/8 [00:03<00:00,  2.26it/s]
+2026-08-23 13:16:03 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2774 gAcc=0.4348 GraspVR=1.0000 n=253
+2026-08-23 13:16:03 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 13:16:03 | INFO     | toolrgs.engine.hooks:74 - Epoch 22 summary: loss=0.003344, F_beta=0.0245, gAcc=0.4348
+2026-08-23 13:16:05 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 13:17:16 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [100/823]  Batch=0.67 (0.71)  Data=0.11 (0.16)  Lr=0.000004  Loss=0.0033 (0.0033)  Loss_qua=0.0010 (0.0007)  Loss_sin=0.0013 (0.0009)  Loss_cos=0.0013 (0.0014)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.89 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:18:23 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [200/823]  Batch=0.66 (0.69)  Data=0.11 (0.14)  Lr=0.000004  Loss=0.0031 (0.0033)  Loss_qua=0.0007 (0.0007)  Loss_sin=0.0011 (0.0009)  Loss_cos=0.0019 (0.0014)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.86 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:19:30 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [300/823]  Batch=0.64 (0.68)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0033 (0.0033)  Loss_qua=0.0005 (0.0007)  Loss_sin=0.0011 (0.0009)  Loss_cos=0.0011 (0.0014)  Loss_wid=0.0001 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.80 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:20:36 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [400/823]  Batch=0.65 (0.68)  Data=0.11 (0.13)  Lr=0.000004  Loss=0.0034 (0.0033)  Loss_qua=0.0006 (0.0007)  Loss_sin=0.0007 (0.0009)  Loss_cos=0.0013 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.88 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:21:43 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [500/823]  Batch=0.67 (0.68)  Data=0.12 (0.12)  Lr=0.000004  Loss=0.0034 (0.0033)  Loss_qua=0.0006 (0.0007)  Loss_sin=0.0010 (0.0009)  Loss_cos=0.0013 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.83 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:22:50 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [600/823]  Batch=0.66 (0.68)  Data=0.12 (0.12)  Lr=0.000004  Loss=0.0030 (0.0033)  Loss_qua=0.0007 (0.0007)  Loss_sin=0.0011 (0.0009)  Loss_cos=0.0018 (0.0014)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.77 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:23:57 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [700/823]  Batch=0.65 (0.67)  Data=0.12 (0.12)  Lr=0.000004  Loss=0.0031 (0.0033)  Loss_qua=0.0007 (0.0007)  Loss_sin=0.0008 (0.0009)  Loss_cos=0.0012 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.80 (0.86)  Prec@50=0.00 (0.00)
+2026-08-23 13:25:03 | INFO     | utils.misc:108 - Training: Epoch=[23/24] [800/823]  Batch=0.64 (0.67)  Data=0.11 (0.12)  Lr=0.000004  Loss=0.0033 (0.0033)  Loss_qua=0.0007 (0.0007)  Loss_sin=0.0008 (0.0009)  Loss_cos=0.0013 (0.0014)  Loss_wid=0.0002 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.90 (0.86)  Prec@50=0.00 (0.00)
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|#2        | 1/8 [00:01<00:07,  1.01s/it] 25%|##5       | 2/8 [00:01<00:03,  1.59it/s] 38%|###7      | 3/8 [00:01<00:02,  2.02it/s] 50%|#####     | 4/8 [00:02<00:01,  2.30it/s] 62%|######2   | 5/8 [00:02<00:01,  2.52it/s] 75%|#######5  | 6/8 [00:02<00:00,  2.61it/s] 88%|########7 | 7/8 [00:03<00:00,  2.73it/s]100%|##########| 8/8 [00:03<00:00,  2.87it/s]100%|##########| 8/8 [00:03<00:00,  2.13it/s]
+2026-08-23 13:25:23 | INFO     | toolrgs.engine.realvlg_val_loop:374 - RealVLG seen: gIoU=0.0239 cIoU=0.0051 F_beta=0.0245 S_alpha=0.0159 E=0.3044 SegVR=1.0000 mIoU=0.2783 gAcc=0.4545 GraspVR=1.0000 n=253
+2026-08-23 13:25:23 | INFO     | toolrgs.engine.realvlg_val_loop:400 - Saved RealVLG metrics: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/realvlg_seen_metrics.json
+2026-08-23 13:25:23 | INFO     | toolrgs.engine.hooks:74 - Epoch 23 summary: loss=0.003323, F_beta=0.0245, gAcc=0.4545
+2026-08-23 13:25:25 | INFO     | toolrgs.engine.runner:498 - Saved latest completed epoch checkpoint: exp/realvlg/grconvnetclip_realvlg_full_e24_8npu_bs256/last.pth
+2026-08-23 13:26:37 | INFO     | utils.misc:108 - Training: Epoch=[24/24] [100/823]  Batch=0.66 (0.71)  Data=0.12 (0.16)  Lr=0.000004  Loss=0.0035 (0.0033)  Loss_qua=0.0008 (0.0007)  Loss_sin=0.0009 (0.0009)  Loss_cos=0.0018 (0.0014)  Loss_wid=0.0003 (0.0002)  Loss_off=0.0000 (0.0000)  Loss_short=0.0000 (0.0000)  Loss_align=0.0000 (0.0000)  IoU=0.90 (0.87)  Prec@50=0.00 (0.00)
