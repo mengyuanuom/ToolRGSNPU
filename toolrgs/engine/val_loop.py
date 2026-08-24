@@ -11,6 +11,7 @@ from toolrgs.engine.hooks import LoopState
 from toolrgs.engine.loops import BaseLoop
 from toolrgs.models.base import (
     model_predicts_grasp_short_side,
+    model_predicts_segmentation,
     model_requires_depth,
 )
 from toolrgs.evaluation import (
@@ -91,6 +92,26 @@ class GraspValLoop(BaseLoop):
         if self.evaluation_protocol.grasp_evaluator == "vcot_official" and self.topk != (1,):
             raise ValueError("vcot_official evaluates exactly one prediction; set grasp_topk: [1]")
         self.max_topk = max(self.topk)
+        segmentation_default = model_predicts_segmentation(model)
+        self.evaluate_segmentation = bool(
+            getattr(cfg, "evaluate_segmentation", segmentation_default)
+        )
+        if self.evaluate_segmentation and not segmentation_default:
+            raise ValueError(
+                "evaluate_segmentation=True requires a genuine segmentation head"
+            )
+        unwrapped = getattr(model, "module", model)
+        self.grasp_quality_activation = str(
+            getattr(
+                cfg,
+                "grasp_quality_activation",
+                getattr(unwrapped, "grasp_quality_activation", "sigmoid"),
+            )
+        ).strip().lower()
+        if self.grasp_quality_activation not in {"identity", "sigmoid", "clamp"}:
+            raise ValueError(
+                "grasp_quality_activation must be identity, sigmoid, or clamp"
+            )
         self.segmentation_metric = METRICS.build(
             getattr(cfg, "segmentation_metric", None)
             or {
@@ -144,6 +165,13 @@ class GraspValLoop(BaseLoop):
                 f"{self.offset_decode_mode!r}"
             )
 
+    def _decode_quality(self, prediction):
+        if self.grasp_quality_activation == "sigmoid":
+            return torch.sigmoid(prediction)
+        if self.grasp_quality_activation == "clamp":
+            return prediction.clamp(0.0, 1.0)
+        return prediction
+
     def _decode_size(self, prediction):
         if self.grasp_size_activation == "sigmoid":
             return torch.sigmoid(prediction)
@@ -183,6 +211,9 @@ class GraspValLoop(BaseLoop):
                 cursor += 2
             j_index_by_iou[f"{threshold:.2f}"] = values_for_threshold
         j_index = j_index_by_iou[f"{self.primary_grasp_iou:.2f}"]
+        if not self.evaluate_segmentation:
+            iou = j_index[0] if j_index else 0.0
+            precision = {}
         return float(iou), precision, j_index, j_index_by_iou
 
     @torch.no_grad()
@@ -248,11 +279,21 @@ class GraspValLoop(BaseLoop):
                 model=evaluation_model,
             )
             predictions = result.predictions
+            if self.evaluate_segmentation and predictions.segmentation is None:
+                raise RuntimeError(
+                    "Segmentation evaluation was requested but the model returned none"
+                )
             input_hw = image.shape[-2:]
-            segmentation = _resize_prediction(
-                torch.sigmoid(predictions.segmentation), input_hw
-            )
+            segmentation = None
+            if self.evaluate_segmentation:
+                segmentation = _resize_prediction(
+                    torch.sigmoid(predictions.segmentation), input_hw
+                )
             if predictions.quality is None:
+                if segmentation is None:
+                    raise RuntimeError(
+                        "A grasp-only evaluation requires dense grasp predictions"
+                    )
                 dense_maps = (
                     torch.cat([segmentation, target_segmentation], dim=1)
                     .detach()
@@ -294,7 +335,9 @@ class GraspValLoop(BaseLoop):
                 self.state.result = result
                 self.hooks.call("after_iter", self, self.state)
                 continue
-            quality = _resize_prediction(torch.sigmoid(predictions.quality), input_hw)
+            quality = _resize_prediction(
+                self._decode_quality(predictions.quality), input_hw
+            )
             sine = _resize_prediction(predictions.sine, input_hw)
             cosine = _resize_prediction(predictions.cosine, input_hw)
             width = _resize_prediction(
@@ -309,17 +352,29 @@ class GraspValLoop(BaseLoop):
             if predictions.offset is not None:
                 offset = _resize_prediction(predictions.offset, input_hw, mode="bilinear")
 
-            dense_tensors = [
-                segmentation,
-                target_segmentation,
-                quality,
-                sine,
-                cosine,
-                width,
-            ]
+            dense_tensors = []
+            segmentation_index = None
+            target_segmentation_index = None
+            if segmentation is not None:
+                segmentation_index = len(dense_tensors)
+                dense_tensors.append(segmentation)
+                target_segmentation_index = len(dense_tensors)
+                dense_tensors.append(target_segmentation)
+            quality_index = len(dense_tensors)
+            dense_tensors.append(quality)
+            sine_index = len(dense_tensors)
+            dense_tensors.append(sine)
+            cosine_index = len(dense_tensors)
+            dense_tensors.append(cosine)
+            width_index = len(dense_tensors)
+            dense_tensors.append(width)
+            short_side_index = None
             if short_side is not None:
+                short_side_index = len(dense_tensors)
                 dense_tensors.append(short_side)
+            offset_index = None
             if offset is not None:
+                offset_index = len(dense_tensors)
                 dense_tensors.append(offset)
             dense_maps = (
                 torch.cat(dense_tensors, dim=1)
@@ -328,13 +383,15 @@ class GraspValLoop(BaseLoop):
                 .cpu()
                 .numpy()
             )
-            next_channel = 6
-            short_side_maps = None
-            if short_side is not None:
-                short_side_maps = dense_maps[:, next_channel]
-                next_channel += 1
+            short_side_maps = (
+                dense_maps[:, short_side_index]
+                if short_side_index is not None
+                else None
+            )
             offset_maps = (
-                dense_maps[:, next_channel:next_channel + 2] if offset is not None else None
+                dense_maps[:, offset_index:offset_index + 2]
+                if offset_index is not None
+                else None
             )
 
             for index in range(image.shape[0]):
@@ -345,50 +402,51 @@ class GraspValLoop(BaseLoop):
                     int(data["ori_size"][index][0]),
                     int(data["ori_size"][index][1]),
                 )
-                predicted_segmentation = inverse_warp(
-                    dense_maps[index, 0],
-                    inverse_matrix,
-                    original_hw,
-                    interpolation=self.evaluation_protocol.inverse_interpolation,
-                )
-                target_segmentation_original = inverse_warp(
-                    dense_maps[index, 1],
-                    inverse_matrix,
-                    original_hw,
-                    interpolation=self.evaluation_protocol.inverse_interpolation,
-                )
-                target_mask_threshold = (
-                    self.evaluation_protocol.target_mask_threshold
-                )
-                if target_mask_threshold is not None:
-                    target_segmentation_original = (
-                        target_segmentation_original > target_mask_threshold
+                if segmentation_index is not None:
+                    predicted_segmentation = inverse_warp(
+                        dense_maps[index, segmentation_index],
+                        inverse_matrix,
+                        original_hw,
+                        interpolation=self.evaluation_protocol.inverse_interpolation,
                     )
-                self.segmentation_metric.update(
-                    predicted_segmentation,
-                    target_segmentation_original,
-                )
+                    target_segmentation_original = inverse_warp(
+                        dense_maps[index, target_segmentation_index],
+                        inverse_matrix,
+                        original_hw,
+                        interpolation=self.evaluation_protocol.inverse_interpolation,
+                    )
+                    target_mask_threshold = (
+                        self.evaluation_protocol.target_mask_threshold
+                    )
+                    if target_mask_threshold is not None:
+                        target_segmentation_original = (
+                            target_segmentation_original > target_mask_threshold
+                        )
+                    self.segmentation_metric.update(
+                        predicted_segmentation,
+                        target_segmentation_original,
+                    )
 
                 quality_original = inverse_warp(
-                    dense_maps[index, 2],
+                    dense_maps[index, quality_index],
                     inverse_matrix,
                     original_hw,
                     interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 sine_original = inverse_warp(
-                    dense_maps[index, 3],
+                    dense_maps[index, sine_index],
                     inverse_matrix,
                     original_hw,
                     interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 cosine_original = inverse_warp(
-                    dense_maps[index, 4],
+                    dense_maps[index, cosine_index],
                     inverse_matrix,
                     original_hw,
                     interpolation=self.evaluation_protocol.inverse_interpolation,
                 )
                 width_original = inverse_warp(
-                    dense_maps[index, 5],
+                    dense_maps[index, width_index],
                     inverse_matrix,
                     original_hw,
                     interpolation=self.evaluation_protocol.inverse_interpolation,
@@ -501,6 +559,10 @@ class GraspValLoop(BaseLoop):
             "precision": precision,
             "j_index": j_index,
             "j_index_by_iou": j_index_by_iou,
+            "segmentation_evaluated": self.evaluate_segmentation,
+            "selection_metric": (
+                "IoU" if self.evaluate_segmentation else "GraspSuccess"
+            ),
         }
         self.hooks.call("after_epoch", self, self.state)
         if rank == 0:
@@ -519,12 +581,20 @@ class GraspValLoop(BaseLoop):
                     for threshold, values in j_index_by_iou.items()
                     for topk, value in zip(self.topk, values)
                 )
-            logger.info(
-                "Evaluation: Epoch=[{}/{}]  IoU={:.2f}  {}  {}",
-                epoch,
-                self.cfg.epochs,
-                100.0 * iou,
-                grasp_text,
-                precision_text,
-            )
+            if self.evaluate_segmentation:
+                logger.info(
+                    "Evaluation: Epoch=[{}/{}]  IoU={:.2f}  {}  {}",
+                    epoch,
+                    self.cfg.epochs,
+                    100.0 * iou,
+                    grasp_text,
+                    precision_text,
+                )
+            else:
+                logger.info(
+                    "Evaluation: Epoch=[{}/{}]  grasp-only  {}",
+                    epoch,
+                    self.cfg.epochs,
+                    grasp_text,
+                )
         return iou, precision, j_index

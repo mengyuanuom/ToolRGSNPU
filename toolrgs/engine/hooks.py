@@ -71,29 +71,50 @@ class LoggerHook(Hook):
             getattr(runner.cfg, "evaluation_protocol", "")
         ).lower()
         if protocol in {"realvlg", "realvlg_source", "realvlg_official"}:
+            if validation.get("segmentation_evaluated", True):
+                metric_name = "F_beta"
+            else:
+                metric_name = "Grasp_mIoU"
             logger.info(
-                "Epoch {} summary: loss={:.6f}, F_beta={:.4f}, gAcc={:.4f}",
+                "Epoch {} summary: loss={:.6f}, {}={:.4f}, gAcc={:.4f}",
                 state.epoch,
                 float(train.get("loss", 0.0)),
+                metric_name,
                 float(validation.get("iou", 0.0)),
                 float(grasp_values[0]) if grasp_values else 0.0,
             )
         elif protocol == "vcot_official":
-            logger.info(
-                "Epoch {} summary: loss={:.6f}, IoU={:.4f}, GraspSR={:.4f}",
-                state.epoch,
-                float(train.get("loss", 0.0)),
-                float(validation.get("iou", 0.0)),
-                float(grasp_values[0]) if grasp_values else 0.0,
-            )
+            if validation.get("segmentation_evaluated", True):
+                logger.info(
+                    "Epoch {} summary: loss={:.6f}, IoU={:.4f}, GraspSR={:.4f}",
+                    state.epoch,
+                    float(train.get("loss", 0.0)),
+                    float(validation.get("iou", 0.0)),
+                    float(grasp_values[0]) if grasp_values else 0.0,
+                )
+            else:
+                logger.info(
+                    "Epoch {} summary: loss={:.6f}, GraspSR={:.4f}",
+                    state.epoch,
+                    float(train.get("loss", 0.0)),
+                    float(grasp_values[0]) if grasp_values else 0.0,
+                )
         else:
-            logger.info(
-                "Epoch {} summary: loss={:.6f}, IoU={:.4f}, J={}",
-                state.epoch,
-                float(train.get("loss", 0.0)),
-                float(validation.get("iou", 0.0)),
-                grasp_values,
-            )
+            if validation.get("segmentation_evaluated", True):
+                logger.info(
+                    "Epoch {} summary: loss={:.6f}, IoU={:.4f}, J={}",
+                    state.epoch,
+                    float(train.get("loss", 0.0)),
+                    float(validation.get("iou", 0.0)),
+                    grasp_values,
+                )
+            else:
+                logger.info(
+                    "Epoch {} summary: loss={:.6f}, grasp-only J={}",
+                    state.epoch,
+                    float(train.get("loss", 0.0)),
+                    grasp_values,
+                )
 
 
 class HookList:

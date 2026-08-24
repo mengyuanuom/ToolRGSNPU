@@ -10,6 +10,7 @@ import torch.distributed as dist
 from toolrgs.engine.hooks import HookList, LoopState
 from toolrgs.models.base import (
     model_predicts_grasp_short_side,
+    model_predicts_segmentation,
     model_requires_depth,
 )
 from toolrgs.registry import LOOPS
@@ -162,12 +163,23 @@ class GraspTrainLoop(BaseLoop):
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
 
-            iou, precision = trainMetricGPU(
-                result.predictions.segmentation,
-                result.targets.segmentation,
-                0.35,
-                0.5,
-            )
+            if model_predicts_segmentation(self.model):
+                if (
+                    result.predictions.segmentation is None
+                    or result.targets.segmentation is None
+                ):
+                    raise RuntimeError(
+                        "A segmentation-capable model returned no segmentation map"
+                    )
+                iou, precision = trainMetricGPU(
+                    result.predictions.segmentation,
+                    result.targets.segmentation,
+                    0.35,
+                    0.5,
+                )
+            else:
+                iou = loss.detach().new_zeros(())
+                precision = loss.detach().new_zeros(())
             reduced_loss = loss.detach().clone()
             if dist.is_available() and dist.is_initialized():
                 dist.all_reduce(reduced_loss)

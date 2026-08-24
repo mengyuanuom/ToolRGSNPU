@@ -17,7 +17,7 @@ def _detach(value: Any) -> Any:
 class GraspOutput:
     """Dense prediction maps produced by a language-driven grasp model."""
 
-    segmentation: Any
+    segmentation: Optional[Any]
     quality: Optional[Any]
     sine: Optional[Any]
     cosine: Optional[Any]
@@ -26,8 +26,6 @@ class GraspOutput:
     short_side: Optional[Any] = None
 
     def __post_init__(self):
-        if self.segmentation is None:
-            raise ValueError("GraspOutput requires a segmentation prediction")
         optional = (self.quality, self.sine, self.cosine, self.width)
         if any(value is None for value in optional) and not all(
             value is None for value in optional
@@ -92,7 +90,7 @@ class GraspOutput:
 class GraspTargets:
     """Dense supervision maps paired with :class:`GraspOutput`."""
 
-    segmentation: Any
+    segmentation: Optional[Any]
     quality: Optional[Any]
     sine: Optional[Any]
     cosine: Optional[Any]

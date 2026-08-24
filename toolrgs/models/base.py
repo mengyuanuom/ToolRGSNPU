@@ -12,6 +12,7 @@ class BaseGraspModel(nn.Module, ABC):
 
     supports_offset = False
     requires_depth = False
+    predicts_segmentation = True
 
     @abstractmethod
     def forward(self, *args, **kwargs) -> GraspModelResult:
@@ -28,3 +29,9 @@ def model_predicts_grasp_short_side(model) -> bool:
     """Read the optional short-side output contract through DDP wrappers."""
     module = getattr(model, "module", model)
     return bool(getattr(module, "predicts_grasp_short_side", False))
+
+
+def model_predicts_segmentation(model) -> bool:
+    """Read whether a model has a genuine instance-segmentation head."""
+    module = getattr(model, "module", model)
+    return bool(getattr(module, "predicts_segmentation", True))

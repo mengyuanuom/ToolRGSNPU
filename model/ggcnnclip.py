@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .crog_clip import build_model
+from toolrgs.structures import GraspModelResult, GraspOutput, GraspTargets
 
 class TextVisualFusionFiLM(nn.Module):
 
@@ -180,10 +181,10 @@ class GGCNNWithText(nn.Module):
         y_pos, y_cos, y_sin, y_width = yc
         pos_pred, cos_pred, sin_pred, width_pred = self(xc, e_txt)[:4]
 
-        p_loss = F.smooth_l1_loss(pos_pred, y_pos)
-        cos_loss = F.smooth_l1_loss(cos_pred, y_cos)
-        sin_loss = F.smooth_l1_loss(sin_pred, y_sin)
-        width_loss = F.smooth_l1_loss(width_pred, y_width)
+        p_loss = F.mse_loss(pos_pred, y_pos)
+        cos_loss = F.mse_loss(cos_pred, y_cos)
+        sin_loss = F.mse_loss(sin_pred, y_sin)
+        width_loss = F.mse_loss(width_pred, y_width)
 
         return {
             'loss': p_loss + cos_loss + sin_loss + width_loss,
@@ -222,9 +223,11 @@ class GGCNNWithText(nn.Module):
         }
 
 class GGCNN_CLIP(nn.Module):
-    """GG-CNN + CLIP with native long- and short-side grasp heads."""
+    """Language-conditioned, grasp-only GG-CNN with dense map regression."""
 
-    grasp_size_loss_activation = "sigmoid"
+    predicts_segmentation = False
+    grasp_quality_activation = "identity"
+    grasp_size_loss_activation = "clamp"
 
     def __init__(self, cfg):
         super().__init__()
@@ -277,7 +280,7 @@ class GGCNN_CLIP(nn.Module):
         grasp_off_weight=None,
         grasp_short_mask=None,
     ):
-        del grasp_off_mask, grasp_off_weight
+        del ins_mask, grasp_off_mask, grasp_off_weight
         _, state = self.backbone.encode_text(word)
         state = F.normalize(state.float(), dim=-1)
         head_outputs = self.grasp_head(img, state)
@@ -286,48 +289,51 @@ class GGCNN_CLIP(nn.Module):
             head_outputs[4] if self.predicts_grasp_short_side else None
         )
 
-        predictions = (
-            pos_pred,
-            pos_pred,
-            sin_pred,
-            cos_pred,
-            wid_pred,
+        predictions = GraspOutput(
+            segmentation=None,
+            quality=pos_pred,
+            sine=sin_pred,
+            cosine=cos_pred,
+            width=wid_pred,
+            short_side=short_pred,
         )
-        if self.predicts_grasp_short_side:
-            predictions = (*predictions, short_pred)
-
         output_size = pos_pred.shape[-2:]
-        targets = tuple(
-            self._resize_target(target, output_size)
-            for target in (
-                ins_mask,
-                grasp_qua_mask,
-                grasp_sin_mask,
-                grasp_cos_mask,
-                grasp_wid_mask,
-            )
+        targets = GraspTargets(
+            segmentation=None,
+            quality=self._resize_target(grasp_qua_mask, output_size),
+            sine=self._resize_target(grasp_sin_mask, output_size),
+            cosine=self._resize_target(grasp_cos_mask, output_size),
+            width=self._resize_target(grasp_wid_mask, output_size),
+            short_side=self._resize_target(grasp_short_mask, output_size)
+            if self.predicts_grasp_short_side
+            else None,
         )
-        if self.predicts_grasp_short_side:
-            targets = (
-                *targets,
-                self._resize_target(grasp_short_mask, output_size),
-            )
 
         if not self.training:
-            return tuple(item.detach() for item in predictions), targets
-        if any(target is None for target in targets):
-            raise ValueError(
-                "GGCNN-CLIP training requires all enabled dense target maps"
+            return GraspModelResult(
+                predictions=predictions.detach(),
+                targets=targets,
             )
 
-        quality_loss = F.smooth_l1_loss(pos_pred, targets[1])
-        sine_loss = F.smooth_l1_loss(sin_pred, targets[2])
-        cosine_loss = F.smooth_l1_loss(cos_pred, targets[3])
-        width_loss = F.smooth_l1_loss(
-            torch.sigmoid(wid_pred), targets[4]
-        )
+        required_targets = [
+            targets.quality,
+            targets.sine,
+            targets.cosine,
+            targets.width,
+        ]
+        if self.predicts_grasp_short_side:
+            required_targets.append(targets.short_side)
+        if any(target is None for target in required_targets):
+            raise ValueError(
+                "GGCNN-CLIP training requires all enabled grasp target maps"
+            )
+
+        quality_loss = F.mse_loss(pos_pred, targets.quality)
+        sine_loss = F.mse_loss(sin_pred, targets.sine)
+        cosine_loss = F.mse_loss(cos_pred, targets.cosine)
+        width_loss = F.mse_loss(wid_pred, targets.width)
         short_loss = (
-            F.smooth_l1_loss(torch.sigmoid(short_pred), targets[5])
+            F.mse_loss(short_pred, targets.short_side)
             if self.predicts_grasp_short_side
             else None
         )
@@ -348,9 +354,9 @@ class GGCNN_CLIP(nn.Module):
         }
         if short_loss is not None:
             losses["m_short"] = short_loss.detach()
-        return (
-            tuple(item.detach() for item in predictions),
-            targets,
-            total_loss,
-            losses,
+        return GraspModelResult(
+            predictions=predictions.detach(),
+            targets=targets,
+            loss=total_loss,
+            losses=losses,
         )

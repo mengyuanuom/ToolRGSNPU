@@ -47,7 +47,7 @@ TRAIN:
   max_norm: 1.0
   manual_seed: 0
   print_freq: 100
-  exp_name: ggcnnclip_realvlg_full_e24_8npu_bs256
+  exp_name: ggcnnclip_grasponly_realvlg_full_e24_8npu_bs256
   output_folder: exp/realvlg
   save_freq: 0
   weight:
@@ -64,7 +64,9 @@ Distributed:
   rank: 0
 
 TEST:
-  grasp_size_activation: sigmoid
+  grasp_quality_activation: identity
+  grasp_size_activation: clamp
+  evaluate_segmentation: False
   test_split: seen
   val_loop: realvlg_val
   evaluation_protocol: realvlg_official

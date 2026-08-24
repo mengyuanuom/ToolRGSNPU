@@ -29,10 +29,14 @@ from toolrgs.evaluation import (
     realvlg_s_measure,
     resolve_evaluation_protocol,
 )
-from toolrgs.models.base import model_requires_depth
+from toolrgs.models.base import (
+    model_predicts_segmentation,
+    model_requires_depth,
+)
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import current_device, move_to_device
 from toolrgs.structures import GraspModelResult
+from utils.config import resolve_grasp_size_activation
 
 
 def _resize_prediction(tensor, output_hw, mode="bicubic"):
@@ -86,6 +90,29 @@ class RealVLGValLoop(BaseLoop):
             )
         self.mask_threshold = float(getattr(cfg, "mask_threshold", 0.35))
         self.width_factor = float(getattr(cfg, "realvlg_width_factor", 100.0))
+        segmentation_default = model_predicts_segmentation(model)
+        self.evaluate_segmentation = bool(
+            getattr(cfg, "evaluate_segmentation", segmentation_default)
+        )
+        if self.evaluate_segmentation and not segmentation_default:
+            raise ValueError(
+                "evaluate_segmentation=True requires a genuine segmentation head"
+            )
+        unwrapped = getattr(model, "module", model)
+        self.grasp_quality_activation = str(
+            getattr(
+                cfg,
+                "grasp_quality_activation",
+                getattr(unwrapped, "grasp_quality_activation", "sigmoid"),
+            )
+        ).strip().lower()
+        if self.grasp_quality_activation not in {"identity", "sigmoid", "clamp"}:
+            raise ValueError(
+                "grasp_quality_activation must be identity, sigmoid, or clamp"
+            )
+        self.grasp_size_activation = resolve_grasp_size_activation(
+            getattr(cfg, "grasp_size_activation", "auto"), model=model
+        )
         self.offset_decode_mode = str(
             getattr(cfg, "offset_decode_mode", "radius")
         ).strip().lower()
@@ -94,6 +121,18 @@ class RealVLGValLoop(BaseLoop):
                 "offset_decode_mode must be 'radius' or 'grasp_relative', got "
                 f"{self.offset_decode_mode!r}"
             )
+
+    def _decode_quality(self, prediction):
+        if self.grasp_quality_activation == "sigmoid":
+            return torch.sigmoid(prediction)
+        if self.grasp_quality_activation == "clamp":
+            return prediction.clamp(0.0, 1.0)
+        return prediction
+
+    def _decode_size(self, prediction):
+        if self.grasp_size_activation == "sigmoid":
+            return torch.sigmoid(prediction)
+        return prediction.clamp(0.0, 1.0)
 
     def _offset_radius(self, input_hw):
         configured = getattr(self.cfg, "offset_r", None)
@@ -226,52 +265,86 @@ class RealVLGValLoop(BaseLoop):
                     "choose an RGB-only ToolRGS architecture."
                 )
 
-            result = GraspModelResult.from_legacy(evaluation_model(*inputs))
-            predictions = result.predictions
-            input_hw = image.shape[-2:]
-            segmentation = _resize_prediction(
-                torch.sigmoid(predictions.segmentation), input_hw
+            result = GraspModelResult.from_legacy(
+                evaluation_model(*inputs), model=evaluation_model
             )
-            quality = _resize_prediction(torch.sigmoid(predictions.quality), input_hw)
-            sine = _resize_prediction(predictions.sine, input_hw)
-            cosine = _resize_prediction(predictions.cosine, input_hw)
-            width = _resize_prediction(torch.sigmoid(predictions.width), input_hw)
-            tensors = [segmentation, quality, sine, cosine, width]
+            predictions = result.predictions
+            grasp_maps = (
+                predictions.quality,
+                predictions.sine,
+                predictions.cosine,
+                predictions.width,
+            )
+            if any(value is None for value in grasp_maps):
+                raise RuntimeError(
+                    "RealVLG grasp evaluation requires quality/sine/cosine/width"
+                )
+            if self.evaluate_segmentation and predictions.segmentation is None:
+                raise RuntimeError(
+                    "Segmentation evaluation was requested but the model returned none"
+                )
+
+            input_hw = image.shape[-2:]
+            tensors = []
+            segmentation_index = None
+            if self.evaluate_segmentation:
+                segmentation_index = len(tensors)
+                tensors.append(
+                    _resize_prediction(
+                        torch.sigmoid(predictions.segmentation), input_hw
+                    )
+                )
+            quality_index = len(tensors)
+            tensors.append(
+                _resize_prediction(
+                    self._decode_quality(predictions.quality), input_hw
+                )
+            )
+            sine_index = len(tensors)
+            tensors.append(_resize_prediction(predictions.sine, input_hw))
+            cosine_index = len(tensors)
+            tensors.append(_resize_prediction(predictions.cosine, input_hw))
+            width_index = len(tensors)
+            tensors.append(
+                _resize_prediction(self._decode_size(predictions.width), input_hw)
+            )
+            offset_index = None
             if predictions.offset is not None:
+                offset_index = len(tensors)
                 tensors.append(
                     _resize_prediction(predictions.offset, input_hw, mode="bilinear")
                 )
             dense = torch.cat(tensors, dim=1).detach().float().cpu().numpy()
-            offset_index = 5 if predictions.offset is not None else None
 
             for index in range(image.shape[0]):
                 total += 1.0
                 inverse = np.asarray(data["inverse"][index], dtype=np.float32)
                 original_hw = tuple(int(value) for value in data["ori_size"][index])
-                predicted_probability = inverse_warp(
-                    dense[index, 0],
-                    inverse,
-                    original_hw,
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                if np.isfinite(predicted_probability).all():
-                    predicted_mask = (
-                        predicted_probability > self.mask_threshold
-                    ).astype(np.uint8)
-                    target_mask = (
-                        np.asarray(data["mask_original"][index]) > 0
-                    ).astype(np.uint8)
-                    predicted_bbox = realvlg_mask_to_bbox(predicted_mask)
-                    if predicted_bbox is not None:
-                        target_bbox = np.asarray(
-                            data["bbox_original"][index], dtype=np.float64
-                        )
-                        segmentation_valid += 1.0
-                        giou_sum += realvlg_giou(target_bbox, predicted_bbox)
-                        ciou_sum += realvlg_ciou(target_bbox, predicted_bbox)
-                        f_sum += realvlg_f_measure(predicted_mask, target_mask)
-                        s_sum += realvlg_s_measure(predicted_mask, target_mask)
-                        e_sum += realvlg_e_measure(predicted_mask, target_mask)
+                if segmentation_index is not None:
+                    predicted_probability = inverse_warp(
+                        dense[index, segmentation_index],
+                        inverse,
+                        original_hw,
+                        interpolation=cv2.INTER_LINEAR,
+                    )
+                    if np.isfinite(predicted_probability).all():
+                        predicted_mask = (
+                            predicted_probability > self.mask_threshold
+                        ).astype(np.uint8)
+                        target_mask = (
+                            np.asarray(data["mask_original"][index]) > 0
+                        ).astype(np.uint8)
+                        predicted_bbox = realvlg_mask_to_bbox(predicted_mask)
+                        if predicted_bbox is not None:
+                            target_bbox = np.asarray(
+                                data["bbox_original"][index], dtype=np.float64
+                            )
+                            segmentation_valid += 1.0
+                            giou_sum += realvlg_giou(target_bbox, predicted_bbox)
+                            ciou_sum += realvlg_ciou(target_bbox, predicted_bbox)
+                            f_sum += realvlg_f_measure(predicted_mask, target_mask)
+                            s_sum += realvlg_s_measure(predicted_mask, target_mask)
+                            e_sum += realvlg_e_measure(predicted_mask, target_mask)
 
                 offset = (
                     dense[index, offset_index : offset_index + 2]
@@ -279,10 +352,10 @@ class RealVLGValLoop(BaseLoop):
                     else None
                 )
                 prediction = self._decode_one_grasp(
-                    dense[index, 1],
-                    dense[index, 2],
-                    dense[index, 3],
-                    dense[index, 4],
+                    dense[index, quality_index],
+                    dense[index, sine_index],
+                    dense[index, cosine_index],
+                    dense[index, width_index],
                     inverse,
                     float(data["scale"][index]),
                     offset=offset,
@@ -328,6 +401,20 @@ class RealVLGValLoop(BaseLoop):
             grasp_iou_sum,
             grasp_correct,
         ) = values
+        segmentation_metrics = {
+            "Segmentation_Validity_Rate": (
+                segmentation_valid / max(1.0, total)
+            ),
+            "mean_gIoU": giou_sum / max(1.0, segmentation_valid),
+            "mean_cIoU": ciou_sum / max(1.0, segmentation_valid),
+            "F_beta": f_sum / max(1.0, segmentation_valid),
+            "S_alpha": s_sum / max(1.0, segmentation_valid),
+            "E_measure": e_sum / max(1.0, segmentation_valid),
+        }
+        if not self.evaluate_segmentation:
+            segmentation_metrics = {
+                name: None for name in segmentation_metrics
+            }
         metrics = {
             "split": str(
                 getattr(
@@ -340,12 +427,8 @@ class RealVLGValLoop(BaseLoop):
                     ),
                 )
             ),
-            "Segmentation_Validity_Rate": segmentation_valid / max(1.0, total),
-            "mean_gIoU": giou_sum / max(1.0, segmentation_valid),
-            "mean_cIoU": ciou_sum / max(1.0, segmentation_valid),
-            "F_beta": f_sum / max(1.0, segmentation_valid),
-            "S_alpha": s_sum / max(1.0, segmentation_valid),
-            "E_measure": e_sum / max(1.0, segmentation_valid),
+            "segmentation_evaluated": self.evaluate_segmentation,
+            **segmentation_metrics,
             "Grasp_Validity_Rate": grasp_valid / max(1.0, total),
             "mIoU": grasp_iou_sum / max(1.0, grasp_valid),
             "gAcc": grasp_correct / max(1.0, grasp_valid),
@@ -362,31 +445,52 @@ class RealVLGValLoop(BaseLoop):
             "Grasp_mIoU": metrics["mIoU"],
             "Grasp_Validity_Rate": metrics["Grasp_Validity_Rate"],
         }
+        selection_metric = (
+            metrics["F_beta"]
+            if self.evaluate_segmentation
+            else metrics["mIoU"]
+        )
         self.state.logs = {
-            "iou": metrics["F_beta"],
+            "iou": selection_metric,
             "precision": precision,
             "j_index": [metrics["gAcc"]],
             "realvlg": metrics,
+            "segmentation_evaluated": self.evaluate_segmentation,
+            "selection_metric": (
+                "F_beta" if self.evaluate_segmentation else "Grasp_mIoU"
+            ),
         }
         self.hooks.call("after_epoch", self, self.state)
 
         if rank == 0:
-            logger.info(
-                "RealVLG {}: gIoU={:.4f} cIoU={:.4f} F_beta={:.4f} "
-                "S_alpha={:.4f} E={:.4f} "
-                "SegVR={:.4f} mIoU={:.4f} gAcc={:.4f} GraspVR={:.4f} n={}",
-                metrics["split"],
-                metrics["mean_gIoU"],
-                metrics["mean_cIoU"],
-                metrics["F_beta"],
-                metrics["S_alpha"],
-                metrics["E_measure"],
-                metrics["Segmentation_Validity_Rate"],
-                metrics["mIoU"],
-                metrics["gAcc"],
-                metrics["Grasp_Validity_Rate"],
-                metrics["num_samples"],
-            )
+            if self.evaluate_segmentation:
+                logger.info(
+                    "RealVLG {}: gIoU={:.4f} cIoU={:.4f} F_beta={:.4f} "
+                    "S_alpha={:.4f} E={:.4f} "
+                    "SegVR={:.4f} mIoU={:.4f} gAcc={:.4f} "
+                    "GraspVR={:.4f} n={}",
+                    metrics["split"],
+                    metrics["mean_gIoU"],
+                    metrics["mean_cIoU"],
+                    metrics["F_beta"],
+                    metrics["S_alpha"],
+                    metrics["E_measure"],
+                    metrics["Segmentation_Validity_Rate"],
+                    metrics["mIoU"],
+                    metrics["gAcc"],
+                    metrics["Grasp_Validity_Rate"],
+                    metrics["num_samples"],
+                )
+            else:
+                logger.info(
+                    "RealVLG {} (grasp-only): mIoU={:.4f} gAcc={:.4f} "
+                    "GraspVR={:.4f} n={}",
+                    metrics["split"],
+                    metrics["mIoU"],
+                    metrics["gAcc"],
+                    metrics["Grasp_Validity_Rate"],
+                    metrics["num_samples"],
+                )
             output_dir = getattr(self.cfg, "output_dir", None)
             if output_dir:
                 Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -398,4 +502,4 @@ class RealVLGValLoop(BaseLoop):
                     json.dump(metrics, stream, indent=2, ensure_ascii=False)
                 os.replace(temporary_path, result_path)
                 logger.info("Saved RealVLG metrics: {}", result_path)
-        return metrics["F_beta"], precision, [metrics["gAcc"]]
+        return selection_metric, precision, [metrics["gAcc"]]
