@@ -7,7 +7,7 @@ from toolrgs.registry import MODELS
 from .crog import CROG
 from .crogoff import CROGOFF
 from .drog import DROG
-from .drogoff import DROGOFF
+from .drogoff_transport import DROGOFFTransport as DROGOFF
 from .etrg import ETRG
 from .ggcnnclip import GGCNN_CLIP
 from .grconvnetclip import GenerativeResnet_CLIP

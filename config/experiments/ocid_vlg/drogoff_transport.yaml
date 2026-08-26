@@ -1,0 +1,18 @@
+_base_: ../../ocid_vlg/drogoff_offset_v2.yaml
+
+# Language-Guided Grasp Vector Field Transport (low-risk residual version).
+# The historical DETRIS decoder and Offset V2 head are retained. Only grasp
+# branch features receive offset-guided center context; segmentation is intact.
+MODEL:
+  offset_transport_enabled: True
+  offset_transport_hidden_dim: 64
+  # A unit normalized Offset V2 vector moves at most six OS4 feature cells.
+  offset_transport_max_displacement: 6.0
+  offset_transport_confidence_floor: 0.1
+  offset_transport_detach_confidence: True
+
+TRAIN:
+  exp_name: drogoff_transport_ocid_vlg_8npu
+  # Optional warm start: set this to a matching Offset V2 checkpoint. Initial
+  # weight loading is non-strict and will initialize only transport keys anew.
+  weight:
