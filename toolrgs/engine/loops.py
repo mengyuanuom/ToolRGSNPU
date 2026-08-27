@@ -71,6 +71,7 @@ class GraspTrainLoop(BaseLoop):
             "width": AverageMeter("Loss_wid", ":2.4f"),
             "offset": AverageMeter("Loss_off", ":2.4f"),
             "short_side": AverageMeter("Loss_short", ":2.4f"),
+            "alignment": AverageMeter("Loss_align", ":2.4f"),
             "iou": AverageMeter("IoU", ":2.2f"),
             "precision": AverageMeter("Prec@50", ":2.2f"),
         }
@@ -190,6 +191,9 @@ class GraspTrainLoop(BaseLoop):
             meters["short_side"].update(
                 _scalar(losses.get("m_short", 0.0)), batch_size
             )
+            meters["alignment"].update(
+                _scalar(losses.get("m_align", 0.0)), batch_size
+            )
             meters["lr"].update(self.scheduler.get_last_lr()[-1])
             meters["batch"].update(time.time() - end)
             end = time.time()
@@ -199,6 +203,11 @@ class GraspTrainLoop(BaseLoop):
             self.hooks.call("after_iter", self, self.state)
             if (iteration + 1) % self.cfg.print_freq == 0:
                 progress.display(iteration + 1)
+
+        if self.optim_wrapper is not None:
+            flush = getattr(self.optim_wrapper, "flush", None)
+            if callable(flush):
+                flush(self.model)
 
         summary = {name: meter.avg for name, meter in meters.items()}
         self.state.logs = summary

@@ -1,0 +1,9 @@
+_base_: native_v3_lora_r16_12l_bs256_e24.yaml
+
+# Full-depth, V2-capacity-matched Native V3 LoRA ablation.
+# Twelve rank-24 stages add 2,801,664 encoder LoRA parameters, within 3.2%
+# of Offset V2's 2,715,696 trainable backbone/adapter parameters.
+TRAIN:
+  native_lora_rank: 24
+  native_lora_alpha: 48.0
+  exp_name: drogoff_native_v3_lora_r24_12l_v2cap_realvlg_full_e24_8npu_bs256

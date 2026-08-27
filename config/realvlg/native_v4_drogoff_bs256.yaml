@@ -1,0 +1,7 @@
+_base_: native_v4_drogoff.yaml
+
+# Eight-device profile: global batch 256 -> per-process batch 32.
+TRAIN:
+  batch_size: 256
+  optimizer_foreach: False
+  exp_name: drogoff_native_v4_realvlg_full_e36_8npu_bs256

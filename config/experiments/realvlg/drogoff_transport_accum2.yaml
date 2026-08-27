@@ -1,0 +1,9 @@
+_base_: drogoff_transport.yaml
+
+# Preserve the effective global batch of 256 while fitting Offset-Transport
+# activations on 64-GB Ascend 910B3 devices: 16 samples/rank x 8 ranks x 2.
+TRAIN:
+  batch_size: 128
+  optim_wrapper:
+    type: npu_amp
+    accumulation_steps: 2

@@ -58,8 +58,9 @@ The implementation follows the ranges in the public
 | `novel` | 0160–0189 | `0000.json` only | every object with nonempty grasps |
 
 Training scans scenes 0000–0099. The paper's benchmark experiments use 10% of
-the training data and 10 epochs, which are the defaults in
-`config/realvlg/drogoff.yaml`.
+the training data and 10 epochs. The local GraspNet/RealVLG training profiles
+retain the benchmark's 10% sampling where configured, but use an extended
+36-epoch schedule with the learning-rate milestone at epoch 30.
 
 The public repository refers to an author-local
 `train_gs_kn_10p.parquet`, but does not publish the selected row identifiers.

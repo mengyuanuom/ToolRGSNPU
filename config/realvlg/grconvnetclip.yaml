@@ -1,0 +1,76 @@
+# GR-ConvNet + CLIP on the full RealVLG GraspNet-VLG protocol.
+DATA:
+  grasp_size_factor: 100.0
+  grasp_height: 40.0
+  grasp_size_coordinate: original
+  dataset: realvlg
+  root_path: ./datasets/GraspNet_VLG
+  with_depth: False
+  train_split: train
+  val_split: seen
+  dataset_args:
+    camera_mode: kinect
+    train_fraction: 1.0
+    train_seed: 0
+    train_manifest:
+    eval_frame: "0000"
+    width_factor: 100.0
+
+MODEL:
+  architecture: grconvnetclip
+
+TRAIN:
+  clip_pretrain: pretrain/RN50.pt
+  version: multiple
+  input_channels: 3
+  input_size: 416
+  word_len: 77
+  word_dim: 1024
+  use_pretrained_clip: True
+  use_grasp_masks: True
+  dropout: False
+  dropout_prob: 0.0
+  sync_bn: False
+  amp: False
+  optimizer: adam
+  optimizer_foreach: False
+  pin_memory: False
+  workers: 4
+  workers_val: 2
+  epochs: 24
+  milestones: [20]
+  start_epoch: 0
+  batch_size: 256
+  batch_size_val: 32
+  base_lr: 0.00004
+  lr_decay: 0.1
+  lr_multi: 0.1
+  weight_decay: 0.0
+  max_norm: 1.0
+  manual_seed: 0
+  print_freq: 100
+  exp_name: grconvnetclip_realvlg_full_e24_8npu_bs256
+  output_folder: exp/realvlg
+  save_freq: 0
+  weight:
+  resume:
+  evaluate: True
+  val_start_epoch: 11
+  val_freq: 1
+
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+
+TEST:
+  grasp_size_activation: sigmoid
+  test_split: seen
+  val_loop: realvlg_val
+  evaluation_protocol: realvlg_official
+  grasp_topk: [1]
+  mask_threshold: 0.35
+  realvlg_width_factor: 100.0
+  visualize: False

@@ -12,7 +12,7 @@ DATA:
   dataset_args:
     camera_mode: kinect
     # The paper trains benchmark models with 10% of GraspNet_VLG.
-    train_fraction: 0.1
+    train_fraction: 1.0
     train_seed: 0
     # Optional file containing exact "scene_XXXX/FFFF.json#object_id" keys.
     train_manifest:
@@ -59,11 +59,11 @@ TRAIN:
 
   workers: 4
   workers_val: 2
-  # Match the public RealVLG-R1 GraspNet-10% experiment duration.
-  epochs: 10
-  milestones: [7]
+  # Extended GraspNet schedule; decay the learning rate for the final 6 epochs.
+  epochs: 24
+  milestones: [20]
   start_epoch: 0
-  batch_size: 128
+  batch_size: 256
   batch_size_val: 32
   # ToolRGS optimization setting; the official model is a different Qwen RL
   # architecture, so its 1e-6 learning rate is not transferable.
@@ -74,7 +74,7 @@ TRAIN:
   max_norm: 0.
   manual_seed: 0
   print_freq: 100
-  exp_name: drogoff_realvlg_10p_8npu
+  exp_name: drogoff_v1_realvlg_full_e24_8npu_bs256
   offset_loss_weight: 1.0
   output_folder: exp/realvlg
   save_freq: 0
