@@ -156,41 +156,41 @@ Grasp evaluation emits one rectangle with a fixed 40-pixel gripper depth.
 
 All values below are percentages. Every completed row uses the experiment's
 `best_iou` checkpoint and an independent evaluation on all three official
-splits. The three split groups each contain only `Grasp mIoU` and **gAcc**;
-grasp accuracy is bolded as the primary grasp-success metric.
+splits. The three split groups each contain only Grasp mIoU and gAcc;
+only the maximum value in each metric column is bolded.
 
 ### Selected comparison
 
 <table>
   <thead>
     <tr>
-      <th rowspan="2">Model (best-IoU epoch)</th>
+      <th rowspan="2">Model</th>
       <th colspan="2">Seen</th>
       <th colspan="2">Similar</th>
       <th colspan="2">Novel</th>
     </tr>
     <tr>
       <th>Grasp mIoU</th>
-      <th><strong>gAcc</strong></th>
+      <th>gAcc</th>
       <th>Grasp mIoU</th>
-      <th><strong>gAcc</strong></th>
+      <th>gAcc</th>
       <th>Grasp mIoU</th>
-      <th><strong>gAcc</strong></th>
+      <th>gAcc</th>
     </tr>
   </thead>
   <tbody>
-    <tr><td>DrogOff Offset V2 (17)</td><td>44.62</td><td><strong>75.49</strong></td><td>21.14</td><td><strong>37.87</strong></td><td>12.62</td><td><strong>18.90</strong></td></tr>
-    <tr><td>DrogOff Native V3 LoRA (20)</td><td>43.05</td><td><strong>74.31</strong></td><td>20.60</td><td><strong>36.17</strong></td><td>13.53</td><td><strong>20.73</strong></td></tr>
-    <tr><td>CROG (21)</td><td>41.43</td><td><strong>71.94</strong></td><td>16.54</td><td><strong>28.94</strong></td><td>9.09</td><td><strong>9.76</strong></td></tr>
-    <tr><td>MapleGrasp (22)</td><td>37.18</td><td><strong>65.61</strong></td><td>14.11</td><td><strong>20.94</strong></td><td>8.84</td><td><strong>14.02</strong></td></tr>
-    <tr><td>ETRG (14)</td><td>35.72</td><td><strong>61.26</strong></td><td>10.56</td><td><strong>10.21</strong></td><td>6.68</td><td><strong>7.93</strong></td></tr>
-    <tr><td>LGD (23)</td><td>20.29</td><td><strong>37.55</strong></td><td>3.58</td><td><strong>2.98</strong></td><td>2.56</td><td><strong>4.27</strong></td></tr>
-    <tr><td>DrogOff Native V4 (36)</td><td>27.61</td><td><strong>31.23</strong></td><td>11.34</td><td><strong>6.81</strong></td><td>3.92</td><td><strong>3.05</strong></td></tr>
-    <tr><td>DrogOff Native V3 (19)</td><td>27.79</td><td><strong>27.27</strong></td><td>14.42</td><td><strong>11.06</strong></td><td>6.41</td><td><strong>3.05</strong></td></tr>
-    <tr><td>GRConvNet-CLIP (11)</td><td>3.38</td><td><strong>0.40</strong></td><td>0.35</td><td><strong>0.00</strong></td><td>1.00</td><td><strong>0.00</strong></td></tr>
-    <tr><td>GGCNN-CLIP (12)</td><td>0.06</td><td><strong>0.00</strong></td><td>0.02</td><td><strong>0.00</strong></td><td>0.05</td><td><strong>0.00</strong></td></tr>
+    <tr><td>DrogOff Offset V2</td><td><strong>44.62</strong></td><td><strong>75.49</strong></td><td><strong>21.14</strong></td><td><strong>37.87</strong></td><td>12.62</td><td>18.90</td></tr>
+    <tr><td>DrogOff Native V3 LoRA</td><td>43.05</td><td>74.31</td><td>20.60</td><td>36.17</td><td><strong>13.53</strong></td><td><strong>20.73</strong></td></tr>
+    <tr><td>CROG</td><td>41.43</td><td>71.94</td><td>16.54</td><td>28.94</td><td>9.09</td><td>9.76</td></tr>
+    <tr><td>MapleGrasp</td><td>37.18</td><td>65.61</td><td>14.11</td><td>20.94</td><td>8.84</td><td>14.02</td></tr>
+    <tr><td>ETRG</td><td>35.72</td><td>61.26</td><td>10.56</td><td>10.21</td><td>6.68</td><td>7.93</td></tr>
+    <tr><td>LGD</td><td>20.29</td><td>37.55</td><td>3.58</td><td>2.98</td><td>2.56</td><td>4.27</td></tr>
+    <tr><td>DrogOff Native V3</td><td>27.79</td><td>27.27</td><td>14.42</td><td>11.06</td><td>6.41</td><td>3.05</td></tr>
+    <tr><td>GRConvNet-CLIP</td><td>3.38</td><td>0.40</td><td>0.35</td><td>0.00</td><td>1.00</td><td>0.00</td></tr>
+    <tr><td>GGCNN-CLIP</td><td>0.06</td><td>0.00</td><td>0.02</td><td>0.00</td><td>0.05</td><td>0.00</td></tr>
   </tbody>
 </table>
+
 DrogOff Offset V2 leads Seen and Similar grasp accuracy. DrogOff Native V3
 LoRA leads Novel grasp accuracy.
 
