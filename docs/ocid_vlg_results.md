@@ -1,4 +1,4 @@
-# OCID-VLG, VCoT-GraspSet, and GraspNet-VLG test results
+# OCID-VLG, Grasp-Tools V3, VCoT-GraspSet, and GraspNet-VLG test results
 
 This page records the selected OCID-VLG test-set comparison for ToolRGSNPU.
 It deliberately mixes two result sources only where requested:
@@ -66,6 +66,71 @@ retains this historical result here to avoid hiding a stronger archived J@1.
   and 81.36 respectively, but they come from different result sources.
 - DrogOff also leads the aligned top-5 grasp-success comparison at 93.09,
   followed by MapleGrasp-CROG at 91.90.
+
+## Grasp-Tools V3
+
+Grasp-Tools V3 reports referring-segmentation IoU separately from grasp
+success. The grasp comparison uses the top-1 decoded grasp for every sample
+and evaluates it against all valid ground-truth grasps for that sample.
+
+For a prediction `p` and a ground-truth grasp `g`, the parallel-jaw angle
+error is 180-degree periodic:
+
+```text
+angle_error(p, g) = abs(((theta_p - theta_g + 90) mod 180) - 90)
+```
+
+For an IoU threshold `t` and angle threshold `a`, a sample succeeds when at
+least one ground-truth grasp has continuous rotated-rectangle IoU greater
+than `t` and angle error at most `a`. Its success rate is:
+
+```text
+SR(t, a) = 100 / N * sum(success_i(t, a))
+```
+
+The benchmark evaluates the Cartesian product of IoU thresholds
+`{0.25, 0.50, 0.75}` and angle thresholds `{5, 10, 20, 30}` degrees. The
+multi-threshold mean Success Rate is the unweighted mean of all 12 cells:
+
+```text
+mSR = 1 / 12 * sum_t sum_a SR(t, a)
+```
+
+Every sample and every threshold pair therefore has equal weight. Unlike the
+traditional permissive `SR(0.25, 30 deg)` score, mSR also penalizes inaccurate
+grasp overlap and angle. Grasp-size decoding must match training: the selected
+DrogOff V1 checkpoint uses sigmoid decoding, while CROG uses clamp decoding.
+
+### Selected comparison
+
+All values are percentages on the same Grasp-Tools V3 validation split using
+each model's selected checkpoint. A dash means that no complete aligned V3
+evaluation is currently available.
+
+| Model | Result source | Size decoder | Seg. IoU | mSR | SR(0.25, 30 deg) | SR(0.25, 10 deg) | SR(0.50, 10 deg) | SR(0.75, 30 deg) |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| **DrogOff V1 (ours)** | Project evaluation | sigmoid | **83.78** | **89.14** | **99.51** | **97.45** | **96.52** | **75.67** |
+| CROG | Project evaluation | clamp | 81.72 | 75.28 | 99.15 | 95.75 | 90.81 | 43.77 |
+| GRConvNetCLIP | - | - | - | - | - | - | - | - |
+| LGD | - | - | - | - | - | - | - | - |
+| ETRG | - | - | - | - | - | - | - | - |
+| GGCNNCLIP | - | - | - | - | - | - | - | - |
+| MapleGrasp-CROG | - | - | - | - | - | - | - | - |
+
+### Checkpoint provenance for project evaluations
+
+| Model | Selected checkpoint | Evaluation contract |
+| --- | --- | --- |
+| DrogOff V1 | `best_msr_model.pth` (epoch 24) | Sigmoid grasp-size decoding. |
+| CROG | `best_msr_model.pth` (epoch 36) | Clamp grasp-size decoding. |
+
+DrogOff V1 leads CROG by 13.86 mSR points. Their permissive
+`SR(0.25, 30 deg)` scores are both above 99%, but the gap widens under strict
+overlap: `SR(0.75, 30 deg)` is 75.67 for DrogOff V1 and 43.77 for CROG.
+
+The same CROG checkpoint previously produced 42.05 mSR when it was decoded
+with sigmoid by mistake. The aligned clamp evaluation produces the 75.28 mSR
+reported above; results from mismatched train/inference decoding are excluded.
 
 ## VCoT-GraspSet
 
