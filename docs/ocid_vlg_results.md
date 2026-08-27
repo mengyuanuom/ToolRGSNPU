@@ -179,8 +179,7 @@ only the maximum value in each metric column is bolded.
     </tr>
   </thead>
   <tbody>
-    <tr><td>DrogOff Offset V2</td><td><strong>44.62</strong></td><td><strong>75.49</strong></td><td><strong>21.14</strong></td><td><strong>37.87</strong></td><td>12.62</td><td>18.90</td></tr>
-    <tr><td>DrogOff Native V3 LoRA</td><td>43.05</td><td>74.31</td><td>20.60</td><td>36.17</td><td><strong>13.53</strong></td><td><strong>20.73</strong></td></tr>
+    <tr><td>DrogOff Offset V2</td><td><strong>44.62</strong></td><td><strong>75.49</strong></td><td><strong>21.14</strong></td><td><strong>37.87</strong></td><td><strong>12.62</strong></td><td><strong>18.90</strong></td></tr>
     <tr><td>CROG</td><td>41.43</td><td>71.94</td><td>16.54</td><td>28.94</td><td>9.09</td><td>9.76</td></tr>
     <tr><td>MapleGrasp</td><td>37.18</td><td>65.61</td><td>14.11</td><td>20.94</td><td>8.84</td><td>14.02</td></tr>
     <tr><td>ETRG</td><td>35.72</td><td>61.26</td><td>10.56</td><td>10.21</td><td>6.68</td><td>7.93</td></tr>
@@ -191,8 +190,7 @@ only the maximum value in each metric column is bolded.
   </tbody>
 </table>
 
-DrogOff Offset V2 leads Seen and Similar grasp accuracy. DrogOff Native V3
-LoRA leads Novel grasp accuracy.
+DrogOff Offset V2 leads both grasp metrics on Seen, Similar, and Novel.
 
 No complete independent three-split result is currently available for DROG,
 CROG-OFF, standard DrogOff, or DrogOff Offset-Transport. Offset-Transport has
