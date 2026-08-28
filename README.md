@@ -9,8 +9,10 @@ the Ascend NPU port: training and inference use `torch_npu`; experiments default
 and distributed jobs use HCCL.
 
 Start with the [Ascend installation and smoke-test guide](docs/ascend_npu.md).
-The selected OCID-VLG, VCoT-GraspSet, and GraspNet-VLG project/paper
-comparisons are documented in [docs/ocid_vlg_results.md](docs/ocid_vlg_results.md).
+The concise paper comparison is documented in
+[docs/ocid_vlg_results.md](docs/ocid_vlg_results.md); the complete internal
+analysis archive is in
+[docs/benchmark_results_full.md](docs/benchmark_results_full.md).
 The original CUDA project remains in `mengyuanuom/ToolRGS`.
 This port was branched from ToolRGS commit `59fc3cc`.
 The ETRG-A RGB-D integration is synchronized from ToolRGS commit `0c53ea0`.

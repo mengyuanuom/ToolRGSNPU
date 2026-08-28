@@ -1,7 +1,17 @@
-# Concise paper comparison: OCID-VLG, Grasp-Tools V3, VCoT-GraspSet, and GraspNet-VLG
+# Full benchmark result archive: OCID-VLG, Grasp-Tools V3, VCoT-GraspSet, and GraspNet-VLG
 
-For complete metrics, internal variants, epochs, and checkpoint provenance,
-see the [full analysis archive](benchmark_results_full.md).
+> Internal analysis snapshot, 2026-08-28. For the compact publication-facing
+> table, see the [concise paper comparison](ocid_vlg_results.md).
+
+This archive keeps all currently consolidated metrics, result-source labels,
+checkpoint/epoch provenance, and internal GraspNet-VLG variants. Paper numbers
+and project evaluations remain explicitly distinguished; rows with unavailable
+complete evaluations stay blank rather than being inferred. The detailed result
+snapshot for OCID-VLG, VCoT-GraspSet, and GraspNet-VLG is preserved from
+repository commit 69f1e85, while the Grasp-Tools V3 section is preserved from
+commit 8e97d3f; only document structure and ranking emphasis were changed.
+
+## OCID-VLG
 
 This page records the selected OCID-VLG test-set comparison for ToolRGSNPU.
 It deliberately mixes two result sources only where requested:
@@ -13,7 +23,7 @@ It deliberately mixes two result sources only where requested:
 The source is shown for every row. Paper numbers are not silently replaced by
 our checkpoint re-evaluations.
 
-## Selected comparison
+### Selected comparison
 
 | Model | Result source | IoU | Pr@50 | Pr@60 | Pr@70 | Pr@80 | Pr@90 | J@1 | J@5 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -36,7 +46,7 @@ wrappers reuse the grasp-quality map as `ins_pred`, so segmentation IoU and
 Precision@X are marked N/A instead of presenting those values as meaningful
 segmentation results.
 
-## Checkpoint provenance for project evaluations
+### Checkpoint provenance for project evaluations
 
 | Model | Checkpoint | Evaluation note |
 | --- | --- | --- |
@@ -51,7 +61,7 @@ reached IoU 81.23, J@1 89.30, and J@5 92.94. The table uses the independently
 retested current ToolRGSNPU checkpoint above as the primary project result and
 retains this historical result here to avoid hiding a stronger archived J@1.
 
-## Paper-number provenance
+### Paper-number provenance
 
 - **CROG**: Table 2 of *Language-guided Robot Grasping: CLIP-based Referring
   Grasp Synthesis in Clutter* reports IoU 81.1, J@1 77.2, and J@Any/J@5 87.7 on
@@ -62,7 +72,7 @@ retains this historical result here to avoid hiding a stronger archived J@1.
   The alternative MapleGrasp-Ref2Grab variant reports IoU 83.78, J@1 76.8,
   and J@Any/J@5 84.7. Paper: <https://arxiv.org/abs/2506.06535>.
 
-## Reading the table
+### Reading the table
 
 - DrogOff has the strongest selected J@1 result at 88.15.
 - DrogOff and MapleGrasp-CROG have similar reported segmentation IoU, 81.56
@@ -218,47 +228,57 @@ object with nonempty grasps in frame `0000.json` from three held-out scene
 ranges: Seen uses scenes 0100-0129 (253 samples), Similar uses 0130-0159
 (235 samples), and Novel uses 0160-0189 (164 samples).
 
-Grasp evaluation emits one rectangle with a fixed 40-pixel gripper depth.
-`gAcc` requires best rotated IoU greater than 0.25 and angle error below
-30 degrees; `Grasp mIoU` is the mean best grasp overlap over valid predictions.
+Segmentation reports generalized IoU (`gIoU`), cumulative IoU (`cIoU`),
+`F_beta`, `S_alpha`, `E_measure`, and the segmentation validity rate. Grasp
+evaluation emits one rectangle with a fixed 40-pixel gripper depth. `gAcc`
+requires best rotated IoU greater than 0.25 and angle error below 30 degrees;
+`Grasp mIoU` is the mean best grasp overlap over valid predictions.
 
 All values below are percentages. Every completed row uses the experiment's
 `best_iou` checkpoint and an independent evaluation on all three official
-splits. The three split groups each contain only Grasp mIoU and gAcc;
-only the maximum value in each metric column is bolded.
+splits. No selective ranking emphasis is applied in this archive. DrogOff Native V3
+LoRA and DrogOff Native V4 are retained here as internal analysis variants even
+though they are intentionally omitted from the concise publication table.
 
 ### Selected comparison
 
-<table>
-  <thead>
-    <tr>
-      <th rowspan="2">Model</th>
-      <th colspan="2">Seen</th>
-      <th colspan="2">Similar</th>
-      <th colspan="2">Novel</th>
-    </tr>
-    <tr>
-      <th>Grasp mIoU</th>
-      <th>gAcc</th>
-      <th>Grasp mIoU</th>
-      <th>gAcc</th>
-      <th>Grasp mIoU</th>
-      <th>gAcc</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>DrogOff Offset V2</td><td><strong>44.62</strong></td><td><strong>75.49</strong></td><td><strong>21.14</strong></td><td><strong>37.87</strong></td><td><strong>12.62</strong></td><td><strong>18.90</strong></td></tr>
-    <tr><td>CROG</td><td>41.43</td><td>71.94</td><td>16.54</td><td>28.94</td><td>9.09</td><td>9.76</td></tr>
-    <tr><td>MapleGrasp</td><td>37.18</td><td>65.61</td><td>14.11</td><td>20.94</td><td>8.84</td><td>14.02</td></tr>
-    <tr><td>ETRG</td><td>35.72</td><td>61.26</td><td>10.56</td><td>10.21</td><td>6.68</td><td>7.93</td></tr>
-    <tr><td>LGD</td><td>20.29</td><td>37.55</td><td>3.58</td><td>2.98</td><td>2.56</td><td>4.27</td></tr>
-    <tr><td>DrogOff Native V3</td><td>27.79</td><td>27.27</td><td>14.42</td><td>11.06</td><td>6.41</td><td>3.05</td></tr>
-    <tr><td>GRConvNet-CLIP</td><td>3.38</td><td>0.40</td><td>0.35</td><td>0.00</td><td>1.00</td><td>0.00</td></tr>
-    <tr><td>GGCNN-CLIP</td><td>0.06</td><td>0.00</td><td>0.02</td><td>0.00</td><td>0.05</td><td>0.00</td></tr>
-  </tbody>
-</table>
+| Model (best-IoU epoch) | Split | gIoU | cIoU | F_beta | S_alpha | E_measure | Seg. valid | Grasp mIoU | Grasp valid | gAcc |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| DrogOff Offset V2 (17) | Seen | 65.03 | 65.34 | 82.77 | 45.13 | 98.17 | 100.00 | 44.62 | 100.00 | 75.49 |
+| DrogOff Offset V2 (17) | Similar | 23.54 | 26.51 | 46.61 | 38.58 | 88.53 | 97.87 | 21.14 | 100.00 | 37.87 |
+| DrogOff Offset V2 (17) | Novel | 17.57 | 21.58 | 29.22 | 36.21 | 89.05 | 100.00 | 12.62 | 100.00 | 18.90 |
+| DrogOff Native V3 LoRA (20) | Seen | 65.26 | 65.77 | 82.69 | 45.14 | 98.80 | 100.00 | 43.05 | 100.00 | 74.31 |
+| DrogOff Native V3 LoRA (20) | Similar | 27.00 | 31.70 | 47.96 | 38.54 | 92.50 | 98.30 | 20.60 | 100.00 | 36.17 |
+| DrogOff Native V3 LoRA (20) | Novel | 6.20 | 12.52 | 24.13 | 34.05 | 83.11 | 98.17 | 13.53 | 100.00 | 20.73 |
+| CROG (21) | Seen | 61.81 | 61.80 | 79.79 | 44.97 | 98.26 | 98.42 | 41.43 | 100.00 | 71.94 |
+| CROG (21) | Similar | 22.40 | 22.88 | 49.51 | 39.02 | 88.21 | 87.66 | 16.54 | 100.00 | 28.94 |
+| CROG (21) | Novel | 8.00 | 11.96 | 22.07 | 33.43 | 79.80 | 81.71 | 9.09 | 100.00 | 9.76 |
+| MapleGrasp (22) | Seen | 60.98 | 61.34 | 79.76 | 44.99 | 98.65 | 99.21 | 37.18 | 100.00 | 65.61 |
+| MapleGrasp (22) | Similar | 11.41 | 14.70 | 36.11 | 36.13 | 84.31 | 87.23 | 14.11 | 99.57 | 20.94 |
+| MapleGrasp (22) | Novel | 6.69 | 10.12 | 21.82 | 32.25 | 76.52 | 61.59 | 8.84 | 100.00 | 14.02 |
+| ETRG (14) | Seen | 64.88 | 64.32 | 84.42 | 44.97 | 98.13 | 99.60 | 35.72 | 100.00 | 61.26 |
+| ETRG (14) | Similar | 14.11 | 15.79 | 38.47 | 36.11 | 82.01 | 53.19 | 10.56 | 100.00 | 10.21 |
+| ETRG (14) | Novel | 12.68 | 16.04 | 31.78 | 33.37 | 78.57 | 27.44 | 6.68 | 100.00 | 7.93 |
+| LGD (23) | Seen | 43.88 | 46.36 | 64.47 | 42.49 | 94.70 | 81.03 | 20.29 | 100.00 | 37.55 |
+| LGD (23) | Similar | -10.27 | -2.10 | 19.91 | 34.35 | 85.17 | 45.53 | 3.58 | 100.00 | 2.98 |
+| LGD (23) | Novel | -8.11 | 0.50 | 17.20 | 33.35 | 86.37 | 44.51 | 2.56 | 100.00 | 4.27 |
+| DrogOff Native V4 (36) | Seen | 52.53 | 52.54 | 74.71 | 44.14 | 96.84 | 94.47 | 27.61 | 100.00 | 31.23 |
+| DrogOff Native V4 (36) | Similar | 13.08 | 15.91 | 42.03 | 36.16 | 85.71 | 48.51 | 11.34 | 100.00 | 6.81 |
+| DrogOff Native V4 (36) | Novel | 14.60 | 16.81 | 33.08 | 35.13 | 82.55 | 29.88 | 3.92 | 100.00 | 3.05 |
+| DrogOff Native V3 (19) | Seen | 53.09 | 53.43 | 74.41 | 43.63 | 96.84 | 97.23 | 27.79 | 100.00 | 27.27 |
+| DrogOff Native V3 (19) | Similar | 18.98 | 19.29 | 45.15 | 38.45 | 89.31 | 91.49 | 14.42 | 100.00 | 11.06 |
+| DrogOff Native V3 (19) | Novel | 14.95 | 18.22 | 30.99 | 35.32 | 83.92 | 64.63 | 6.41 | 100.00 | 3.05 |
+| GRConvNet-CLIP (11) | Seen | 2.39 | 0.51 | 2.45 | 1.59 | 30.44 | 100.00 | 3.38 | 100.00 | 0.40 |
+| GRConvNet-CLIP (11) | Similar | 2.30 | 0.28 | 2.53 | 1.64 | 32.51 | 100.00 | 0.35 | 100.00 | 0.00 |
+| GRConvNet-CLIP (11) | Novel | 2.69 | 0.58 | 2.58 | 1.68 | 32.32 | 100.00 | 1.00 | 100.00 | 0.00 |
+| GGCNN-CLIP (12) | Seen | 2.39 | 0.51 | 2.45 | 1.59 | 30.44 | 100.00 | 0.06 | 100.00 | 0.00 |
+| GGCNN-CLIP (12) | Similar | 2.30 | 0.28 | 2.53 | 1.64 | 32.51 | 100.00 | 0.02 | 100.00 | 0.00 |
+| GGCNN-CLIP (12) | Novel | 2.69 | 0.58 | 2.58 | 1.68 | 32.32 | 100.00 | 0.05 | 100.00 | 0.00 |
 
-DrogOff Offset V2 leads both grasp metrics on Seen, Similar, and Novel.
+DrogOff Offset V2 leads Seen and Similar grasp accuracy. DrogOff Native V3
+LoRA leads Novel grasp accuracy. GGCNN-CLIP and GRConvNet-CLIP are grasp-only
+baselines whose wrappers reuse their grasp-quality map as a mask, so their
+segmentation columns do not represent a genuine referring-segmentation head.
 
 No complete independent three-split result is currently available for DROG,
 CROG-OFF, standard DrogOff, or DrogOff Offset-Transport. Offset-Transport has
