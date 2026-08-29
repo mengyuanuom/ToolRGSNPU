@@ -1,0 +1,10 @@
+_base_: ../../vcot/maplegrasp.yaml
+
+# 32 samples/rank x 8 ranks = a true loader global batch of 256.
+# No gradient accumulation is used.
+TRAIN:
+  batch_size: 256
+  batch_size_val: 32
+  epochs: 36
+  milestones: [30]
+  exp_name: maplegrasp_vcot_8npu_bs256_e36

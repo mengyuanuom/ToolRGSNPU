@@ -1,0 +1,39 @@
+_base_: drogoff_offset_v2.yaml
+
+# DrogOff-LoRA on OCID-VLG. Keep the OCID-VLG data, geometry, evaluation,
+# and 50-epoch schedule from the Offset V2 profile while replacing the
+# historical CLIP/DINO adapters with full-depth low-rank adaptation.
+MODEL:
+  native_variant: v3
+
+TRAIN:
+  # Native V3 uses four cross-modal fusion stages and no legacy adapters.
+  visual_adapter_layer: []
+  txtual_adapter_layer: []
+  native_visual_layers: [2, 5, 8, 11]
+  native_text_layers: [2, 5, 8, 11]
+
+  # Apply rank-24 LoRA to every DINOv2 and CLIP transformer block.
+  native_visual_lora_layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  native_text_lora_layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  native_lora_rank: 24
+  native_lora_alpha: 48.0
+  native_lora_dropout: 0.05
+
+  native_visual_dim: 768
+  native_text_adapter_dim: 64
+  native_cross_dim: 256
+  native_cross_heads: 8
+  native_adapter_dropout: 0.05
+  native_pyramid_dim: 192
+  native_alignment_dim: 256
+  native_alignment_loss_weight: 0.2
+  native_input_is_clip_normalized: True
+
+  # Eight-device OOM-safe profile: global train batch 128 -> 16 per NPU.
+  # Validation stays at the OCID-VLG profile's global batch 24 because it
+  # does not affect metrics and avoids unnecessary evaluation memory pressure.
+  batch_size: 128
+  batch_size_val: 24
+  optimizer_foreach: False
+  exp_name: drogoff_lora_r24_a48_12l_ocid_vlg_full_e50_8npu_bs128

@@ -1,0 +1,84 @@
+DATA:
+  grasp_size_factor: 300
+  grasp_height: 20.0
+  grasp_size_coordinate: canvas
+  dataset: vcot
+  root_path: ./datasets/graspanything-vcot
+  split_root: ./datasets/graspanything-vcot/split/vcot
+  prompt_template: "Grasp the {object_name}"
+  with_depth: False
+  train_split: train_official
+  val_split: val_official
+  grasp_target_policy: all
+  vcot_official_val_size: 5000
+
+MODEL:
+  architecture: etrg
+
+TRAIN:
+  version: multiple
+  etrg_input_mode: rgb
+  clip_pretrain: pretrain/RN50.pt
+  depth_pretrain: /data1/ma00959358/pangu/PanguRGS/pretrain/resnet18-f37072fd.pth
+  depth_backbone_pretrained: True
+  depth_normalization: inverse_max
+  input_size: 416
+  word_len: 20
+  word_dim: 1024
+  ladder_dim: 64
+  nhead: 4
+  multi_stage: 3
+  vis_dim: 512
+  fpn_in: [512, 1024, 1024]
+  fpn_out: [256, 512, 1024]
+  sync_bn: False
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 512
+  dropout: 0.1
+  intermediate: False
+  workers: 4
+  workers_val: 2
+  epochs: 36
+  milestones: [30]
+  start_epoch: 0
+  # 32 samples/rank x 8 ranks = a true loader global batch of 256.
+  batch_size: 256
+  batch_size_val: 32
+  base_lr: 0.0001
+  lr_decay: 0.1
+  lr_multi: 1.0
+  weight_decay: 0.01
+  max_norm: 1.0
+  manual_seed: 0
+  print_freq: 100
+  amp: False
+  optimizer: adam
+  optimizer_foreach: False
+  pin_memory: False
+  predict_grasp_short_side: True
+  short_side_loss_weight: 1.0
+  exp_name: etrg_vcot_8npu_bs256_e36
+  output_folder: exp/vcot
+  save_freq: 0
+  weight:
+  resume:
+  evaluate: True
+
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+
+TEST:
+  grasp_size_activation: sigmoid
+  test_split: unseen
+  evaluation_protocol: vcot_official
+  grasp_topk: [1]
+  grasp_iou_threshold: 0.25
+  grasp_angle_threshold: 30.0
+  filter_grasps_by_segmentation: False
+  restore_grasp_size_scale: True
+  visualize: False

@@ -139,16 +139,13 @@ class OffsetGuidedFeatureTransport(nn.Module):
                 f"branches={branches}, channels={channels}"
             )
 
-        flattened = branch_features.reshape(
-            batch_size * branches, channels, height, width
-        )
-        repeated_offset = offset[:, None].expand(
-            -1, branches, -1, -1, -1
-        ).reshape(batch_size * branches, 2, *offset.shape[-2:])
-        center_context = self.sample_center_context(flattened, repeated_offset)
-        residual = self.refine(center_context - flattened).reshape_as(
-            branch_features
-        )
+        # All grasp quantities describe the same physical grasp and therefore
+        # share one geometric center context. Pooling before routing avoids a
+        # branches-times activation expansion at OS4 while retaining separate
+        # learned gates for quality, angle and size branches.
+        grasp_context = branch_features.mean(dim=1)
+        center_context = self.sample_center_context(grasp_context, offset)
+        residual = self.refine(center_context - grasp_context)
 
         if confidence is None:
             spatial_confidence = branch_features.new_ones(
@@ -173,4 +170,9 @@ class OffsetGuidedFeatureTransport(nn.Module):
             ) * spatial_confidence
 
         gate = torch.tanh(self.branch_gate).reshape(1, branches, 1, 1, 1)
-        return branch_features + gate * spatial_confidence[:, None] * residual
+        return (
+            branch_features
+            + gate
+            * spatial_confidence[:, None]
+            * residual[:, None]
+        )

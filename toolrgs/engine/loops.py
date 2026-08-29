@@ -216,6 +216,11 @@ class GraspTrainLoop(BaseLoop):
             if (iteration + 1) % self.cfg.print_freq == 0:
                 progress.display(iteration + 1)
 
+        if self.optim_wrapper is not None:
+            flush = getattr(self.optim_wrapper, "flush", None)
+            if callable(flush):
+                flush(self.model)
+
         summary = {name: meter.avg for name, meter in meters.items()}
         self.state.logs = summary
         self.hooks.call("after_epoch", self, self.state)

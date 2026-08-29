@@ -1,0 +1,122 @@
+# DROG-OFF Native V3 on the full RealVLG GraspNet-VLG training split.
+# DINOv2 and CLIP are adapted directly; DETRIS DenseAligner is disabled.
+DATA:
+  dataset: realvlg
+  root_path: ./datasets/GraspNet_VLG
+  with_depth: False
+  train_split: train
+  val_split: seen
+  offset_r: 20
+  offset_sigma:
+  offset_version: v2
+  offset_target_stride: 4
+  offset_weight_floor: 0.25
+  dataset_args:
+    camera_mode: kinect
+    train_fraction: 1.0
+    train_seed: 0
+    train_manifest:
+    eval_frame: "0000"
+    width_factor: 100.0
+
+MODEL:
+  architecture: drogoff
+  native_variant: v3
+  offset_head: lightweight
+  offset_hidden_dim: 64
+
+TRAIN:
+  version: multiple
+  # Disable the inherited DETRIS adapters. Native V3 owns adaptation below.
+  visual_adapter_dim: 128
+  visual_adapter_layer: []
+  txt_adapter_dim: 64
+  txtual_adapter_layer: []
+  clip_pretrain: pretrain/ViT-B-16.pt
+  dino_pretrain: pretrain/dinov2_vitb14_reg4_pretrain.pth
+  dino_layers: 12
+  output_dinov2: [4, 8]
+  dino_name: dino-base
+  model_name: CLIP-b-16
+  input_size: 448
+  word_len: 77
+  word_dim: 512
+  ladder_dim: 128
+  nhead: 8
+  multi_stage: 3
+  stride: [1, 1, 1]
+  vis_dim: 512
+  fpn_in: [768, 768, 768]
+  fpn_out: [256, 512, 1024]
+
+  # Native layer-wise DINOv2/CLIP adaptation.
+  native_visual_layers: [2, 5, 8, 11]
+  native_text_layers: [2, 5, 8, 11]
+  native_visual_dim: 768
+  native_text_adapter_dim: 64
+  native_cross_dim: 256
+  native_cross_heads: 8
+  native_adapter_dropout: 0.05
+  native_lora_rank: 8
+  native_lora_alpha: 16.0
+  native_lora_dropout: 0.05
+  native_pyramid_dim: 192
+  native_alignment_dim: 256
+  native_alignment_loss_weight: 0.2
+  native_input_is_clip_normalized: True
+
+  sync_bn: False
+  amp: False
+  optimizer: adam
+  optimizer_foreach: False
+  pin_memory: False
+  projector: dynamic
+  num_layers: 3
+  num_head: 8
+  dim_ffn: 512
+  dropout: 0.1
+  intermediate: False
+
+  workers: 4
+  workers_val: 2
+  epochs: 36
+  milestones: [30]
+  start_epoch: 0
+  batch_size: 128
+  batch_size_val: 32
+  base_lr: 0.0002
+  lr_decay: 0.1
+  lr_multi: 0.25
+  weight_decay: 0.01
+  max_norm: 1.0
+  manual_seed: 0
+  print_freq: 100
+  exp_name: drogoff_native_v3_realvlg_full_e36_8npu
+  offset_loss_weight: 0.1
+  output_folder: exp/realvlg
+  save_freq: 0
+  weight:
+  resume:
+  evaluate: True
+  # Epochs 1-10 only train/check loss; start validation from epoch 11.
+  val_start_epoch: 11
+  val_freq: 1
+  use_grasp_masks: True
+
+Distributed:
+  dist_url: env://
+  dist_backend: hccl
+  multiprocessing_distributed: True
+  world_size: 1
+  rank: 0
+
+TEST:
+  test_split: seen
+  val_loop: realvlg_val
+  evaluation_protocol: realvlg_official
+  grasp_topk: [1]
+  mask_threshold: 0.35
+  realvlg_width_factor: 100.0
+  offset_decode_mode: grasp_relative
+  offset_resample_geometry: False
+  visualize: False

@@ -3,6 +3,8 @@ import unittest
 
 import yaml
 
+from utils.config import load_cfg_from_cfg_file
+
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_MODELS = {
@@ -10,6 +12,7 @@ EXPECTED_MODELS = {
     "crogoff",
     "drog",
     "drogoff",
+    "drogoff_lora",
     "drogoff_offset_v2",
     "etrg",
     "etrg_r101",
@@ -27,7 +30,10 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
         self.assertEqual({path.stem for path in paths}, EXPECTED_MODELS)
 
         for path in paths:
-            cfg = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+            if path.stem == "drogoff_lora":
+                cfg = load_cfg_from_cfg_file(path).sections
+            else:
+                cfg = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
             data = cfg["DATA"]
             train = cfg["TRAIN"]
             distributed = cfg["Distributed"]
@@ -38,9 +44,14 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
             self.assertEqual(train["word_len"], expected_word_len, path)
             self.assertFalse(train["amp"], path)
             self.assertFalse(train["sync_bn"], path)
-            expected_batch = {"etrg": 10, "etrg_r101": 11}.get(path.stem, 24)
+            expected_batch = {
+                "drogoff_lora": 128,
+                "etrg": 10,
+                "etrg_r101": 11,
+            }.get(path.stem, 24)
             self.assertEqual(train["batch_size"], expected_batch, path)
-            self.assertEqual(train["batch_size_val"], expected_batch, path)
+            expected_val_batch = 24 if path.stem == "drogoff_lora" else expected_batch
+            self.assertEqual(train["batch_size_val"], expected_val_batch, path)
             self.assertEqual(train["base_lr"], 0.0001, path)
             expected_epochs = 40 if path.stem.startswith("etrg") else 50
             self.assertEqual(train["epochs"], expected_epochs, path)
@@ -65,6 +76,25 @@ class OCIDVLGResourceProfileTest(unittest.TestCase):
         self.assertEqual(train["epochs"], 50)
         self.assertEqual(train["milestones"], [35])
         self.assertFalse(train["sync_bn"])
+
+    def test_drogoff_lora_uses_full_depth_rank24_adaptation(self):
+        path = ROOT / "config" / "ocid_vlg" / "drogoff_lora.yaml"
+        cfg = load_cfg_from_cfg_file(path)
+        self.assertEqual(cfg.dataset, "OCID-VLG")
+        self.assertEqual(cfg.architecture, "drogoff")
+        self.assertEqual(cfg.native_variant, "v3")
+        self.assertEqual(cfg.offset_version, "v2")
+        self.assertEqual(cfg.visual_adapter_layer, [])
+        self.assertEqual(cfg.txtual_adapter_layer, [])
+        self.assertEqual(cfg.native_visual_lora_layers, list(range(12)))
+        self.assertEqual(cfg.native_text_lora_layers, list(range(12)))
+        self.assertEqual(cfg.native_lora_rank, 24)
+        self.assertEqual(cfg.native_lora_alpha, 48.0)
+        self.assertEqual(cfg.batch_size, 128)
+        self.assertEqual(cfg.batch_size_val, 24)
+        self.assertEqual(cfg.epochs, 50)
+        self.assertEqual(cfg.milestones, [35])
+        self.assertEqual(cfg.test_split, "test")
 
 
 if __name__ == "__main__":

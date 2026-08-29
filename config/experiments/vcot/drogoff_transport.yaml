@@ -1,0 +1,16 @@
+_base_: ../../vcot/drogoff_offset_v2.yaml
+
+# Offset-guided grasp feature transport on the official VCoT protocol.
+# Segmentation and the historical Offset V2 decoder stay unchanged.
+MODEL:
+  offset_transport_enabled: True
+  offset_transport_hidden_dim: 64
+  offset_transport_max_displacement: 6.0
+  offset_transport_confidence_floor: 0.1
+  offset_transport_detach_confidence: True
+
+TRAIN:
+  exp_name: drogoff_transport_vcot_8npu_bs128_e36
+  # Train the new method from scratch for a fair comparison with Offset V2.
+  weight:
+  resume:

@@ -6,11 +6,14 @@ import os
 import cv2
 from loguru import logger
 import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 
 import utils.config as config
 from model import build_model
+from toolrgs.engine.batch import per_process_batch_size
 from toolrgs.engine import GraspValLoop, RealVLGValLoop  # register validation loops
+from toolrgs.engine.samplers import DistributedEvalSampler
 from toolrgs.preflight import validate_required_artifacts
 from toolrgs.registry import LOOPS
 from toolrgs.runtime import device_name, require_npu, set_device
@@ -59,12 +62,27 @@ def main():
     args = parse_args()
     require_npu()
     cv2.setNumThreads(0)
+    distributed = "RANK" in os.environ and "WORLD_SIZE" in os.environ
+    if distributed:
+        args.rank = int(os.environ["RANK"])
+        args.world_size = int(os.environ["WORLD_SIZE"])
+        args.npu = int(os.environ.get("LOCAL_RANK", 0))
+    else:
+        args.rank = 0
+        args.world_size = 1
     args.gpu = args.npu
     device = set_device(args.npu)
     args.device = str(device)
-    args.rank = 0
+    args.distributed = distributed
+    if distributed:
+        dist.init_process_group(backend="hccl", init_method=args.dist_url)
     args.output_dir = os.path.join(args.output_folder, args.exp_name)
-    setup_logger(args.output_dir, distributed_rank=0, filename="eval.log", mode="a")
+    setup_logger(
+        args.output_dir,
+        distributed_rank=args.rank,
+        filename="eval.log",
+        mode="a",
+    )
 
     logger.info("Ascend device: {} ({})", device, device_name(args.npu))
     try:
@@ -90,10 +108,31 @@ def main():
         getattr(args, "evaluation_protocol", "toolrgs"),
     )
     dataset = build_dataset(args, args.eval_split, with_offset=needs_offset)
+    args.global_batch_size_val = int(args.batch_size_val)
+    batch_size_per_process = per_process_batch_size(
+        args.global_batch_size_val, args.world_size, "batch_size_val"
+    )
+    sampler = (
+        DistributedEvalSampler(
+            dataset,
+            num_replicas=args.world_size,
+            rank=args.rank,
+        )
+        if distributed
+        else None
+    )
+    if args.rank == 0:
+        logger.info(
+            "Evaluation batch: global={} per-process={} world_size={}",
+            args.global_batch_size_val,
+            batch_size_per_process,
+            args.world_size,
+        )
     loader = DataLoader(
         dataset,
-        batch_size=args.batch_size_val,
+        batch_size=batch_size_per_process,
         shuffle=False,
+        sampler=sampler,
         num_workers=args.workers_val,
         pin_memory=bool(getattr(args, "pin_memory", False)),
         collate_fn=dataset.collate_fn,

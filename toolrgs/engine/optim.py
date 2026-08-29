@@ -10,19 +10,43 @@ from toolrgs.registry import OPTIM_WRAPPERS, PARAM_SCHEDULERS
 class NPUAmpOptimWrapper:
     """Own zero-grad, scaled backward, clipping, and optimizer stepping."""
 
-    def __init__(self, optimizer, scaler, max_norm=0.0):
+    def __init__(
+        self, optimizer, scaler, max_norm=0.0, accumulation_steps=1
+    ):
         self.optimizer = optimizer
         self.scaler = scaler
         self.max_norm = float(max_norm or 0.0)
+        self.accumulation_steps = int(accumulation_steps)
+        if self.accumulation_steps < 1:
+            raise ValueError("accumulation_steps must be at least one")
+        self._pending_steps = 0
 
-    def update_params(self, loss, model):
-        self.optimizer.zero_grad()
-        self.scaler.scale(loss).backward()
+    def _step(self, model, gradient_multiplier=1.0):
+        self.scaler.unscale_(self.optimizer)
+        if gradient_multiplier != 1.0:
+            for parameter in model.parameters():
+                if parameter.grad is not None:
+                    parameter.grad.mul_(gradient_multiplier)
         if self.max_norm:
-            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), self.max_norm)
         self.scaler.step(self.optimizer)
         self.scaler.update()
+        self.optimizer.zero_grad()
+        self._pending_steps = 0
+
+    def update_params(self, loss, model):
+        if self._pending_steps == 0:
+            self.optimizer.zero_grad()
+        scaled_loss = loss / self.accumulation_steps
+        self.scaler.scale(scaled_loss).backward()
+        self._pending_steps += 1
+        if self._pending_steps == self.accumulation_steps:
+            self._step(model)
+
+    def flush(self, model):
+        if self._pending_steps:
+            multiplier = self.accumulation_steps / self._pending_steps
+            self._step(model, gradient_multiplier=multiplier)
 
 
 PARAM_SCHEDULERS.register_module(
@@ -42,6 +66,9 @@ def build_optim_wrapper(cfg, optimizer, scaler):
             "optimizer": optimizer,
             "scaler": scaler,
             "max_norm": getattr(cfg, "max_norm", 0.0),
+            "accumulation_steps": getattr(
+                cfg, "gradient_accumulation_steps", 1
+            ),
         },
     )
 

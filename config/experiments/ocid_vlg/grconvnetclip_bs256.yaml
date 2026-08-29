@@ -1,0 +1,6 @@
+_base_: ../../ocid_vlg/grconvnetclip.yaml
+
+TRAIN:
+  batch_size: 256
+  batch_size_val: 32
+  exp_name: grconvnetclip_ocid_vlg_8npu_bs256_e50
