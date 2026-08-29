@@ -107,8 +107,8 @@ The installed `torch_npu` build must expose `torch_npu.optim.NpuFusedAdam`.
 
 The ToolRGS engine, datasets, dense losses, validation, offset refinement,
 CLIP backbones, DINOv2 fallback attention, CROG, CROG-OFF, DROG, DROG-OFF,
-ETRG-A RGB-D, MapleGrasp, GGCNN-CLIP, GR-ConvNet-CLIP, and LGD use portable PyTorch
-operators and are wired to NPU/HCCL.
+ETRG-A RGB-D, MapleGrasp, GGCNN-CLIP, GR-ConvNet-CLIP, LGD, and GraspMamba use
+portable PyTorch operators and are wired to NPU/HCCL.
 
 ETRG-A is currently configured only for OCID-VLG because it requires aligned
 depth. Before training, run:
@@ -121,12 +121,17 @@ python tools/check_npu_env.py \
 Torchvision must match the installed PyTorch/torch_npu pair. See
 [etrg.md](etrg.md).
 
-GraspMamba is retained in the registry and configs, but its upstream
-MambaVision package depends on the CUDA `selective_scan_cuda` extension. It is
-therefore experimental on Ascend and requires an Ascend-native selective-scan
-implementation from that dependency. ToolRGSNPU does not substitute a
-different convolutional network under the GraspMamba name because that would
-invalidate comparisons.
+GraspMamba keeps the official MambaVision parameter structure while replacing
+its CUDA selective scan, fused attention, and depthwise Conv1d execution with
+portable PyTorch paths. Install and validate it separately:
+
+```bash
+bash tools/install_graspmamba_npu.sh
+python tools/check_graspmamba_env.py
+```
+
+See [graspmamba_npu.md](graspmamba_npu.md) for the operator contract,
+checkpoint compatibility, training commands, and performance boundary.
 
 The optional MMDetection GUI tab additionally requires an NPU-compatible
 MMCV/MMDetection installation. Whisper remains on CPU by default. Camera and

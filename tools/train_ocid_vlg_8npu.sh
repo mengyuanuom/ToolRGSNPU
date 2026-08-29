@@ -21,8 +21,8 @@ LIVE_OUTPUT="${LIVE_OUTPUT:-1}"
 OCID_VLG_ROOT="${OCID_VLG_ROOT:-${REPO_ROOT}/datasets/OCID-VLG}"
 START_FROM="${START_FROM:-}"
 
-# CROGOFF is intentionally excluded. GraspMamba is also excluded because its
-# upstream selective_scan_cuda operator has no supported Ascend implementation.
+# CROGOFF is intentionally excluded. GraspMamba has a portable NPU scan but is
+# kept opt-in because it is substantially slower than fused-backend models.
 MODEL_NAMES=(
   crog
   drog
@@ -169,7 +169,7 @@ SEQUENCE_LOG="${LOG_DIR}/${RUN_ID}_sequence.log"
 echo "[sequence] durable log: ${SEQUENCE_LOG}"
 exec </dev/null >>"${SEQUENCE_LOG}" 2>&1
 announce "[sequence] run id: ${RUN_ID}"
-announce "[sequence] CROGOFF and unsupported GraspMamba are excluded."
+announce "[sequence] CROGOFF is excluded; portable GraspMamba remains opt-in."
 announce "[sequence] ${#MODEL_NAMES[@]} OCID-VLG models are scheduled."
 
 start_index=0

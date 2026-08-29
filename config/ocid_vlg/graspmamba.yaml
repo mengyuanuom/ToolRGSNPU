@@ -18,6 +18,11 @@ TRAIN:
   mamba_model: mamba_vision_T
   mamba_pretrained: True
   mamba_pretrain: pretrain/mambavision_tiny_1k.pth.tar
+  # Keep the official MambaVision parameters but replace CUDA-only execution
+  # paths with portable PyTorch operators supported by torch_npu.
+  mamba_npu_fallback: True
+  mamba_npu_scan_backend: parallel
+  mamba_npu_scan_checkpoint: True
   graspmamba_fusion_dim: 128
   graspmamba_instance_loss_weight: 1.0
   input_size: 416
@@ -59,5 +64,4 @@ TEST:
   test_split: test
   evaluation_protocol: crog_legacy
   visualize: False
-
 
