@@ -76,5 +76,18 @@ run_stage() {
 }
 
 echo "QUEUE_START run_id=${RUN_ID} jobs=${#NAMES[@]} time=$(date --iso-8601=seconds)"
-for index in "${!NAMES[@]}"; do run_stage "${index}"; done
+failures=()
+for index in "${!NAMES[@]}"; do
+  if run_stage "${index}"; then
+    echo "STAGE_VERIFIED name=${NAMES[${index}]}"
+  else
+    rc=$?
+    failures+=("${NAMES[${index}]}:${rc}")
+    echo "STAGE_FAILED_CONTINUING name=${NAMES[${index}]} rc=${rc}"
+  fi
+done
+if [[ "${#failures[@]}" -gt 0 ]]; then
+  echo "SMOKE_COMPLETE_WITH_FAILURES run_id=${RUN_ID} failures=${failures[*]} time=$(date --iso-8601=seconds)"
+  exit 1
+fi
 echo "ALL_SMOKE_COMPLETE run_id=${RUN_ID} time=$(date --iso-8601=seconds)"
