@@ -101,6 +101,8 @@ TRAIN:
   weight:
   resume:
   evaluate: True
+  val_start_epoch: 11
+  val_freq: 1
   use_grasp_masks: True
 
 Distributed:
