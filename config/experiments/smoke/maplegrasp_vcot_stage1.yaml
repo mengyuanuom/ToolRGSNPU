@@ -1,0 +1,8 @@
+_base_:
+  - ../../vcot/maplegrasp_stage1.yaml
+  - ./_8npu.yaml
+TRAIN:
+  exp_name: smoke_maplegrasp_vcot_stage1_8npu
+  output_folder: exp/smoke
+  weight:
+  resume:

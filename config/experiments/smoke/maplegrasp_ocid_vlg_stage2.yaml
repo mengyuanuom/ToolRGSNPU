@@ -1,0 +1,13 @@
+_base_:
+  - ../../ocid_vlg/maplegrasp.yaml
+  - ./_8npu.yaml
+TRAIN:
+  stage1: False
+  stage2: True
+  use_gt_obj_masks: False
+  use_grasp_masks: True
+  predict_grasp_short_side: False
+  exp_name: smoke_maplegrasp_ocid_vlg_stage2_8npu
+  output_folder: exp/smoke
+  weight: exp/smoke/smoke_maplegrasp_ocid_vlg_stage1_8npu/last.pth
+  resume:

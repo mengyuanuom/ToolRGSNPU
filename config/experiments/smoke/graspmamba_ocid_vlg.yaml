@@ -1,0 +1,10 @@
+_base_:
+  - ../../ocid_vlg/graspmamba.yaml
+  - ./_8npu.yaml
+TRAIN:
+  mamba_pretrained: True
+  mamba_pretrain: pretrain/mambavision_tiny_1k.pth.tar
+  exp_name: smoke_graspmamba_ocid_vlg_8npu
+  output_folder: exp/smoke
+  weight:
+  resume:

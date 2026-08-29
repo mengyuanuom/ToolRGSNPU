@@ -230,7 +230,10 @@ class RealVLGValLoop(BaseLoop):
         grasp_valid = 0.0
         grasp_iou_sum = grasp_correct = 0.0
 
+        max_steps = max(0, int(getattr(self.cfg, "max_val_steps", 0) or 0))
         for iteration, data in enumerate(progress):
+            if max_steps and iteration >= max_steps:
+                break
             self.state.iteration = iteration
             self.state.batch = data
             self.hooks.call("before_iter", self, self.state)
@@ -275,9 +278,17 @@ class RealVLGValLoop(BaseLoop):
                 predictions.cosine,
                 predictions.width,
             )
-            if any(value is None for value in grasp_maps):
+            has_grasp_predictions = all(value is not None for value in grasp_maps)
+            if not has_grasp_predictions and any(
+                value is not None for value in grasp_maps
+            ):
                 raise RuntimeError(
-                    "RealVLG grasp evaluation requires quality/sine/cosine/width"
+                    "RealVLG grasp evaluation requires either all or none of "
+                    "quality/sine/cosine/width"
+                )
+            if not has_grasp_predictions and not self.evaluate_segmentation:
+                raise RuntimeError(
+                    "A segmentation-disabled RealVLG model must return grasp maps"
                 )
             if self.evaluate_segmentation and predictions.segmentation is None:
                 raise RuntimeError(
@@ -294,20 +305,24 @@ class RealVLGValLoop(BaseLoop):
                         torch.sigmoid(predictions.segmentation), input_hw
                     )
                 )
-            quality_index = len(tensors)
-            tensors.append(
-                _resize_prediction(
-                    self._decode_quality(predictions.quality), input_hw
+            quality_index = sine_index = cosine_index = width_index = None
+            if has_grasp_predictions:
+                quality_index = len(tensors)
+                tensors.append(
+                    _resize_prediction(
+                        self._decode_quality(predictions.quality), input_hw
+                    )
                 )
-            )
-            sine_index = len(tensors)
-            tensors.append(_resize_prediction(predictions.sine, input_hw))
-            cosine_index = len(tensors)
-            tensors.append(_resize_prediction(predictions.cosine, input_hw))
-            width_index = len(tensors)
-            tensors.append(
-                _resize_prediction(self._decode_size(predictions.width), input_hw)
-            )
+                sine_index = len(tensors)
+                tensors.append(_resize_prediction(predictions.sine, input_hw))
+                cosine_index = len(tensors)
+                tensors.append(_resize_prediction(predictions.cosine, input_hw))
+                width_index = len(tensors)
+                tensors.append(
+                    _resize_prediction(
+                        self._decode_size(predictions.width), input_hw
+                    )
+                )
             offset_index = None
             if predictions.offset is not None:
                 offset_index = len(tensors)
@@ -351,15 +366,17 @@ class RealVLGValLoop(BaseLoop):
                     if offset_index is not None
                     else None
                 )
-                prediction = self._decode_one_grasp(
-                    dense[index, quality_index],
-                    dense[index, sine_index],
-                    dense[index, cosine_index],
-                    dense[index, width_index],
-                    inverse,
-                    float(data["scale"][index]),
-                    offset=offset,
-                )
+                prediction = None
+                if has_grasp_predictions:
+                    prediction = self._decode_one_grasp(
+                        dense[index, quality_index],
+                        dense[index, sine_index],
+                        dense[index, cosine_index],
+                        dense[index, width_index],
+                        inverse,
+                        float(data["scale"][index]),
+                        offset=offset,
+                    )
                 if prediction is not None:
                     ground_truth = data["grasps_points8"][index]
                     if hasattr(ground_truth, "detach"):

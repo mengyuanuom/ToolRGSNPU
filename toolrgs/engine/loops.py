@@ -126,7 +126,12 @@ class GraspTrainLoop(BaseLoop):
         self.model.train()
         end = time.time()
 
+        max_steps = max(
+            0, int(getattr(self.cfg, "max_train_steps_per_epoch", 0) or 0)
+        )
         for iteration, data in enumerate(self.dataloader):
+            if max_steps and iteration >= max_steps:
+                break
             self.state.iteration = iteration
             self.state.batch = data
             self.hooks.call("before_iter", self, self.state)

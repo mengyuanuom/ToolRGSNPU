@@ -232,7 +232,10 @@ class GraspValLoop(BaseLoop):
         progress = tqdm(self.dataloader, disable=rank != 0)
         device = self.device
 
+        max_steps = max(0, int(getattr(self.cfg, "max_val_steps", 0) or 0))
         for iteration, data in enumerate(progress):
+            if max_steps and iteration >= max_steps:
+                break
             self.state.iteration = iteration
             self.state.batch = data
             self.hooks.call("before_iter", self, self.state)
