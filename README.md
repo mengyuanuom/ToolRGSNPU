@@ -534,9 +534,9 @@ bash tools/train_ocid_vlg_8npu.sh
 The default dataset path is `datasets/OCID-VLG`. Override it without editing
 the script with `OCID_VLG_ROOT=/absolute/path/to/OCID-VLG`. If a long sequence
 was interrupted, resume from a model name such as
-`START_FROM=lgd bash tools/train_ocid_vlg_8npu.sh`. GraspMamba is excluded
-because its upstream CUDA selective-scan extension is not NPU-compatible.
-Durable logs are
+`START_FROM=lgd bash tools/train_ocid_vlg_8npu.sh`. GraspMamba remains outside
+this default sequence because its portable scan is slower; run its checked-in
+profile directly after completing the NPU environment check. Durable logs are
 written under `logs/ocid_vlg_8npu/`.
 
 To run eight independent single-NPU OCID-VLG models concurrently, using each
@@ -621,6 +621,19 @@ cross-dataset compatibility experiments rather than paper-reported settings.
 See the [GraspMamba paper](https://arxiv.org/abs/2409.14403) and the
 [official MambaVision backbone](https://github.com/NVlabs/MambaVision).
 
+On Ascend, ToolRGSNPU preserves the MambaVision parameters and replaces only
+the CUDA selective scan/fused execution path with a pure-PyTorch NPU adapter.
+Install the package without its CUDA dependency and run the forward check first:
+
+```bash
+bash tools/install_graspmamba_npu.sh
+python tools/download_pretrained.py clip-rn50 mambavision-t
+python tools/check_graspmamba_env.py
+```
+
+Implementation details and tuning switches are documented in
+[docs/graspmamba_npu.md](docs/graspmamba_npu.md).
+
 Run the paper-aligned experiment with:
 
 ```bash
@@ -645,10 +658,10 @@ python tools/check_npu_env.py
 python tools/check_npu_env.py --config config/vcot/drogoff.yaml --forward
 ```
 
-GraspMamba is the one explicit compatibility boundary: upstream MambaVision
-loads the CUDA-only `selective_scan_cuda` extension. It remains available for
-future Ascend selective-scan integration, but is not claimed NPU-ready. The
-other nine grasp architectures use the explicit NPU runtime path.
+GraspMamba uses the repository's portable selective-scan adapter and no longer
+loads `selective_scan_cuda`. Because the fallback is not a fused CANN kernel,
+run `python tools/check_graspmamba_env.py` on the target server and expect lower
+throughput than the official CUDA implementation.
 
 The configured official MambaVision checkpoint is downloaded automatically if
 it is missing and the server has network access. Otherwise download it once and

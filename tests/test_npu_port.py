@@ -114,6 +114,18 @@ class NPUSourceContractTest(unittest.TestCase):
         for value in (".cuda(", "torch.cuda", '"nccl"', "'nccl'"):
             self.assertNotIn(value, source)
 
+    def test_graspmamba_npu_adapter_has_no_cuda_runtime_calls(self):
+        for filename in ("graspmamba.py", "mamba_npu.py"):
+            source = (ROOT / "model" / filename).read_text(encoding="utf-8-sig")
+            with self.subTest(filename=filename):
+                for value in (".cuda(", "torch.cuda", '"nccl"', "'nccl'"):
+                    self.assertNotIn(value, source)
+        adapter = (ROOT / "model" / "mamba_npu.py").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertIn("def selective_scan_fn(", adapter)
+        self.assertIn("patch_mambavision_for_npu", adapter)
+
 
 if __name__ == "__main__":
     unittest.main()

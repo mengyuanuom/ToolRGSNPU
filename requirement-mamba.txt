@@ -1,3 +1,11 @@
-# Optional GraspMamba dependency. Install matching torch and torch_npu first.
-# The upstream package may require additional Ascend operator adaptation.
-mambavision==1.2.0
+# Pure-Python runtime dependencies for the ToolRGSNPU GraspMamba adapter.
+# Install matching torch/torch_npu first, then run:
+#   bash tools/install_graspmamba_npu.sh
+#
+# MambaVision itself is installed with --no-deps by that script so pip does not
+# attempt to build its CUDA-only mamba-ssm dependency.
+timm==1.0.15
+einops==0.8.1
+huggingface-hub==0.29.3
+safetensors==0.5.3
+requests==2.32.3

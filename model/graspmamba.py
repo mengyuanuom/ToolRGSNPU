@@ -8,6 +8,7 @@ and exposes dense quality/sine/cosine/width maps so all datasets can use the
 shared engine.
 """
 
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import torch
@@ -15,6 +16,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .crog_clip import build_model as build_clip_model
+from .mamba_npu import (
+    install_mamba_ssm_npu_shim,
+    patch_mambavision_for_npu,
+)
 
 
 MAMBAVISION_CHANNELS = {
@@ -30,22 +35,46 @@ MAMBAVISION_CHANNELS = {
 class MambaVisionFeatureExtractor(nn.Module):
     """Expose the four pre-downsample feature maps from official MambaVision."""
 
-    def __init__(self, model_name, pretrained=True, checkpoint=None):
+    def __init__(
+        self,
+        model_name,
+        pretrained=True,
+        checkpoint=None,
+        npu_fallback=True,
+        scan_backend="parallel",
+        checkpoint_scan=True,
+    ):
         super().__init__()
         if model_name not in MAMBAVISION_CHANNELS:
             available = ", ".join(sorted(MAMBAVISION_CHANNELS))
             raise ValueError(
                 f"Unsupported MambaVision model {model_name!r}; available: {available}"
             )
+        self.npu_fallback = bool(npu_fallback)
+        if self.npu_fallback:
+            install_mamba_ssm_npu_shim(
+                backend=scan_backend,
+                checkpoint_scan=checkpoint_scan,
+            )
         try:
             from mambavision import create_model
         except (ImportError, OSError) as exc:
             raise RuntimeError(
-                "GraspMamba requires the optional MambaVision dependency. "
-                "Install it with `pip install -r requirement-mamba.txt` after "
-                "installing the torch/torch_npu pair matching this Ascend server. "
-                "MambaVision NPU support depends on its installed operator build."
+                "GraspMamba requires the MambaVision Python package. Run "
+                "`bash tools/install_graspmamba_npu.sh` after installing the "
+                "torch/torch_npu pair matching this Ascend server."
             ) from exc
+        try:
+            installed_version = version("mambavision")
+        except PackageNotFoundError as exc:
+            raise RuntimeError(
+                "Unable to resolve the installed MambaVision version"
+            ) from exc
+        if installed_version != "1.2.0":
+            raise RuntimeError(
+                "ToolRGSNPU's portable operator patch requires "
+                f"mambavision==1.2.0, got {installed_version!r}"
+            )
 
         model_kwargs = {"num_classes": 0}
         if checkpoint:
@@ -66,6 +95,14 @@ class MambaVisionFeatureExtractor(nn.Module):
                 "TRAIN.mamba_pretrain to its local path; use "
                 "TRAIN.mamba_pretrained=False only for training from scratch."
             ) from exc
+
+        self.npu_patch_report = None
+        if self.npu_fallback:
+            self.npu_patch_report = patch_mambavision_for_npu(
+                self.model,
+                scan_backend=scan_backend,
+                checkpoint_scan=checkpoint_scan,
+            )
 
         if not hasattr(self.model, "levels") or len(self.model.levels) != 4:
             raise RuntimeError(
@@ -236,6 +273,9 @@ class GraspMamba(nn.Module):
             model_name=mamba_model,
             pretrained=getattr(cfg, "mamba_pretrained", True),
             checkpoint=getattr(cfg, "mamba_pretrain", None),
+            npu_fallback=getattr(cfg, "mamba_npu_fallback", True),
+            scan_backend=getattr(cfg, "mamba_npu_scan_backend", "parallel"),
+            checkpoint_scan=getattr(cfg, "mamba_npu_scan_checkpoint", True),
         )
 
         clip_checkpoint = Path(cfg.clip_pretrain)

@@ -20,6 +20,9 @@ TRAIN:
   mamba_model: mamba_vision_T
   mamba_pretrained: True
   mamba_pretrain: pretrain/mambavision_tiny_1k.pth.tar
+  mamba_npu_fallback: True
+  mamba_npu_scan_backend: parallel
+  mamba_npu_scan_checkpoint: True
   graspmamba_fusion_dim: 128
   graspmamba_instance_loss_weight: 1.0
   version: multiple
@@ -70,6 +73,5 @@ TEST:
   filter_grasps_by_segmentation: False
   restore_grasp_size_scale: True
   visualize: False
-
 
 
