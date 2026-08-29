@@ -8,6 +8,7 @@ and exposes dense quality/sine/cosine/width maps so all datasets can use the
 shared engine.
 """
 
+import argparse
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -83,11 +84,15 @@ class MambaVisionFeatureExtractor(nn.Module):
                 checkpoint.parent.mkdir(parents=True, exist_ok=True)
             model_kwargs["model_path"] = str(checkpoint)
         try:
-            self.model = create_model(
-                model_name,
-                pretrained=pretrained,
-                **model_kwargs,
-            )
+            # The SHA256-pinned official checkpoint stores argparse.Namespace
+            # metadata. PyTorch >=2.6 defaults torch.load to weights_only=True,
+            # so allowlist only that metadata type while MambaVision loads it.
+            with torch.serialization.safe_globals([argparse.Namespace]):
+                self.model = create_model(
+                    model_name,
+                    pretrained=pretrained,
+                    **model_kwargs,
+                )
         except Exception as exc:
             raise RuntimeError(
                 "Unable to construct the MambaVision backbone. If automatic weight "
