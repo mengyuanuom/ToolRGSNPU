@@ -1,0 +1,7 @@
+_base_: ../../ocid_vlg/graspmamba.yaml
+TRAIN:
+  gradient_accumulation_steps: 1
+  exp_name: formal_graspmamba_ocid_vlg_8npu
+  output_folder: exp/ocid_vlg
+  weight:
+  resume:

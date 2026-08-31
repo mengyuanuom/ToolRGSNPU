@@ -1,0 +1,7 @@
+_base_: ../../vcot/graspmamba.yaml
+TRAIN:
+  gradient_accumulation_steps: 1
+  exp_name: formal_graspmamba_vcot_8npu
+  output_folder: exp/vcot
+  weight:
+  resume:

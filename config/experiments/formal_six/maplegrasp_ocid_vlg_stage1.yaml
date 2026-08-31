@@ -1,0 +1,12 @@
+_base_: ../../ocid_vlg/maplegrasp.yaml
+TRAIN:
+  stage1: True
+  stage2: False
+  use_gt_obj_masks: False
+  use_grasp_masks: False
+  predict_grasp_short_side: False
+  gradient_accumulation_steps: 1
+  exp_name: formal_maplegrasp_ocid_vlg_stage1_8npu
+  output_folder: exp/ocid_vlg
+  weight:
+  resume:

@@ -1,0 +1,23 @@
+_base_: ../../realvlg/maplegrasp.yaml
+MODEL:
+  architecture: graspmamba
+TRAIN:
+  clip_pretrain: pretrain/RN50.pt
+  use_pretrained_clip: True
+  mamba_model: mamba_vision_T
+  mamba_pretrained: True
+  mamba_pretrain: pretrain/mambavision_tiny_1k.pth.tar
+  mamba_npu_fallback: True
+  mamba_npu_scan_backend: parallel
+  mamba_npu_scan_checkpoint: True
+  graspmamba_fusion_dim: 128
+  graspmamba_instance_loss_weight: 1.0
+  use_grasp_masks: True
+  epochs: 24
+  batch_size: 16
+  batch_size_val: 8
+  gradient_accumulation_steps: 1
+  exp_name: formal_graspmamba_realvlg_8npu
+  output_folder: exp/realvlg
+  weight:
+  resume:
