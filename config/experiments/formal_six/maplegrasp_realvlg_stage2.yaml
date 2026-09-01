@@ -1,5 +1,6 @@
 _base_: ../../realvlg/maplegrasp.yaml
 TRAIN:
+  batch_size: 256
   stage1: False
   stage2: True
   use_gt_obj_masks: False

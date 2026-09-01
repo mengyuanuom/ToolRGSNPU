@@ -1,5 +1,6 @@
 _base_: ../../vcot/maplegrasp_stage1.yaml
 TRAIN:
+  batch_size: 256
   gradient_accumulation_steps: 1
   exp_name: formal_maplegrasp_vcot_stage1_8npu
   output_folder: exp/vcot

@@ -14,7 +14,7 @@ TRAIN:
   graspmamba_instance_loss_weight: 1.0
   use_grasp_masks: True
   epochs: 24
-  batch_size: 16
+  batch_size: 256
   batch_size_val: 8
   gradient_accumulation_steps: 1
   exp_name: formal_graspmamba_realvlg_8npu

@@ -7,6 +7,8 @@ PYTHON=/root/miniconda3/envs/pangu_mmy/bin/python
 ASCEND_ENV=/data1/wangxuefei/Ascend/ascend-toolkit/set_env.sh
 RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
 POLL_SECONDS="${POLL_SECONDS:-5}"
+SMOKE_BATCH_SIZE="${SMOKE_BATCH_SIZE:-}"
+SMOKE_MAX_TRAIN_STEPS="${SMOKE_MAX_TRAIN_STEPS:-}"
 
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
 export PYTHONPATH="${PYTHONPATH:-}"
@@ -46,6 +48,12 @@ run_stage() {
   local exp_dir="exp/smoke/${exp_name}"
   local launcher_log="${exp_dir}/launcher.smoke.log"
   local -a options=(TRAIN.exp_name "${exp_name}")
+  if [[ -n "${SMOKE_BATCH_SIZE}" ]]; then
+    options+=(TRAIN.batch_size "${SMOKE_BATCH_SIZE}")
+  fi
+  if [[ -n "${SMOKE_MAX_TRAIN_STEPS}" ]]; then
+    options+=(TRAIN.max_train_steps_per_epoch "${SMOKE_MAX_TRAIN_STEPS}")
+  fi
 
   wait_for_all_npus
   [[ -f "${config}" ]] || { echo "MISSING_CONFIG name=${name} config=${config}"; return 20; }
