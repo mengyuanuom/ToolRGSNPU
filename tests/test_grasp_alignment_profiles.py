@@ -13,6 +13,7 @@ class GraspAlignmentProfileTest(unittest.TestCase):
             "ocid_vlg.yaml": ("OCID-VLG", 17),
             "vcot.yaml": ("vcot", 17),
             "realvlg.yaml": ("realvlg", 77),
+            "grasp_tools_v3.yaml": ("GraspTool", 32),
         }
         profile_root = ROOT / "config" / "experiments" / "grasp_alignment_v1"
         self.assertEqual(
