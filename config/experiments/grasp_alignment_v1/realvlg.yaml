@@ -1,0 +1,29 @@
+_base_: ../../realvlg/drogoff.yaml
+
+# M4: hierarchical object/grasp-region DINO--CLIP alignment on Offset V1.
+TRAIN:
+  fusion_adapter: grasp_aware
+  grasp_alignment_enabled: True
+  visual_adapter_layer: []
+  txtual_adapter_layer: []
+  reciprocal_adapter_layers: []
+  reciprocal_input_is_clip_normalized: True
+  grasp_alignment_dim: 256
+  grasp_alignment_heads: 8
+  grasp_alignment_dropout: 0.05
+  grasp_alignment_temperature: 0.07
+  grasp_affinity_kernel: 3
+  grasp_affinity_topk: 4
+  grasp_affinity_steps: 1
+  grasp_affinity_blend: 0.25
+  object_alignment_loss_weight: 0.20
+  region_text_contrastive_loss_weight: 0.05
+  region_text_contrastive_temperature: 0.07
+  grasp_alignment_loss_weight: 0.10
+  grasp_ranking_loss_weight: 0.05
+  subset_consistency_loss_weight: 0.02
+  grasp_alignment_quality_mix: 0.60
+  grasp_ranking_margin: 0.20
+  exp_name: drogoff_v1_grasp_alignment_realvlg
+  weight:
+  resume:

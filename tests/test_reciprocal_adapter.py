@@ -214,5 +214,37 @@ class ReciprocalAdapterTest(unittest.TestCase):
         self.assertTrue(torch.isfinite(image.grad).all())
 
 
+    def test_grasp_aware_fusion_uses_adapter_free_interleaved_path(self):
+        torch.manual_seed(6)
+        fusion = FUSION.Fusion(
+            num_layers=4,
+            dino_layers=4,
+            output_dinov2=[1, 2],
+            fusion_adapter="grasp_aware",
+            adapter_layers=[],
+            adapter_visual_dim=768,
+            adapter_text_dim=512,
+            adapter_hidden_dim=64,
+            adapter_heads=4,
+            adapter_pool_size=2,
+            input_is_clip_normalized=True,
+        )
+        self.assertEqual(len(fusion.reciprocal_adapters), 0)
+        image = torch.randn(2, 3, 28, 42)
+        text = torch.tensor(
+            [
+                [1, 5, 127, 0, 0, 0, 0, 0],
+                [1, 3, 9, 127, 0, 0, 0, 0],
+            ]
+        )
+        features, tokens, state = fusion(
+            image, text, _DummyClip(), _DummyDino()
+        )
+        self.assertEqual(len(features), 3)
+        self.assertTrue(
+            all(tuple(value.shape) == (2, 768, 2, 3) for value in features)
+        )
+        self.assertEqual(tuple(tokens.shape), (2, 8, 512))
+        self.assertEqual(tuple(state.shape), (2, 512))
 if __name__ == "__main__":
     unittest.main()

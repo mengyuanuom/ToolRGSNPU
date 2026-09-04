@@ -23,6 +23,9 @@ def build_projector(cfg, with_offset=False) -> nn.Module:
             "with_short_side": bool(
                 getattr(cfg, "predict_grasp_short_side", False)
             ),
+            "use_alignment_gates": bool(
+                getattr(cfg, "grasp_alignment_enabled", False)
+            ),
         }
         if with_offset:
             projector_kwargs.update(

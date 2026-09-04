@@ -3,6 +3,10 @@
 import torch
 import torch.nn.functional as F
 
+from .grasp_alignment import (
+    HierarchicalDinoClipAlignment,
+    hierarchical_alignment_losses,
+)
 from .drog import DROG
 from .native_adapter import (
     NativeDinoClipFusion,
@@ -35,10 +39,23 @@ class DROGOFF(DROG):
         )
         self.native_variant = str(getattr(cfg, "native_variant", "")).strip().lower()
         self.alignment_loss_weight = 0.0
+        self.grasp_alignment_enabled = bool(
+            getattr(
+                cfg,
+                "grasp_alignment_enabled",
+                self.fusion_adapter == "grasp_aware",
+            )
+        )
+        self.grasp_alignment = None
+        self.object_alignment_loss_weight = 0.0
+        self.grasp_alignment_loss_weight = 0.0
+        self.grasp_ranking_loss_weight = 0.0
+        self.region_text_contrastive_loss_weight = 0.0
+        self.subset_consistency_loss_weight = 0.0
         self.uses_query_decoder = True
         if self.native_variant and self.fusion_adapter != "legacy":
             raise ValueError(
-                "DROG-OFF reciprocal V1 and native V3/V4 are mutually exclusive"
+                "DROG-OFF grasp-aware/reciprocal V1 and native V3/V4 are mutually exclusive"
             )
 
         if self.native_variant:
@@ -47,6 +64,61 @@ class DROGOFF(DROG):
                     f"Unknown DROG-OFF native_variant: {self.native_variant!r}"
                 )
             self._enable_native_variant(cfg)
+        elif self.grasp_alignment_enabled:
+            if self.fusion_adapter != "grasp_aware":
+                raise ValueError(
+                    "grasp_alignment_enabled requires fusion_adapter: grasp_aware"
+                )
+            self._enable_grasp_alignment(cfg)
+
+    def _enable_grasp_alignment(self, cfg):
+        if list(getattr(cfg, "visual_adapter_layer", [])):
+            raise ValueError(
+                "grasp-aware alignment requires visual_adapter_layer: []"
+            )
+        if list(getattr(cfg, "txtual_adapter_layer", [])):
+            raise ValueError(
+                "grasp-aware alignment requires txtual_adapter_layer: []"
+            )
+        visual_dim = 768 if cfg.dino_name == "dino-base" else 1024
+        stages = len(tuple(cfg.output_dinov2)) + 1
+        self.grasp_alignment = HierarchicalDinoClipAlignment(
+            visual_dim=visual_dim,
+            text_dim=int(cfg.word_dim),
+            hidden_dim=int(getattr(cfg, "grasp_alignment_dim", 256)),
+            stages=stages,
+            text_heads=int(getattr(cfg, "grasp_alignment_heads", 8)),
+            dropout=float(getattr(cfg, "grasp_alignment_dropout", 0.05)),
+            affinity_kernel=int(getattr(cfg, "grasp_affinity_kernel", 3)),
+            affinity_topk=int(getattr(cfg, "grasp_affinity_topk", 4)),
+            affinity_steps=int(getattr(cfg, "grasp_affinity_steps", 1)),
+            affinity_blend=float(getattr(cfg, "grasp_affinity_blend", 0.25)),
+            temperature=float(getattr(cfg, "grasp_alignment_temperature", 0.07)),
+        )
+        self.object_alignment_loss_weight = float(
+            getattr(cfg, "object_alignment_loss_weight", 0.2)
+        )
+        self.grasp_alignment_loss_weight = float(
+            getattr(cfg, "grasp_alignment_loss_weight", 0.1)
+        )
+        self.grasp_ranking_loss_weight = float(
+            getattr(cfg, "grasp_ranking_loss_weight", 0.05)
+        )
+        self.region_text_contrastive_loss_weight = float(
+            getattr(cfg, "region_text_contrastive_loss_weight", 0.05)
+        )
+        self.region_text_contrastive_temperature = float(
+            getattr(cfg, "region_text_contrastive_temperature", 0.07)
+        )
+        self.subset_consistency_loss_weight = float(
+            getattr(cfg, "subset_consistency_loss_weight", 0.02)
+        )
+        self.grasp_alignment_quality_mix = float(
+            getattr(cfg, "grasp_alignment_quality_mix", 0.6)
+        )
+        self.grasp_ranking_margin = float(
+            getattr(cfg, "grasp_ranking_margin", 0.2)
+        )
 
     def _enable_native_variant(self, cfg):
         if list(getattr(cfg, "visual_adapter_layer", [])):
@@ -148,12 +220,63 @@ class DROGOFF(DROG):
                 img, word, self.txt_backbone, self.dinov2
             )
             auxiliary = {}
+            if self.grasp_alignment_enabled:
+                auxiliary.update(
+                    self.grasp_alignment(
+                        vis, text_tokens, state, pad_mask
+                    )
+                )
+                auxiliary["alignment_text_ids"] = word.detach()
         features = self.neck(vis, state)
         b, c, h, w = features.shape
         features = self.decoder(features, text_tokens, pad_mask).reshape(b, c, h, w)
         return features, state, auxiliary
 
-    def _extra_training_losses(self, auxiliary, mask):
+    def _extra_training_losses(
+        self,
+        auxiliary,
+        mask,
+        grasp_quality=None,
+        offset_weight=None,
+    ):
+        object_alignment = auxiliary.get("object_alignment")
+        grasp_alignment = auxiliary.get("grasp_alignment")
+        if object_alignment is not None or grasp_alignment is not None:
+            if object_alignment is None or grasp_alignment is None:
+                raise RuntimeError("M4 requires both object and grasp alignment maps")
+            if grasp_quality is None or offset_weight is None:
+                raise ValueError(
+                    "M4 training requires grasp quality and offset-weight maps"
+                )
+            losses = hierarchical_alignment_losses(
+                object_alignment,
+                grasp_alignment,
+                mask,
+                grasp_quality,
+                offset_weight,
+                alignment_features=auxiliary["alignment_features"],
+                object_query=auxiliary["object_query"],
+                text_ids=auxiliary["alignment_text_ids"],
+                contrastive_temperature=self.region_text_contrastive_temperature,
+                quality_mix=self.grasp_alignment_quality_mix,
+                ranking_margin=self.grasp_ranking_margin,
+            )
+            total = (
+                self.object_alignment_loss_weight * losses["object"]
+                + self.region_text_contrastive_loss_weight
+                * losses["contrastive"]
+                + self.grasp_alignment_loss_weight * losses["grasp"]
+                + self.grasp_ranking_loss_weight * losses["ranking"]
+                + self.subset_consistency_loss_weight * losses["subset"]
+            )
+            return total, {
+                "m_obj_align": losses["object"].detach(),
+                "m_grasp_align": losses["grasp"].detach(),
+                "m_region_nce": losses["contrastive"].detach(),
+                "m_grasp_rank": losses["ranking"].detach(),
+                "m_align_subset": losses["subset"].detach(),
+            }
+
         alignment = auxiliary.get("alignment")
         if alignment is None or self.alignment_loss_weight <= 0.0:
             return mask.new_zeros(()), {}
@@ -170,7 +293,15 @@ class DROGOFF(DROG):
         pad_mask = torch.zeros_like(word).masked_fill_(word == 0, 1).bool()
         features, state, auxiliary = self._encode_features(img, word, pad_mask)
 
-        outputs = self.proj(features, state)
+        if self.grasp_alignment_enabled:
+            outputs = self.proj(
+                features,
+                state,
+                object_gate=auxiliary["object_alignment"],
+                grasp_gate=auxiliary["grasp_alignment"],
+            )
+        else:
+            outputs = self.proj(features, state)
         if self.predicts_grasp_short_side:
             seg, qua, sin, cos, width, short_side, offset = outputs
         else:
@@ -286,7 +417,12 @@ class DROGOFF(DROG):
             seg_loss + qua_loss + sin_loss + cos_loss + width_loss
             + self.offset_loss_weight * offset_loss
         )
-        extra_loss, extra_loss_dict = self._extra_training_losses(auxiliary, mask)
+        extra_loss, extra_loss_dict = self._extra_training_losses(
+            auxiliary,
+            mask,
+            grasp_quality=grasp_qua_mask,
+            offset_weight=grasp_off_weight,
+        )
         total_loss = total_loss + extra_loss
         if short_side_loss is not None:
             total_loss = total_loss + self.short_side_loss_weight * short_side_loss

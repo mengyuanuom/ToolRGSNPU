@@ -433,11 +433,14 @@ class MLP(nn.Module):
         return x
 
 class MultiTaskProjector(nn.Module):
-    def __init__(self, word_dim=1024, in_dim=256, kernel_size=3,
-                 with_short_side=False):
+    def __init__(
+        self, word_dim=1024, in_dim=256, kernel_size=3,
+        with_short_side=False, use_alignment_gates=False,
+    ):
         super().__init__()
         self.in_dim = in_dim
         self.kernel_size = kernel_size
+        self.use_alignment_gates = bool(use_alignment_gates)
         # visual projector
         self.vis = nn.Sequential(  # os16 -> os4
             nn.Upsample(scale_factor=2, mode='bilinear'),
@@ -446,12 +449,45 @@ class MultiTaskProjector(nn.Module):
             conv_layer(in_dim * 2, in_dim, 3, padding=1),
             nn.Conv2d(in_dim, in_dim * (6 if with_short_side else 5), 1))
         self.num_outputs = 6 if with_short_side else 5
+        if self.use_alignment_gates:
+            self.object_gate_gain = nn.Parameter(torch.zeros(()))
+            self.grasp_gate_gain = nn.Parameter(torch.zeros(()))
 
         # textual projector
         out_dim = 1 * in_dim * kernel_size * kernel_size + 1
         self.txt = nn.Linear(word_dim, out_dim)
 
-    def forward(self, x, word):
+    @staticmethod
+    def _resize_gate(gate, size, reference):
+        if gate is None:
+            return None
+        if gate.ndim != 4 or gate.shape[1] != 1:
+            raise ValueError("alignment gates must have shape [B, 1, H, W]")
+        return F.interpolate(
+            torch.sigmoid(gate.float()),
+            size=size,
+            mode="bilinear",
+            align_corners=False,
+        ).to(reference.dtype)
+
+    def gate_input(self, x, object_gate=None, grasp_gate=None):
+        """Gate shared low-resolution features for the offset branch."""
+        if not self.use_alignment_gates:
+            return x
+        object_probability = self._resize_gate(object_gate, x.shape[-2:], x)
+        grasp_probability = self._resize_gate(grasp_gate, x.shape[-2:], x)
+        multiplier = torch.ones_like(x[:, :1])
+        if object_probability is not None:
+            multiplier = multiplier + torch.tanh(
+                self.object_gate_gain
+            ) * object_probability
+        if grasp_probability is not None:
+            multiplier = multiplier + torch.tanh(
+                self.grasp_gate_gain
+            ) * grasp_probability
+        return x * multiplier
+
+    def forward(self, x, word, object_gate=None, grasp_gate=None):
         """Apply the five text-conditioned heads in one NPU-safe grouped conv."""
         x = self.vis(x)
         batch_size, total_channels, height, width = x.shape
@@ -461,6 +497,28 @@ class MultiTaskProjector(nn.Module):
                 f"Projector channels {total_channels} are not divisible by {branch_count}"
             )
         channels = total_channels // branch_count
+        if self.use_alignment_gates:
+            branch_features = x.reshape(
+                batch_size, branch_count, channels, height, width
+            )
+            object_probability = self._resize_gate(
+                object_gate, (height, width), x
+            )
+            grasp_probability = self._resize_gate(
+                grasp_gate, (height, width), x
+            )
+            multiplier = torch.ones_like(branch_features[:, :, :1])
+            if object_probability is not None:
+                multiplier = multiplier + torch.tanh(
+                    self.object_gate_gain
+                ) * object_probability[:, None]
+            if grasp_probability is not None and branch_count > 1:
+                grasp_multiplier = torch.zeros_like(multiplier)
+                grasp_multiplier[:, 1:] = grasp_probability[:, None]
+                multiplier = multiplier + torch.tanh(
+                    self.grasp_gate_gain
+                ) * grasp_multiplier
+            x = (branch_features * multiplier).reshape_as(x)
 
         dynamic_params = self.txt(word)
         weight = dynamic_params[:, :-1].reshape(
@@ -518,10 +576,12 @@ class OffsetMultiTaskProjector(nn.Module):
         with_short_side=False,
         offset_head="legacy",
         offset_hidden_dim=64,
+        use_alignment_gates=False,
     ):
         super().__init__()
         self.base = MultiTaskProjector(
-            word_dim, in_dim, kernel_size, with_short_side=with_short_side
+            word_dim, in_dim, kernel_size, with_short_side=with_short_side,
+            use_alignment_gates=use_alignment_gates,
         )
         self.with_short_side = bool(with_short_side)
         offset_head = str(offset_head).strip().lower()
@@ -549,9 +609,14 @@ class OffsetMultiTaskProjector(nn.Module):
                 f"Unknown offset_head {offset_head!r}; use 'legacy' or 'lightweight'"
             )
 
-    def forward(self, x, word):
-        outputs = self.base(x, word)
-        return (*outputs, self.offset(x))
+    def forward(self, x, word, object_gate=None, grasp_gate=None):
+        offset_input = self.base.gate_input(
+            x, object_gate=object_gate, grasp_gate=grasp_gate
+        )
+        outputs = self.base(
+            x, word, object_gate=object_gate, grasp_gate=grasp_gate
+        )
+        return (*outputs, self.offset(offset_input))
 
 
 

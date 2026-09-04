@@ -52,11 +52,13 @@ class Fusion(nn.Module):
         self.initialize_parameters()
 
         self.adapter_type = str(fusion_adapter).strip().lower()
-        if self.adapter_type not in {"legacy", "reciprocal"}:
+        if self.adapter_type not in {"legacy", "reciprocal", "grasp_aware"}:
             raise ValueError(f"Unknown fusion_adapter: {fusion_adapter!r}")
         self.adapter_layers = tuple(sorted(set(int(v) for v in adapter_layers)))
         if self.adapter_type == "reciprocal" and not self.adapter_layers:
             raise ValueError("reciprocal fusion requires at least one adapter layer")
+        if self.adapter_type == "grasp_aware" and self.adapter_layers:
+            raise ValueError("grasp_aware fusion does not use reciprocal adapter layers")
         if self.adapter_layers and (
             self.adapter_layers[0] < 0
             or self.adapter_layers[-1] >= min(self.num_layers, self.dino_layers)
@@ -186,7 +188,7 @@ class Fusion(nn.Module):
         return vis_outs, txt, state
 
     def forward(self, img, text, txt_backbone,dino):
-        if self.adapter_type == "reciprocal":
+        if self.adapter_type in {"reciprocal", "grasp_aware"}:
             return self._forward_reciprocal(img, text, txt_backbone, dino)
 
         B=img.shape[0]

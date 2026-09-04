@@ -28,12 +28,16 @@ class DROG(nn.Module):
         self.fusion_adapter = str(
             getattr(cfg, "fusion_adapter", "legacy")
         ).strip().lower()
-        bridge_layers = tuple(
-            getattr(cfg, "reciprocal_adapter_layers", cfg.visual_adapter_layer)
+        bridge_layers = (
+            tuple(getattr(cfg, "reciprocal_adapter_layers", cfg.visual_adapter_layer))
+            if self.fusion_adapter == "reciprocal"
+            else ()
         )
         dino_embed_dim = 768 if cfg.dino_name == "dino-base" else 1024
         dino_adapter_layers = (
-            [] if self.fusion_adapter == "reciprocal" else cfg.visual_adapter_layer
+            []
+            if self.fusion_adapter in {"reciprocal", "grasp_aware"}
+            else cfg.visual_adapter_layer
         )
         self.fusion = Fusion(
             d_model=cfg.ladder_dim,
