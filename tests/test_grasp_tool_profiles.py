@@ -20,7 +20,7 @@ EXPECTED_MODELS = {
 
 
 class GraspToolResourceProfileTest(unittest.TestCase):
-    def test_all_model_configs_use_complete_v2_eight_npu_defaults(self):
+    def test_all_model_configs_use_complete_v3_eight_npu_defaults(self):
         paths = sorted((ROOT / "config" / "grasp_tools").glob("*.yaml"))
         self.assertEqual({path.stem for path in paths}, EXPECTED_MODELS)
 
@@ -32,7 +32,9 @@ class GraspToolResourceProfileTest(unittest.TestCase):
             test = cfg["TEST"]
 
             self.assertEqual(
-                data["root_path"], "./datasets/grasp-tools/aug_graspall_v2", path
+                data["root_path"],
+                "./datasets/grasp-tools/aug_graspall_v3_15k",
+                path,
             )
             self.assertEqual(data["grasp_size_factor"], 300.0, path)
             self.assertEqual(data["grasp_height"], 20.0, path)

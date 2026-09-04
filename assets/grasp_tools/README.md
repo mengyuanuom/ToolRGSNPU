@@ -3,13 +3,15 @@
 This directory contains the complete source material required by ToolRGS's
 compositional Grasp-Tools augmentation pipeline:
 
-- `graspall/`: 107 RGB images and their 107 polygon/grasp JSON annotations;
+- `graspall_v3/`: the active V3 release with 107 RGB images and 107 reviewed
+  polygon/grasp JSON annotations (107 objects, 7,820 grasp rectangles);
+- `graspall/`: the archived V2 source release retained for reproducibility;
 - `backgrounds/`: 42 tool-free background images.
 
-The annotation categories are canonicalized to 22 classes. Two empty object
-records in `000000000076.json` are retained in the source annotation for
-provenance and are skipped with explicit warnings by the generator.
+Both releases use the same 22 canonical categories and the same source RGB
+images. V3 replaces every JSON sidecar with the reviewed annotation set and
+contains no empty object records. The augmentation generator defaults to V3.
 
-Do not commit generated `aug_graspall_v2` scenes here. Generate them below the
+Do not commit generated `aug_graspall_v3_15k` scenes here. Generate them below the
 normal `datasets/grasp-tools/` data root by following
-`docs/grasp_tools_v2.md`.
+`docs/grasp_tools_v3.md`.

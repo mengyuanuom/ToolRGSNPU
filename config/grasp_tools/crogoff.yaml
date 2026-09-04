@@ -3,7 +3,7 @@
   grasp_height: 20.0
   grasp_size_coordinate: original
   dataset: GraspTool
-  root_path: ./datasets/grasp-tools/aug_graspall_v2
+  root_path: ./datasets/grasp-tools/aug_graspall_v3_15k
   train_split: train
   val_split: val
   offset_r: 20

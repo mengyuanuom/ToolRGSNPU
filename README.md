@@ -102,30 +102,32 @@ the shared grasp-map output/loss contract, so it is not included in this matrix.
 Set `DATA.root_path`, `TRAIN.clip_pretrain`, and (for DROG variants)
 `TRAIN.dino_pretrain` to local paths before training.
 
-## Embedded Grasp-Tools v2 data and augmentation
+## Embedded Grasp-Tools V3 data and augmentation
 
-The complete Grasp-Tools source set is included in this repository: 107
-annotated RGB images with JSON masks/grasps and 42 background images live under
-`assets/grasp_tools/`. Generate the multi-object, multi-query v2 dataset from a
-fresh clone with:
+The complete reviewed Grasp-Tools V3 source set is included in this repository:
+107 annotated RGB images with JSON masks/grasps and 42 background images live
+under `assets/grasp_tools/`. Generate the multi-object, multi-query V3 dataset
+from a fresh clone with:
 
 ```bash
 python -u tools/dataset_converters/grasp_tools/augment.py
 ```
 
-The default output is `datasets/grasp-tools/aug_graspall_v2`. It uses the
+The default output is `datasets/grasp-tools/aug_graspall_v3_15k`. It uses the
 difficulty-1 starter curriculum: two or three unique-category tools per scene,
 expanded category vocabulary, shared language templates, and mild appearance
-augmentation. The default split contains 6000 train, 500 validation, and 1000
-test scenes. Train the supplied NPU DROG-OFF experiment with:
+augmentation. The default split contains 12000 train, 1000 validation, and 2000
+test scenes, matching the current ToolRGS V3 training set. Train the supplied
+NPU DROG-OFF experiment with:
 
 ```bash
 python train.py --config config/grasp_tools/drogoff_grasp_tools_v2.yaml
 ```
 
-Here, `grasp_tools_v2` identifies the dataset release and the model uses
-Offset V1. See the [DROG-OFF naming guide](docs/drogoff_naming.md) for the
-complete dataset/protocol mapping.
+The legacy `drogoff_grasp_tools_v2.yaml` filename is retained to avoid breaking
+existing launch scripts, but its data root now follows the V3 default. See the
+[V3 data guide](docs/grasp_tools_v3.md) and
+[DROG-OFF naming guide](docs/drogoff_naming.md) for details.
 
 To train CROG, DROG-OFF, and LGD sequentially on eight NPUs, closing each
 distributed session before starting the next one, run:

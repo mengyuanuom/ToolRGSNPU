@@ -2,105 +2,75 @@ from collections import Counter
 from pathlib import Path
 import random
 import sys
-from types import SimpleNamespace
 
 from tools.dataset_converters.grasp_tools.augment import (
+    BalancedCategorySampler,
+    BalancedTransformSampler,
     SourceObject,
-    balanced_quotas,
-    balanced_scene_sizes,
-    plan_query_targets,
-    plan_split_scenes,
-    placement_scale_backoff,
+    build_config,
     parse_args,
 )
-from utils.grasp_tool_language import CANONICAL_CATEGORY_NAMES
 
 
-def fake_sources():
-    result = {}
-    for category in CANONICAL_CATEGORY_NAMES:
-        result[category] = [
-            SourceObject(
-                source_id=f"{category}:{index}",
-                image_path=Path(f"{category}_{index}.jpg"),
-                object_index=index,
-                category_key=category,
-                category_name=CANONICAL_CATEGORY_NAMES[category],
-                mask=((0.0, 0.0), (1.0, 0.0), (1.0, 1.0)),
-                grasps=(((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)),),
-            )
-            for index in range(3)
-        ]
-    return result
+def make_source(source_id: str) -> SourceObject:
+    return SourceObject(
+        source_id=source_id,
+        image_path=Path(f"{source_id}.jpg"),
+        object_index=0,
+        category_key="wrench",
+        category_name="wrench",
+        mask=((0.0, 0.0), (1.0, 0.0), (1.0, 1.0)),
+        grasps=(((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)),),
+    )
 
 
-def delta(values):
-    values = list(values)
-    return max(values) - min(values)
-
-
-def test_default_cli_is_balanced_difficulty_one(monkeypatch):
+def test_default_cli_matches_toolrgs_v3_15k_contract(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["augment.py"])
     args = parse_args()
-    assert (args.train_scenes, args.val_scenes, args.test_scenes) == (6000, 500, 1000)
+
+    assert args.src_dir == "assets/grasp_tools/graspall_v3"
+    assert args.out_dir == "datasets/grasp-tools/aug_graspall_v3_15k"
+    assert (args.train_scenes, args.val_scenes, args.test_scenes) == (
+        12000,
+        1000,
+        2000,
+    )
     assert (args.objects_min, args.objects_max) == (2, 3)
-    assert args.train_queries_per_scene == 4
-    assert args.eval_queries_per_scene == 4
+    assert (args.queries_min, args.queries_max) == (2, 4)
     assert args.max_query_difficulty == 1
     assert args.language_templates == "shared"
-    assert args.same_category_probability == 0.0
-    assert args.hard_negative_probability == 0.0
+    assert args.category_vocabulary == "expanded"
+    assert args.scales == (0.9, 1.0, 1.15, 1.3)
+    assert args.angle_bins == 24
+    assert args.seed == 2025
 
 
-def test_balanced_integer_quotas_and_scene_sizes():
-    rng = random.Random(7)
-    quotas = balanced_quotas(101, list("abcdef"), rng)
-    assert sum(quotas.values()) == 101
-    assert delta(quotas.values()) <= 1
-
-    sizes = balanced_scene_sizes(800, 3, 5, rng)
-    assert len(sizes) == 800
-    assert min(sizes) == 3
-    assert max(sizes) == 5
-    assert sum(sizes) == 3200
-    counts = Counter(sizes)
-    assert delta(counts.values()) <= 1
+def test_smoke_profile_matches_current_toolrgs_generator(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["augment.py", "--smoke-test"])
+    config = build_config(parse_args())
+    assert (config.train_scenes, config.val_scenes, config.test_scenes) == (4, 2, 2)
 
 
-def test_placement_scale_backoff_is_bounded_and_monotonic():
-    values = [placement_scale_backoff(attempt) for attempt in range(30)]
-    assert values[0] == 1.0
-    assert all(left >= right for left, right in zip(values, values[1:]))
-    assert values[-1] == 0.55
-    assert placement_scale_backoff(100) == 0.55
+def test_category_sampler_balances_each_complete_cycle():
+    categories = ["box", "pliers", "wrench", "screwdriver"]
+    sampler = BalancedCategorySampler(categories, random.Random(2025))
+    first_cycle = [sampler.next() for _ in categories]
+    second_cycle = [sampler.next() for _ in categories]
+    assert sorted(first_cycle) == sorted(categories)
+    assert sorted(second_cycle) == sorted(categories)
 
-def test_split_planner_balances_categories_sources_and_queries():
-    sources = fake_sources()
-    config = SimpleNamespace(
-        objects_min=3,
-        objects_max=5,
-        same_category_probability=0.35,
-        hard_negative_probability=0.30,
+
+def test_transform_sampler_exhausts_source_scale_angle_product():
+    sources = [make_source("wrench-a"), make_source("wrench-b")]
+    sampler = BalancedTransformSampler(
+        {"wrench": sources},
+        scales=(0.8, 1.2),
+        angle_bins=4,
+        rng=random.Random(7),
     )
-    rng = random.Random(2025)
-    scenes, source_usage = plan_split_scenes(66, sources, config, rng)
-
-    placements = Counter(
-        source.category_key for scene in scenes for source in scene
-    )
-    assert len(scenes) == 66
-    assert sum(placements.values()) == 264
-    assert delta(placements[category] for category in sources) <= 1
-
-    for category, category_sources in sources.items():
-        assert delta(
-            source_usage.get(source.source_id, 0)
-            for source in category_sources
-        ) <= 1
-
-    targets, target_quota = plan_query_targets(scenes, 6, rng)
-    assert all(len(scene_targets) == 6 for scene_targets in targets)
-    assert sum(target_quota.values()) == 396
-    assert delta(target_quota.values()) <= 1
-    for scene, scene_targets in zip(scenes, targets):
-        assert all(0 <= target < len(scene) for target in scene_targets)
+    samples = [sampler.next("wrench") for _ in range(16)]
+    source_counts = Counter(source.source_id for source, _, _ in samples)
+    scale_counts = Counter(scale for _, scale, _ in samples)
+    assert source_counts == {"wrench-a": 8, "wrench-b": 8}
+    assert scale_counts == {0.8: 8, 1.2: 8}
+    assert all(0.0 <= angle < 360.0 for _, _, angle in samples)
