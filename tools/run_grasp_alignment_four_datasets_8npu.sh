@@ -124,7 +124,8 @@ run_attempt() {
   local index="$1" batch="$2"
   local name="${NAMES[${index}]}" config="${CONFIGS[${index}]}" output_root="${OUTPUT_ROOTS[${index}]}"
   local exp_name="formal_${RUN_ID}_m4_${name}_b${batch}"
-  local exp_dir="${output_root}/${exp_name}" launcher_log="${exp_dir}/launcher.formal.log"
+  local exp_dir="${output_root}/${exp_name}"
+  local launcher_log="${exp_dir}/launcher.formal.log"
   local -a options=(TRAIN.exp_name "${exp_name}" TRAIN.batch_size "${batch}" TRAIN.batch_size_val "${VAL_GLOBAL_BATCH}" TRAIN.gradient_accumulation_steps 1)
 
   wait_for_all_npus
