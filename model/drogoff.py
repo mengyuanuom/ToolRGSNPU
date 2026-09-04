@@ -36,6 +36,11 @@ class DROGOFF(DROG):
         self.native_variant = str(getattr(cfg, "native_variant", "")).strip().lower()
         self.alignment_loss_weight = 0.0
         self.uses_query_decoder = True
+        if self.native_variant and self.fusion_adapter != "legacy":
+            raise ValueError(
+                "DROG-OFF reciprocal V1 and native V3/V4 are mutually exclusive"
+            )
+
         if self.native_variant:
             if self.native_variant not in {"v3", "v4"}:
                 raise ValueError(

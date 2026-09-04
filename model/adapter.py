@@ -192,3 +192,149 @@ class DenseAligner(nn.Module):
         if self.skip_connect:
             outputs+=x
         return outputs
+
+class ReciprocalVisionLanguageAdapter(nn.Module):
+    """Bidirectionally connect DINO patches and intermediate CLIP text tokens.
+
+    The legacy DenseAligner repeatedly injects the same final CLIP text into
+    several DINO blocks. This adapter is placed between paired DINO and CLIP
+    transformer layers. Text attends to a compact spatial summary of DINO
+    while every DINO patch attends to valid text tokens.
+    """
+
+    def __init__(
+        self,
+        visual_dim: int = 768,
+        text_dim: int = 512,
+        hidden_dim: int = 128,
+        num_heads: int = 8,
+        pool_size: int = 8,
+        dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        if hidden_dim % num_heads:
+            raise ValueError("reciprocal hidden_dim must be divisible by num_heads")
+        if pool_size <= 0:
+            raise ValueError("reciprocal pool_size must be positive")
+
+        self.pool_size = int(pool_size)
+        self.visual_norm = nn.LayerNorm(visual_dim)
+        self.text_norm = nn.LayerNorm(text_dim)
+
+        self.visual_query = nn.Linear(visual_dim, hidden_dim, bias=False)
+        self.text_key = nn.Linear(text_dim, hidden_dim, bias=False)
+        self.text_value = nn.Linear(text_dim, hidden_dim, bias=False)
+        self.text_to_visual = nn.MultiheadAttention(
+            hidden_dim, num_heads, dropout=dropout, batch_first=True
+        )
+
+        self.text_query = nn.Linear(text_dim, hidden_dim, bias=False)
+        self.visual_key = nn.Linear(visual_dim, hidden_dim, bias=False)
+        self.visual_value = nn.Linear(visual_dim, hidden_dim, bias=False)
+        self.visual_to_text = nn.MultiheadAttention(
+            hidden_dim, num_heads, dropout=dropout, batch_first=True
+        )
+
+        self.local_visual = nn.Sequential(
+            nn.Conv2d(
+                hidden_dim,
+                hidden_dim,
+                kernel_size=3,
+                padding=1,
+                groups=hidden_dim,
+                bias=False,
+            ),
+            nn.GELU(),
+            nn.Conv2d(hidden_dim, hidden_dim, kernel_size=1, bias=False),
+        )
+        self.visual_output = nn.Linear(hidden_dim, visual_dim, bias=False)
+        self.text_output = nn.Linear(hidden_dim, text_dim, bias=False)
+        self.visual_gate = nn.Linear(text_dim, visual_dim)
+        self.text_gate = nn.Linear(visual_dim, text_dim)
+        self.dropout = nn.Dropout(float(dropout))
+        self.visual_scale_logit = nn.Parameter(torch.tensor(-3.0))
+        self.text_scale_logit = nn.Parameter(torch.tensor(-3.0))
+
+        # Start from the frozen pretrained representation and learn the bridge
+        # smoothly. V1 reciprocal checkpoints are intentionally new.
+        nn.init.zeros_(self.visual_output.weight)
+        nn.init.zeros_(self.text_output.weight)
+        nn.init.zeros_(self.visual_gate.weight)
+        nn.init.zeros_(self.visual_gate.bias)
+        nn.init.zeros_(self.text_gate.weight)
+        nn.init.zeros_(self.text_gate.bias)
+
+    @staticmethod
+    def _masked_mean(tokens: Tensor, padding_mask: Tensor) -> Tensor:
+        valid = (~padding_mask.bool()).unsqueeze(-1).to(tokens.dtype)
+        return (tokens * valid).sum(dim=1) / valid.sum(dim=1).clamp_min(1.0)
+
+    @staticmethod
+    def _to_map(tokens: Tensor, height: int, width: int) -> Tensor:
+        if tokens.shape[1] != height * width:
+            raise RuntimeError(
+                f"visual token count {tokens.shape[1]} does not match {height}x{width}"
+            )
+        return tokens.reshape(
+            tokens.shape[0], height, width, tokens.shape[-1]
+        ).permute(0, 3, 1, 2)
+
+    def forward(
+        self,
+        visual_tokens: Tensor,
+        text_tokens: Tensor,
+        text_padding_mask: Tensor,
+        visual_grid: Tuple[int, int],
+        special_tokens: int = 5,
+    ) -> Tuple[Tensor, Tensor]:
+        height, width = visual_grid
+        visual_special = visual_tokens[:, :special_tokens]
+        visual_patches = visual_tokens[:, special_tokens:]
+        normalized_visual = self.visual_norm(visual_patches).float()
+        normalized_text = self.text_norm(text_tokens).float()
+
+        # CLIP -> DINO: dense language grounding, excluding padding tokens.
+        visual_query = self.visual_query(normalized_visual)
+        text_update = self.text_to_visual(
+            visual_query,
+            self.text_key(normalized_text),
+            self.text_value(normalized_text),
+            key_padding_mask=text_padding_mask.bool(),
+            need_weights=False,
+        )[0]
+        local_update = self.local_visual(
+            self._to_map(visual_query, height, width)
+        ).flatten(2).transpose(1, 2)
+        visual_update = text_update + local_update
+
+        # DINO -> CLIP: pool the grid before attention to bound memory at 448px.
+        pooled_visual = F.adaptive_avg_pool2d(
+            self._to_map(normalized_visual, height, width),
+            output_size=(min(self.pool_size, height), min(self.pool_size, width)),
+        ).flatten(2).transpose(1, 2)
+        language_update = self.visual_to_text(
+            self.text_query(normalized_text),
+            self.visual_key(pooled_visual),
+            self.visual_value(pooled_visual),
+            need_weights=False,
+        )[0]
+
+        text_context = self._masked_mean(normalized_text, text_padding_mask)
+        visual_context = pooled_visual.mean(dim=1)
+        visual_gate = torch.sigmoid(self.visual_gate(text_context)).unsqueeze(1)
+        text_gate = torch.sigmoid(self.text_gate(visual_context)).unsqueeze(1)
+
+        visual_patches = visual_patches + torch.sigmoid(
+            self.visual_scale_logit
+        ) * visual_gate * self.visual_output(self.dropout(visual_update)).to(
+            visual_patches.dtype
+        )
+        text_tokens = text_tokens + torch.sigmoid(
+            self.text_scale_logit
+        ) * text_gate * self.text_output(self.dropout(language_update)).to(
+            text_tokens.dtype
+        )
+        text_tokens = text_tokens.masked_fill(
+            text_padding_mask.unsqueeze(-1), 0.0
+        )
+        return torch.cat((visual_special, visual_patches), dim=1), text_tokens

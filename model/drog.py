@@ -25,7 +25,35 @@ class DROG(nn.Module):
         clip_model = torch.jit.load(cfg.clip_pretrain,
                                     map_location="cpu").eval()
         self.txt_backbone = build_model(clip_model.state_dict(), cfg.word_len, cfg.input_size, cfg.txtual_adapter_layer,cfg.txt_adapter_dim).float()
-        self.fusion = Fusion(d_model=cfg.ladder_dim, nhead=cfg.nhead,dino_layers=cfg.dino_layers, output_dinov2=cfg.output_dinov2)
+        self.fusion_adapter = str(
+            getattr(cfg, "fusion_adapter", "legacy")
+        ).strip().lower()
+        bridge_layers = tuple(
+            getattr(cfg, "reciprocal_adapter_layers", cfg.visual_adapter_layer)
+        )
+        dino_embed_dim = 768 if cfg.dino_name == "dino-base" else 1024
+        dino_adapter_layers = (
+            [] if self.fusion_adapter == "reciprocal" else cfg.visual_adapter_layer
+        )
+        self.fusion = Fusion(
+            d_model=cfg.ladder_dim,
+            nhead=cfg.nhead,
+            dino_layers=cfg.dino_layers,
+            output_dinov2=cfg.output_dinov2,
+            fusion_adapter=self.fusion_adapter,
+            adapter_layers=bridge_layers,
+            adapter_visual_dim=getattr(
+                cfg, "reciprocal_visual_dim", dino_embed_dim
+            ),
+            adapter_text_dim=cfg.word_dim,
+            adapter_hidden_dim=getattr(cfg, "reciprocal_hidden_dim", 128),
+            adapter_heads=getattr(cfg, "reciprocal_heads", 8),
+            adapter_pool_size=getattr(cfg, "reciprocal_pool_size", 8),
+            adapter_dropout=getattr(cfg, "reciprocal_dropout", 0.0),
+            input_is_clip_normalized=getattr(
+                cfg, "reciprocal_input_is_clip_normalized", True
+            ),
+        )
     
        # Fix Backbone
         for param_name, param in self.txt_backbone.named_parameters():
@@ -41,7 +69,7 @@ class DROG(nn.Module):
                 img_size=526,
                 init_values=1.0,
                 block_chunks=0,
-                add_adapter_layer=cfg.visual_adapter_layer,
+                add_adapter_layer=dino_adapter_layers,
                 visual_adapter_dim=cfg.visual_adapter_dim,                
             )
         else:
@@ -51,7 +79,7 @@ class DROG(nn.Module):
                 img_size=526,
                 init_values=1.0,
                 block_chunks=0,
-                add_adapter_layer=cfg.visual_adapter_layer,
+                add_adapter_layer=dino_adapter_layers,
                 visual_adapter_dim=cfg.visual_adapter_dim,                
             )
         self.dinov2.load_state_dict(state_dict, strict=False)
