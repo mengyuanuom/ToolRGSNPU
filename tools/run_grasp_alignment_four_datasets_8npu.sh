@@ -45,7 +45,9 @@ project_processes() {
 }
 
 all_npus_are_free() {
-  [[ "$(npu-smi info 2>/dev/null | grep -c 'No running processes found in NPU' || true)" -eq 8 ]]
+  local npu_info
+  npu_info="$(npu-smi info 2>/dev/null)" || return 1
+  ! grep -Eq '^\|[[:space:]]*[0-7][[:space:]]+[0-9]+[[:space:]]+\|[[:space:]]*[0-9]+[[:space:]]+\|' <<<"${npu_info}"
 }
 
 wait_for_all_npus() {
