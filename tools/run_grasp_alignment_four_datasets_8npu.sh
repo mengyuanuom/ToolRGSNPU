@@ -126,14 +126,14 @@ run_attempt() {
   local exp_name="formal_${RUN_ID}_m4_${name}_b${batch}"
   local exp_dir="${output_root}/${exp_name}"
   local launcher_log="${exp_dir}/launcher.formal.log"
-  local -a options=(TRAIN.exp_name "${exp_name}" TRAIN.batch_size "${batch}" TRAIN.batch_size_val "${VAL_GLOBAL_BATCH}" TRAIN.gradient_accumulation_steps 1)
+  local -a options=(TRAIN.exp_name "${exp_name}" TRAIN.batch_size "${batch}" TRAIN.batch_size_val "${VAL_GLOBAL_BATCH}")
 
   wait_for_all_npus
   [[ -f "${config}" ]] || { echo "MISSING_CONFIG name=${name} config=${config}"; return 20; }
   [[ ! -e "${exp_dir}" ]] || { echo "EXPERIMENT_EXISTS name=${name} exp_dir=${exp_dir}"; return 26; }
   mkdir -p "${exp_dir}"
 
-  echo "ATTEMPT_START name=${name} time=$(date --iso-8601=seconds) config=${config} exp=${exp_name} global_batch=${batch} per_rank=$((batch / 8)) val_global=${VAL_GLOBAL_BATCH} old_checkpoint=none"
+  echo "ATTEMPT_START name=${name} time=$(date --iso-8601=seconds) config=${config} exp=${exp_name} global_batch=${batch} per_rank=$((batch / 8)) gacc=1 val_global=${VAL_GLOBAL_BATCH} old_checkpoint=none"
   torchrun_guard_start "${launcher_log}" "${TORCHRUN}" --standalone --nproc_per_node=8 train.py --config "${config}" --opts "${options[@]}"
   if ! verify_launch_topology; then
     torchrun_guard_stop
@@ -154,7 +154,7 @@ run_attempt() {
 verify_v3_dataset
 [[ -z "$(project_processes)" ]] || { echo "PROJECT_ALREADY_RUNNING"; project_processes; exit 32; }
 
-echo "QUEUE_START run_id=${RUN_ID} jobs=${#NAMES[@]} start_index=${START_INDEX} batch_policy=256_then_128_on_oom val_global=${VAL_GLOBAL_BATCH} time=$(date --iso-8601=seconds)"
+echo "QUEUE_START run_id=${RUN_ID} jobs=${#NAMES[@]} start_index=${START_INDEX} batch_policy=256_then_128_on_oom gacc=1 val_global=${VAL_GLOBAL_BATCH} time=$(date --iso-8601=seconds)"
 for ((index=START_INDEX; index<${#NAMES[@]}; index++)); do
   name="${NAMES[${index}]}"
   completed=0
@@ -163,15 +163,16 @@ for ((index=START_INDEX; index<${#NAMES[@]}; index++)); do
       echo "STAGE_VERIFIED name=${name} batch=${batch}"
       completed=1
       break
+    else
+      rc=$?
+      if [[ "${rc}" -eq 42 && "${batch}" -eq 256 ]]; then
+        echo "OOM_FALLBACK name=${name} from_global=256 to_global=128 time=$(date --iso-8601=seconds)"
+        wait_for_all_npus
+        continue
+      fi
+      echo "STAGE_FAILED_STOPPING name=${name} batch=${batch} rc=${rc} time=$(date --iso-8601=seconds)"
+      exit "${rc}"
     fi
-    rc=$?
-    if [[ "${rc}" -eq 42 && "${batch}" -eq 256 ]]; then
-      echo "OOM_FALLBACK name=${name} from_global=256 to_global=128 time=$(date --iso-8601=seconds)"
-      wait_for_all_npus
-      continue
-    fi
-    echo "STAGE_FAILED_STOPPING name=${name} batch=${batch} rc=${rc} time=$(date --iso-8601=seconds)"
-    exit "${rc}"
   done
   [[ "${completed}" -eq 1 ]] || { echo "STAGE_EXHAUSTED_BATCHES name=${name}"; exit 43; }
 done
