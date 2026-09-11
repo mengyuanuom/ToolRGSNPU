@@ -7,5 +7,5 @@ _base_:
 TRAIN:
   batch_size: 11  # official ETRG single-device batch size
   batch_size_val: 11  # official ETRG validation batch size
-  exp_name: etrg_r101_ocid_vlg
+  exp_name: etrg_r101_ocid_vlg_sigmoid_masked
   output_folder: exp/ocid_vlg

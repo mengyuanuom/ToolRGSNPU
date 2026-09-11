@@ -9,6 +9,24 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ConfigInheritanceTest(unittest.TestCase):
+    def test_corrected_baselines_across_datasets(self):
+        paths = [
+            'config/vcot/etrg.yaml', 'config/vcot/ggcnnclip.yaml',
+            'config/ocid_vlg/etrg.yaml', 'config/ocid_vlg/etrg_r101.yaml',
+            'config/ocid_vlg/ggcnnclip.yaml',
+            'config/realvlg/etrg.yaml', 'config/realvlg/ggcnnclip.yaml',
+            'configs/etrg/etrg_r50_ocid_vlg.yaml',
+            'configs/etrg/etrg_r101_ocid_vlg.yaml',
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                cfg = load_cfg_from_cfg_file(ROOT / path)
+                self.assertEqual(cfg.grasp_loss_profile, 'sigmoid_masked')
+                self.assertEqual(cfg.grasp_quality_activation, 'sigmoid')
+                self.assertEqual(cfg.grasp_size_activation, 'sigmoid')
+                self.assertTrue(cfg.exp_name.endswith('_sigmoid_masked'))
+                self.assertFalse(cfg.resume)
+
     def test_etrg_experiment_composes_four_base_configs(self):
         cfg = load_cfg_from_cfg_file(
             ROOT / "configs" / "etrg" / "etrg_r50_ocid_vlg.yaml"

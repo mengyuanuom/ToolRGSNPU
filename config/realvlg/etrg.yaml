@@ -20,6 +20,9 @@ MODEL:
   architecture: etrg
 
 TRAIN:
+  grasp_loss_profile: sigmoid_masked
+  quality_positive_threshold: 0.05
+  geometry_mask_threshold: 0.000001
   version: multiple
   etrg_input_mode: rgb
   clip_pretrain: pretrain/RN50.pt
@@ -59,7 +62,7 @@ TRAIN:
   optimizer: adam
   optimizer_foreach: False
   pin_memory: False
-  exp_name: etrg_realvlg_full_e24_8npu_bs256
+  exp_name: etrg_realvlg_full_e24_8npu_bs256_sigmoid_masked
   output_folder: exp/realvlg
   save_freq: 0
   weight:
@@ -76,6 +79,7 @@ Distributed:
   rank: 0
 
 TEST:
+  grasp_quality_activation: sigmoid
   grasp_size_activation: sigmoid
   test_split: seen
   val_loop: realvlg_val

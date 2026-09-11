@@ -12,6 +12,9 @@
 MODEL:
   architecture: etrg
 TRAIN:
+  grasp_loss_profile: sigmoid_masked
+  quality_positive_threshold: 0.05
+  geometry_mask_threshold: 0.000001
   # RGB-only ETRG R50 profile. The auxiliary encoder consumes RGB.
   etrg_input_mode: rgb
   clip_pretrain: pretrain/RN50.pt
@@ -51,7 +54,7 @@ TRAIN:
   amp: False
   optimizer: adam
   pin_memory: false
-  exp_name: etrg_r50_ocid_vlg_8npu
+  exp_name: etrg_r50_ocid_vlg_8npu_sigmoid_masked
   output_folder: exp/ocid_vlg
   save_freq: 0  # disabled; only best validation checkpoints are saved
   weight:
@@ -64,6 +67,8 @@ Distributed:
   world_size: 1
   rank: 0
 TEST:
+  grasp_quality_activation: sigmoid
+  grasp_size_activation: sigmoid
   test_split: test
   evaluation_protocol: crog_legacy
   visualize: False

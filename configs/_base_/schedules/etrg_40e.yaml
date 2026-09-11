@@ -1,4 +1,7 @@
 TRAIN:
+  grasp_loss_profile: sigmoid_masked
+  quality_positive_threshold: 0.05
+  geometry_mask_threshold: 0.000001
   workers: 8
   workers_val: 4
   epochs: 40
@@ -12,6 +15,9 @@ TRAIN:
   weight:
   resume:
   evaluate: true
+TEST:
+  grasp_quality_activation: sigmoid
+  grasp_size_activation: sigmoid
 RUNTIME:
   optim_wrapper:
     type: npu_amp

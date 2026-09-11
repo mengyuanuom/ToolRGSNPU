@@ -20,6 +20,9 @@ MODEL:
   architecture: ggcnnclip
 
 TRAIN:
+  grasp_loss_profile: sigmoid_masked
+  quality_positive_threshold: 0.05
+  geometry_mask_threshold: 0.000001
   clip_pretrain: pretrain/RN50.pt
   version: multiple
   input_channels: 3
@@ -47,7 +50,7 @@ TRAIN:
   max_norm: 1.0
   manual_seed: 0
   print_freq: 100
-  exp_name: ggcnnclip_grasponly_realvlg_full_e24_8npu_bs256
+  exp_name: ggcnnclip_grasponly_realvlg_full_e24_8npu_bs256_sigmoid_masked
   output_folder: exp/realvlg
   save_freq: 0
   weight:
@@ -64,8 +67,8 @@ Distributed:
   rank: 0
 
 TEST:
-  grasp_quality_activation: identity
-  grasp_size_activation: clamp
+  grasp_quality_activation: sigmoid
+  grasp_size_activation: sigmoid
   evaluate_segmentation: False
   test_split: seen
   val_loop: realvlg_val

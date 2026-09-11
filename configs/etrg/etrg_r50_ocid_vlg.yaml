@@ -5,5 +5,5 @@ _base_:
   - ../_base_/runtime/ascend.yaml
 
 TRAIN:
-  exp_name: etrg_r50_ocid_vlg
+  exp_name: etrg_r50_ocid_vlg_sigmoid_masked
   output_folder: exp/ocid_vlg

@@ -77,6 +77,6 @@ run_stage \
 run_stage \
   vcot_etrg \
   config/experiments/vcot/etrg_bs256.yaml \
-  exp/vcot/etrg_vcot_8npu_bs256_e36
 
+  exp/vcot/etrg_vcot_8npu_bs256_e36_sigmoid_masked
 echo "ALL_STAGES_COMPLETE $(date --iso-8601=seconds)"

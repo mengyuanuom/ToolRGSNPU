@@ -23,7 +23,7 @@ case "${PROFILE}" in
     STAGE_DIRS=(
       exp/ocid_vlg/grconvnetclip_ocid_vlg_8npu_bs256_e50
       exp/vcot/maplegrasp_vcot_8npu_bs256_e36
-      exp/vcot/etrg_vcot_8npu_bs256_e36
+      exp/vcot/etrg_vcot_8npu_bs256_e36_sigmoid_masked
     )
     ;;
   drogoff_transport)

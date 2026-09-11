@@ -16,6 +16,9 @@ MODEL:
   architecture: etrg
 
 TRAIN:
+  grasp_loss_profile: sigmoid_masked
+  quality_positive_threshold: 0.05
+  geometry_mask_threshold: 0.000001
   version: multiple
   etrg_input_mode: rgb
   clip_pretrain: pretrain/RN50.pt
@@ -58,7 +61,7 @@ TRAIN:
   pin_memory: False
   predict_grasp_short_side: True
   short_side_loss_weight: 1.0
-  exp_name: etrg_vcot_8npu_bs256_e36
+  exp_name: etrg_vcot_8npu_bs256_e36_sigmoid_masked
   output_folder: exp/vcot
   save_freq: 0
   weight:
@@ -73,6 +76,7 @@ Distributed:
   rank: 0
 
 TEST:
+  grasp_quality_activation: sigmoid
   grasp_size_activation: sigmoid
   test_split: unseen
   evaluation_protocol: vcot_official

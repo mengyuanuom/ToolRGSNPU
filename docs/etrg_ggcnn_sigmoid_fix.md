@@ -11,7 +11,14 @@ positive/negative Smooth L1; sine, cosine, width and optional short-side
 regression use only pixels with labelled width above 1e-6. Angles remain
 unbounded doubled-angle sine/cosine regression, not sigmoid.
 
-Existing configs default to `legacy`, preserving existing checkpoint behavior.
+Configs without an explicit loss profile default to `legacy`.
+The standard VCOT, OCID-VLG (including ETRG R50/R101 composed configs), and
+RealVLG/GraspNet-VLG ETRG/GGCNN configs now explicitly enable `sigmoid_masked`.
+VCOT ETRG also has a convenient `config/vcot/etrg.yaml` entry point.
+Their dataset splits, size factors and evaluation protocols are unchanged;
+their default experiment names now end in `_sigmoid_masked`.
+For old checkpoints use the original config from before this update, not
+these updated training configs. Existing running processes are not changed.
 Do not evaluate old weights with the new profiles. Resume across loss profiles
 is rejected; start a fresh experiment for the correction. Checkpoints record
 the loss profile and decoding activation. For evaluation pass the matching
