@@ -18,8 +18,10 @@ our checkpoint re-evaluations.
 | Model | Result source | IoU | Pr@50 | Pr@60 | Pr@70 | Pr@80 | Pr@90 | J@1 | J@5 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | **DrogOff (ours)** | Project evaluation | **81.56** | **97.24** | **96.08** | **89.83** | **70.21** | **23.35** | **88.15** | **93.09** |
+| **MapleGrasp Stage 2 (ours)** | Project evaluation | 80.54 | **97.28** | 94.97 | 88.24 | 65.86 | 19.81 | **88.16** | 92.36 |
 | CROG | Original CROG paper | 81.10 | 96.90 | 94.80 | 87.20 | 64.10 | 16.40 | 77.20 | 87.70 |
 | GRConvNetCLIP | Project evaluation | N/A | N/A | N/A | N/A | N/A | N/A | 88.14 | 91.21 |
+| GraspMamba | Project evaluation | 76.39 | 90.50 | 88.59 | 83.45 | 61.24 | 18.22 | 85.86 | 88.44 |
 | LGD | Project evaluation, training-era compatible code | 65.94 | 88.38 | 79.14 | 54.71 | 26.96 | 0.02 | 84.94 | 87.27 |
 | ETRG | Project evaluation | 74.97 | 90.21 | 87.27 | 78.70 | 53.71 | 12.66 | 73.73 | 76.85 |
 | GGCNNCLIP | Project evaluation, training-era compatible code | N/A | N/A | N/A | N/A | N/A | N/A | 15.32 | 17.13 |
@@ -41,8 +43,10 @@ segmentation results.
 | Model | Checkpoint | Evaluation note |
 | --- | --- | --- |
 | DrogOff | `best_iou_epoch_046.pth` | Independent test/retest in `ToolRGSNPU`; both runs reproduce IoU 81.56, J@1 88.15, and J@5 93.09. |
+| MapleGrasp Stage 2 | `best_j1_epoch_045.pth` | Validation-J@1-selected checkpoint; eight-NPU test evaluation, global batch 8 / per-rank batch 1: IoU 80.54, J@1 88.16, J@5 92.36. |
 | GRConvNetCLIP | `best_epoch_036_J1_86.27_J5_90.94.pth` | Valid current-code clamp evaluation. |
 | LGD | `best_epoch_035_J1_84.28_J5_88.71.pth` | Evaluated with training-era commit `b09d9bf`; later forward-semantic changes are incompatible with this checkpoint. |
+| GraspMamba | `best_j1_epoch_047.pth` | Validation-J@1-selected checkpoint; eight-NPU test evaluation, global batch 8 / per-rank batch 1: IoU 76.39, J@1 85.86, J@5 88.44. |
 | ETRG | `best_epoch_034_J1_73.55_J5_78.77.pth` | Valid current-code clamp evaluation. |
 | GGCNNCLIP | `best_epoch_036_J1_20.26_J5_24.32.pth` | Evaluated with training-era commit `b09d9bf`; later FiLM/text-normalization semantics are incompatible with this checkpoint. |
 
@@ -62,13 +66,14 @@ retains this historical result here to avoid hiding a stronger archived J@1.
   The alternative MapleGrasp-Ref2Grab variant reports IoU 83.78, J@1 76.8,
   and J@Any/J@5 84.7. Paper: <https://arxiv.org/abs/2506.06535>.
 
+Both new project rows use checkpoints selected only by validation J@1. Test evaluation covered all 17,749 OCID-VLG test samples with eight ranks, global batch 8 and per-rank batch 1; test metrics were not used for checkpoint selection.
+
 ## Reading the table
 
-- DrogOff has the strongest selected J@1 result at 88.15.
-- DrogOff and MapleGrasp-CROG have similar reported segmentation IoU, 81.56
-  and 81.36 respectively, but they come from different result sources.
-- DrogOff also leads the aligned top-5 grasp-success comparison at 93.09,
-  followed by MapleGrasp-CROG at 91.90.
+- MapleGrasp Stage 2 has the strongest displayed project J@1 at 88.16, effectively tied with DrogOff at 88.15 and GRConvNetCLIP at 88.14.
+- DrogOff retains the strongest project segmentation IoU (81.56) and J@5 (93.09); MapleGrasp Stage 2 reaches 80.54 IoU and 92.36 J@5.
+- GraspMamba reaches 76.39 IoU, 85.86 J@1 and 88.44 J@5.
+- The locally evaluated MapleGrasp Stage 2 row is distinct from the paper-reported MapleGrasp-CROG row, which is not a directly reproduced checkpoint in this repository.
 
 ## Grasp-Tools V3
 
