@@ -1,4 +1,5 @@
 import torch
+from toolrgs.models.sigmoid_grasp_loss import configure, quality_loss as balanced_quality_loss, geometry_loss
 import torch.nn as nn
 import torch.nn.functional as F
 from .crog_clip import build_model
@@ -232,6 +233,7 @@ class GGCNN_CLIP(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.use_pretrained_clip = cfg.use_pretrained_clip
+        configure(self, cfg)
         self.predicts_grasp_short_side = bool(
             getattr(cfg, "predict_grasp_short_side", False)
         )
@@ -337,6 +339,14 @@ class GGCNN_CLIP(nn.Module):
             if self.predicts_grasp_short_side
             else None
         )
+        if self.sigmoid_masked:
+            valid = targets.width > self.geometry_mask_threshold
+            quality_loss = balanced_quality_loss(pos_pred, targets.quality, self.quality_positive_threshold)
+            sine_loss = geometry_loss(sin_pred, targets.sine, valid)
+            cosine_loss = geometry_loss(cos_pred, targets.cosine, valid)
+            width_loss = geometry_loss(wid_pred.sigmoid(), targets.width, valid)
+            if short_pred is not None:
+                short_loss = geometry_loss(short_pred.sigmoid(), targets.short_side, valid)
         total_loss = (
             quality_loss + sine_loss + cosine_loss + width_loss
         )

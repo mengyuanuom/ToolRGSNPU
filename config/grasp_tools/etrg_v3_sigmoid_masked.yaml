@@ -1,0 +1,28 @@
+_base_: ../ocid_vlg/etrg.yaml
+DATA:
+  dataset: GraspTool
+  root_path: ./datasets/grasp-tools/aug_graspall_v3_15k
+  grasp_size_factor: 300
+  grasp_size_coordinate: original
+  grasp_height: 20.0
+TRAIN:
+  grasp_loss_profile: sigmoid_masked
+  quality_positive_threshold: 0.05
+  geometry_mask_threshold: 0.000001
+  epochs: 36
+  milestones: [30]
+  batch_size: 16
+  batch_size_val: 16
+  exp_name: etrg_grasp_tools_v3_sigmoid_masked
+  output_folder: exp/grasp_tools
+  weight:
+  resume:
+TEST:
+  evaluation_protocol: toolrgs
+  grasp_quality_activation: sigmoid
+  grasp_size_activation: sigmoid
+  grasp_iou_threshold: 0.25
+  grasp_iou_thresholds: [0.25, 0.50, 0.75]
+  grasp_angle_threshold: 30.0
+  restore_grasp_size_scale: False
+  test_split: test

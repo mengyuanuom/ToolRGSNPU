@@ -311,6 +311,8 @@ class NPUGraspRunner:
 
         if getattr(cfg, "resume", None):
             checkpoint = torch.load(cfg.resume, map_location="cpu")
+            if checkpoint.get("grasp_loss_profile", "legacy") != getattr(cfg, "grasp_loss_profile", "legacy"):
+                raise ValueError("Resume grasp_loss_profile mismatch; use a fresh experiment for corrected losses")
             checkpoint_factor = checkpoint.get("grasp_size_factor")
             checkpoint_coordinate = checkpoint.get("grasp_size_coordinate")
             checkpoint_activation = checkpoint.get("grasp_size_activation")
@@ -444,6 +446,8 @@ class NPUGraspRunner:
             )
 
         checkpoint = {
+            "grasp_loss_profile": getattr(cfg, "grasp_loss_profile", "legacy"),
+            "grasp_quality_activation": getattr(cfg, "grasp_quality_activation", None),
             "epoch": int(epoch),
             "best_iou": self.best_iou,
             # Keep the legacy field for old resume/evaluation consumers. It is

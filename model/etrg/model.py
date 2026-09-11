@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import torch
+from toolrgs.models.sigmoid_grasp_loss import configure, quality_loss as balanced_quality_loss, geometry_loss
 import torch.nn as nn
 import torch.nn.functional as F
 from loguru import logger
@@ -122,6 +123,7 @@ class ETRG(BaseGraspModel):
     def __init__(self, cfg):
         super().__init__()
         self.input_mode = str(getattr(cfg, "etrg_input_mode", "rgbd")).lower()
+        configure(self, cfg)
         if self.input_mode not in {"rgb", "rgbd"}:
             raise ValueError(
                 "etrg_input_mode must be 'rgb' or 'rgbd', "
@@ -316,6 +318,14 @@ class ETRG(BaseGraspModel):
             if self.predicts_grasp_short_side
             else None
         )
+        if self.sigmoid_masked:
+            valid = grasp_wid_mask > self.geometry_mask_threshold
+            quality = balanced_quality_loss(outputs[1], grasp_qua_mask, self.quality_positive_threshold)
+            sine = geometry_loss(outputs[2], grasp_sin_mask, valid)
+            cosine = geometry_loss(outputs[3], grasp_cos_mask, valid)
+            width = geometry_loss(outputs[4].sigmoid(), grasp_wid_mask, valid)
+            if self.predicts_grasp_short_side:
+                short_side = geometry_loss(outputs[5].sigmoid(), grasp_short_mask, valid)
         total = instance + quality + sine + cosine + width
         if short_side is not None:
             total = total + self.short_side_loss_weight * short_side
